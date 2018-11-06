@@ -1,12 +1,15 @@
 import { SheetsRegistry } from 'react-jss';
-import { createMuiTheme, createGenerateClassName } from 'material-ui/styles';
-import blue from 'material-ui/colors/blue';
-import grey from 'material-ui/colors/grey';
+import { createMuiTheme, createGenerateClassName } from '@material-ui/core/styles';
+import blue from '@material-ui/core/colors/blue';
+import grey from '@material-ui/core/colors/grey';
 
 const theme = createMuiTheme({
   palette: {
     primary: { main: blue[700] },
     secondary: { main: grey[700] },
+  },
+  typography: {
+    useNextVariants: true,
   },
 });
 

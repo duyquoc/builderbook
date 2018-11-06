@@ -1,7 +1,7 @@
-import Toolbar from 'material-ui/Toolbar';
-import Grid from 'material-ui/Grid';
+import Toolbar from '@material-ui/core/Toolbar';
+import Grid from '@material-ui/core/Grid';
 
-import { styleToolbar } from './SharedStyles';
+import { styleToolbar } from '../lib/SharedStyles';
 
 function Footer() {
   return (

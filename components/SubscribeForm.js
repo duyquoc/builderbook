@@ -1,11 +1,11 @@
 import React from 'react';
-import TextField from 'material-ui/TextField';
-import Button from 'material-ui/Button';
+import TextField from '@material-ui/core/TextField';
+import Button from '@material-ui/core/Button';
 import NProgress from 'nprogress';
 
 import notify from '../lib/notifier';
 import { subscribeToTutorials } from '../lib/api/public';
-import { styleTextField, styleRaisedButton } from '../components/SharedStyles';
+import { styleTextField, styleRaisedButton } from '../lib/SharedStyles';
 
 class SubscribeForm extends React.Component {
   onSubmit = async (e) => {
@@ -45,7 +45,7 @@ class SubscribeForm extends React.Component {
             style={styleTextField}
             required
           />
-          <Button variant="raised" color="secondary" type="submit" style={styleRaisedButton}>
+          <Button variant="contained" color="secondary" type="submit" style={styleRaisedButton}>
             Get updates
           </Button>
         </form>

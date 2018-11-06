@@ -1,7 +1,9 @@
+import mongoose from 'mongoose';
 import _ from 'lodash';
-import mongoose, { Schema } from 'mongoose';
 
 import generateSlug from '../utils/slugify';
+
+const { Schema } = mongoose;
 
 const mongoSchema = new Schema({
   googleId: {
@@ -76,7 +78,7 @@ class UserClass {
     }
 
     const slug = await generateSlug(this, displayName);
-    const userCount = await this.find().count();
+    const userCount = await this.find().countDocuments();
 
     const newUser = await this.create({
       createdAt: new Date(),

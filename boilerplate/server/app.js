@@ -1,20 +1,19 @@
-import express from 'express';
-import session from 'express-session';
-import mongoSessionStore from 'connect-mongo';
-import next from 'next';
-import mongoose from 'mongoose';
-import getRootUrl from '../lib/api/getRootUrl';
-import auth from './google';
+const express = require('express');
+const session = require('express-session');
+const mongoSessionStore = require('connect-mongo');
+const next = require('next');
+const mongoose = require('mongoose');
+const auth = require('./google');
 
 require('dotenv').config();
 
 const dev = process.env.NODE_ENV !== 'production';
 const MONGO_URL = process.env.MONGO_URL_TEST;
 
-mongoose.connect(MONGO_URL);
+mongoose.connect(MONGO_URL, { useNewUrlParser: true });
 
 const port = process.env.PORT || 8000;
-const ROOT_URL = getRootUrl();
+const ROOT_URL = dev ? `http://localhost:${port}` : 'https://mydomain.com';
 
 const sessionSecret = process.env.SESSION_SECRET;
 

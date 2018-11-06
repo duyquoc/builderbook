@@ -1,30 +1,23 @@
 /* eslint-disable react/no-danger */
-
 import React from 'react';
-import Router from 'next/router';
 import JssProvider from 'react-jss/lib/JssProvider';
 import Document, { Head, Main, NextScript } from 'next/document';
-
+import htmlescape from 'htmlescape';
 import getContext from '../lib/context';
 
-require('dotenv').config();
-
-const gaTrackingId = 'process.env.GA_TRACKING_ID';
-
-Router.onRouteChangeComplete = () => {
-  if (window.gtag) {
-    window.gtag('config', window.gaTrackingId, {
-      page_location: window.location.href,
-      page_path: window.location.pathname,
-      page_title: window.document.title,
-    });
-  }
-};
+const { GA_TRACKING_ID, StripePublishableKey } = process.env;
+const env = { GA_TRACKING_ID, StripePublishableKey };
+// console.log(GA_TRACKING_ID);
 
 class MyDocument extends Document {
   render() {
     return (
-      <html lang="en">
+      <html
+        lang="en"
+        style={{
+          height: '100%',
+        }}
+      >
         <Head>
           <meta charSet="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -78,17 +71,16 @@ class MyDocument extends Document {
               }
             `}
           </style>
-          <script async src={`https://www.googletagmanager.com/gtag/js?id=${gaTrackingId}`} />
+          <script async src={`https://www.googletagmanager.com/gtag/js?id=${GA_TRACKING_ID}`} />
           <script
             dangerouslySetInnerHTML={{
               __html: `
-                window.gaTrackingId = '${gaTrackingId}';
                 window.dataLayer = window.dataLayer || [];
                 function gtag(){
                   dataLayer.push(arguments);
                 }
                 gtag('js', new Date());
-                gtag('config', '${gaTrackingId}');
+                gtag('config', '${GA_TRACKING_ID}');
               `,
             }}
           />
@@ -101,9 +93,11 @@ class MyDocument extends Document {
             fontWeight: '400',
             lineHeight: '1.5em',
             backgroundColor: '#F7F9FC',
+            minHeight: '100%',
           }}
         >
           <Main />
+          <script dangerouslySetInnerHTML={{ __html: `__ENV__ = ${htmlescape(env)}` }} />
           <NextScript />
         </body>
       </html>
@@ -128,7 +122,6 @@ MyDocument.getInitialProps = (ctx) => {
     styles: (
       <style
         id="jss-server-side"
-        // eslint-disable-next-line
         dangerouslySetInnerHTML={{ __html: pageContext.sheetsRegistry.toString() }}
       />
     ),

@@ -2,15 +2,13 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import Link from 'next/link';
 
-import Button from 'material-ui/Button';
+import Button from '@material-ui/core/Button';
 
 import notify from '../../lib/notifier';
 
 import withLayout from '../../lib/withLayout';
 import withAuth from '../../lib/withAuth';
-import {
-  getBookList,
-} from '../../lib/api/admin';
+import { getBookList } from '../../lib/api/admin';
 
 
 const Index = ({
@@ -20,7 +18,7 @@ const Index = ({
     <div>
       <h2>Books</h2>
       <Link href="/admin/add-book">
-        <Button variant="raised">Add book</Button>
+        <Button variant="contained">Add book</Button>
       </Link>
       <p />
       <ul>
@@ -70,4 +68,4 @@ class IndexWithData extends React.Component {
   }
 }
 
-export default withAuth(withLayout(IndexWithData), { adminRequired: true });
+export default withAuth(withLayout(IndexWithData));

@@ -1,10 +1,11 @@
-import express from 'express';
+const express = require('express');
+const _ = require('lodash');
 
-import Book from '../models/Book';
-import Chapter from '../models/Chapter';
-import Review from '../models/Review';
-import Tutorial from '../models/Tutorial';
-import { subscribe } from '../mailchimp';
+const Book = require('../models/Book');
+const Chapter = require('../models/Chapter');
+const Review = require('../models/Review');
+const Tutorial = require('../models/Tutorial');
+const { subscribe } = require('../mailchimp');
 
 const router = express.Router();
 
@@ -19,7 +20,7 @@ router.get('/books', async (req, res) => {
 
 router.get('/books/:slug', async (req, res) => {
   try {
-    const book = await Book.getBySlug({ slug: req.params.slug, userId: req.user && req.user.id });
+    const book = await Book.getBySlug({ slug: req.params.slug });
     res.json(book);
   } catch (err) {
     res.json({ error: err.message || err.toString() });
@@ -61,8 +62,9 @@ router.get('/get-table-of-contents', async (req, res) => {
 
 router.get('/get-book-reviews', async (req, res) => {
   try {
-    const review = await Review.findOne({ bookSlug: req.query.slug }, 'reviews').lean();
-    res.json(review);
+    const reviewDoc = await Review.findOne({ bookSlug: req.query.slug }, 'reviews').lean();
+    const reviews = _.sortBy(reviewDoc.reviews, 'order');
+    res.json(reviews);
   } catch (err) {
     res.json({ error: err.message || err.toString() });
   }
@@ -70,8 +72,9 @@ router.get('/get-book-reviews', async (req, res) => {
 
 router.get('/get-tutorials', async (req, res) => {
   try {
-    const tutorial = await Tutorial.findOne({ bookSlug: req.query.slug }, 'tutorials').lean();
-    res.json(tutorial);
+    const tutorialDoc = await Tutorial.findOne({ bookSlug: req.query.slug }, 'tutorials').lean();
+    const tutorials = _.sortBy(tutorialDoc.tutorials, 'order');
+    res.json(tutorials);
   } catch (err) {
     res.json({ error: err.message || err.toString() });
   }
@@ -93,4 +96,4 @@ router.post('/subscribe-to-tutorials', async (req, res) => {
 });
 
 
-export default router;
+module.exports = router;

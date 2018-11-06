@@ -1,17 +1,19 @@
-import express from 'express';
-import session from 'express-session';
-import compression from 'compression';
-import mongoSessionStore from 'connect-mongo';
-import next from 'next';
-import mongoose from 'mongoose';
-import helmet from 'helmet';
-import sitemapAndRobots from './sitemapAndRobots';
-import auth from './google';
-import { setupGithub as github } from './github';
-import api from './api';
+const express = require('express');
+const session = require('express-session');
+const compression = require('compression');
+const mongoSessionStore = require('connect-mongo');
+const next = require('next');
+const mongoose = require('mongoose');
+const helmet = require('helmet');
+const routesWithSlug = require('./routesWithSlug');
+const routesWithCache = require('./routesWithCache');
+const sitemapAndRobots = require('./sitemapAndRobots');
 
-import logger from './logs';
-import routesWithSlug from './routesWithSlug';
+const auth = require('./google');
+const { setupGithub } = require('./github');
+const api = require('./api');
+
+const logger = require('./logs');
 
 require('dotenv').config();
 
@@ -21,7 +23,16 @@ const ROOT_URL = dev ? `http://localhost:${port}` : 'https://builderbook.org';
 
 const MONGO_URL = dev ? process.env.MONGO_URL_TEST : process.env.MONGO_URL;
 
-mongoose.connect(MONGO_URL);
+const options = {
+  useNewUrlParser: true,
+  useCreateIndex: true,
+  useFindAndModify: false,
+};
+
+mongoose.connect(
+  MONGO_URL,
+  options,
+);
 
 const sessionSecret = process.env.SESSION_SECRET;
 
@@ -36,7 +47,18 @@ const handle = app.getRequestHandler();
 app.prepare().then(() => {
   const server = express();
 
-  // give all Nextjs's request to Nextjs before anything else
+  server.use(helmet());
+  server.use(compression());
+  server.use(express.json());
+
+  // potential fix for Error: Can't set headers
+  // try reproducing with Chrome Dev Tools open
+
+  // if (!dev) {
+  //   server.use(compression());
+  // };
+
+  // give all Nextjs's request to Nextjs server
   server.get('/_next/*', (req, res) => {
     handle(req, res);
   });
@@ -44,10 +66,6 @@ app.prepare().then(() => {
   server.get('/static/*', (req, res) => {
     handle(req, res);
   });
-
-  server.use(helmet());
-  server.use(compression());
-  server.use(express.json());
 
   const MongoStore = mongoSessionStore(session);
   const sess = {
@@ -73,9 +91,11 @@ app.prepare().then(() => {
   server.use(session(sess));
 
   auth({ server, ROOT_URL });
-  github({ server });
+  setupGithub({ server });
   api(server);
+
   routesWithSlug({ server, app });
+  routesWithCache({ server, app });
 
   sitemapAndRobots({ server });
 

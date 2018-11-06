@@ -1,22 +1,14 @@
 import PropTypes from 'prop-types';
 import Link from 'next/link';
-import Router from 'next/router';
-import NProgress from 'nprogress';
-import Toolbar from 'material-ui/Toolbar';
-import Grid from 'material-ui/Grid';
-import Hidden from 'material-ui/Hidden';
-import Button from 'material-ui/Button';
-import Avatar from 'material-ui/Avatar';
+import Toolbar from '@material-ui/core/Toolbar';
+import Grid from '@material-ui/core/Grid';
+import Hidden from '@material-ui/core/Hidden';
+import Button from '@material-ui/core/Button';
+import Avatar from '@material-ui/core/Avatar';
 
 import MenuDrop from './MenuDrop';
 
-import { styleToolbar, styleRaisedButton } from './SharedStyles';
-
-Router.onRouteChangeStart = () => {
-  NProgress.start();
-};
-Router.onRouteChangeComplete = () => NProgress.done();
-Router.onRouteChangeError = () => NProgress.done();
+import { styleToolbar, styleRaisedButton } from '../lib/SharedStyles';
 
 const optionsMenuCustomer = [
   {
@@ -56,13 +48,13 @@ function Header({ user, hideHeader, next }) {
     >
       <Toolbar style={styleToolbar}>
         <Grid container direction="row" justify="space-around" alignItems="center">
-          <Grid item sm={8} xs={7} style={{ textAlign: 'left' }}>
+          <Grid item sm={6} xs={1} style={{ textAlign: 'left' }}>
             {!user ? (
               <Link prefetch href="/">
                 <Avatar
                   src="https://storage.googleapis.com/builderbook/logo.svg"
                   alt="Builder Book logo"
-                  style={{ margin: '0px auto 0px 20px', cursor: 'pointer' }}
+                  style={{ margin: '0px auto 0px 10px', cursor: 'pointer' }}
                 />
               </Link>
             ) : null}
@@ -71,14 +63,14 @@ function Header({ user, hideHeader, next }) {
             {user && user.isAdmin && !user.isGithubConnected ? (
               <Hidden smDown>
                 <a href="/auth/github">
-                  <Button variant="raised" color="primary" style={styleRaisedButton}>
+                  <Button variant="contained" color="primary" style={styleRaisedButton}>
                     Connect Github
                   </Button>
                 </a>
               </Hidden>
             ) : null}
           </Grid>
-          <Grid item sm={2} xs={3} style={{ textAlign: 'right' }}>
+          <Grid item sm={4} xs={9} style={{ textAlign: 'right' }}>
             {user ? (
               <div style={{ whiteSpace: ' nowrap' }}>
                 {!user.isAdmin ? (
@@ -97,9 +89,20 @@ function Header({ user, hideHeader, next }) {
                 ) : null}
               </div>
             ) : (
-              <Link prefetch href={{ pathname: '/public/login', asPath: '/login', query: { next } }}>
-                <a style={{ margin: '0px 20px 0px auto' }}>Log in</a>
-              </Link>
+              <div>
+                <Link prefetch href="/book">
+                  <a style={{ margin: '20px 20px 0px auto' }}>Book</a>
+                </Link>
+                <Link prefetch href="/tutorials">
+                  <a style={{ margin: '20px 20px 0px auto' }}>Tutorials</a>
+                </Link>
+                <Link
+                  prefetch
+                  href={{ pathname: '/public/login', asPath: '/login', query: { next } }}
+                >
+                  <a style={{ margin: '0px 20px 0px auto' }}>Log in</a>
+                </Link>
+              </div>
             )}
           </Grid>
         </Grid>

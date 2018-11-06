@@ -1,15 +1,13 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import Button from 'material-ui/Button';
-import TextField from 'material-ui/TextField';
-import Input from 'material-ui/Input';
-import Select from 'material-ui/Select';
-import { MenuItem } from 'material-ui/Menu';
-import Checkbox from 'material-ui/Checkbox';
-import { FormControlLabel } from 'material-ui/Form';
+import Button from '@material-ui/core/Button';
+import TextField from '@material-ui/core/TextField';
+import Input from '@material-ui/core/Input';
+import Select from '@material-ui/core/Select';
+import MenuItem from '@material-ui/core/MenuItem';
 
 import { getGithubRepos } from '../../lib/api/admin';
-import { styleTextField } from '../../components/SharedStyles';
+import { styleTextField } from '../../lib/SharedStyles';
 import notify from '../../lib/notifier';
 
 class EditBook extends React.Component {
@@ -95,7 +93,6 @@ class EditBook extends React.Component {
               value={this.state.book.name || ''}
               type="text"
               label="Book's title"
-              labelClassName="textFieldLabel"
               style={styleTextField}
               required
             />
@@ -155,7 +152,7 @@ class EditBook extends React.Component {
           />
           <br />
           <br />
-          <Button variant="raised" type="submit">
+          <Button variant="contained" type="submit">
             Save
           </Button>
         </form>

@@ -1,7 +1,8 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import NProgress from 'nprogress';
-import Menu, { MenuItem } from 'material-ui/Menu';
+import Menu from '@material-ui/core/Menu';
+import MenuItem from '@material-ui/core/MenuItem';
 
 import notify from '../../lib/notifier';
 import { addBookmark } from '../../lib/api/customer';
@@ -82,8 +83,8 @@ export default class Bookmark extends React.PureComponent {
           aria-owns={anchorEl ? 'simple-menu' : null}
           aria-haspopup="true"
           style={{
-            opacity: '0.5',
-            fontSize: '24',
+            opacity: '0.75',
+            fontSize: '24px',
             cursor: 'pointer',
           }}
           role="button"

@@ -1,7 +1,8 @@
-import _ from 'lodash';
-import mongoose, { Schema } from 'mongoose';
+const mongoose = require('mongoose');
+const _ = require('lodash');
+const generateSlug = require('../utils/slugify');
 
-import generateSlug from '../utils/slugify';
+const { Schema } = mongoose;
 
 const mongoSchema = new Schema({
   googleId: {
@@ -100,7 +101,7 @@ class UserClass {
     }
 
     const slug = await generateSlug(this, displayName);
-    const userCount = await this.find().count();
+    const userCount = await this.find().countDocuments();
 
     const newUser = await this.create({
       createdAt: new Date(),
@@ -138,4 +139,4 @@ mongoSchema.loadClass(UserClass);
 
 const User = mongoose.model('User', mongoSchema);
 
-export default User;
+module.exports = User;

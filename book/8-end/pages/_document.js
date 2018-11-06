@@ -1,13 +1,25 @@
 import React from 'react';
 import JssProvider from 'react-jss/lib/JssProvider';
 import Document, { Head, Main, NextScript } from 'next/document';
+import htmlescape from 'htmlescape';
 
 import getContext from '../lib/context';
+
+const { StripePublishableKey } = process.env;
+// console.log(StripePublishableKey);
+
+const env = { StripePublishableKey };
+// console.log(env);
 
 class MyDocument extends Document {
   render() {
     return (
-      <html lang="en">
+      <html
+        lang="en"
+        style={{
+          height: '100%',
+        }}
+      >
         <Head>
           <meta charSet="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -73,9 +85,12 @@ class MyDocument extends Document {
             fontWeight: '300',
             lineHeight: '1.5em',
             backgroundColor: '#F7F9FC',
+            minHeight: '100%',
           }}
         >
           <Main />
+          {/* eslint-disable-next-line react/no-danger */}
+          <script dangerouslySetInnerHTML={{ __html: `__ENV__ = ${htmlescape(env)}` }} />
           <NextScript />
         </body>
       </html>

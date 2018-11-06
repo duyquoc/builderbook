@@ -1,9 +1,9 @@
 import PropTypes from 'prop-types';
 import Head from 'next/head';
 import Link from 'next/link';
-import Grid from 'material-ui/Grid';
-import Avatar from 'material-ui/Avatar';
-import Button from 'material-ui/Button';
+import Grid from '@material-ui/core/Grid';
+import Avatar from '@material-ui/core/Avatar';
+import Button from '@material-ui/core/Button';
 
 import Header from '../components/HomeHeader';
 import Footer from '../components/HomeFooter';
@@ -15,7 +15,7 @@ import {
   styleRaisedButton,
   styleHomepageFeature,
   styleH1,
-} from '../components/SharedStyles';
+} from '../lib/SharedStyles';
 import withLayout from '../lib/withLayout';
 import withAuth from '../lib/withAuth';
 import { getTableOfContents, getBookReviews } from '../lib/api/public';
@@ -25,7 +25,7 @@ const styleAuthor = {
   padding: '10px 10%',
 };
 
-const Book = ({ user, toc, review }) => (
+const Book = ({ user, toc, reviews }) => (
   <div>
     <Head>
       <title>Learn how to build a JavaScript web app from scratch</title>
@@ -51,7 +51,7 @@ const Book = ({ user, toc, review }) => (
               as="/books/builder-book/introduction"
               href="/public/read-chapter?bookSlug=builder-book&chapterSlug=introduction"
             >
-              <Button variant="raised" color="primary" style={styleRaisedButton}>
+              <Button variant="contained" color="primary" style={styleRaisedButton}>
                 Read Preview
               </Button>
             </Link>
@@ -60,7 +60,7 @@ const Book = ({ user, toc, review }) => (
               target="_blank"
               rel="noopener noreferrer"
             >
-              <Button variant="raised" color="secondary" style={styleRaisedButton}>
+              <Button variant="contained" color="secondary" style={styleRaisedButton}>
                 Book Code
               </Button>
             </a>
@@ -94,7 +94,7 @@ const Book = ({ user, toc, review }) => (
       <br />
 
       <div>
-        <BookReviews reviewsArray={review.reviews} numberOfReviews={4} />
+        <BookReviews reviewsArray={reviews} numberOfReviews={8} />
       </div>
 
       <br />
@@ -121,7 +121,7 @@ const Book = ({ user, toc, review }) => (
           {' '}
           Harbor
         </a>. Stay tuned for
-        <a href="https://github.com/builderbook/async" target="_blank" rel="noopener noreferrer">
+        <a href="https://github.com/async-labs/async-saas" target="_blank" rel="noopener noreferrer">
           {' '}
           Async
         </a>.
@@ -179,9 +179,8 @@ Book.propTypes = {
   toc: PropTypes.arrayOf(PropTypes.shape({
     title: PropTypes.string.isRequired,
   })).isRequired,
-  review: PropTypes.shape({
-    reviews: PropTypes.array.isRequired,
-  }).isRequired,
+  reviews: PropTypes.arrayOf(PropTypes.object)
+    .isRequired,
 };
 
 Book.defaultProps = {
@@ -190,18 +189,18 @@ Book.defaultProps = {
 
 Book.getInitialProps = async function getInitialProps() {
   let toc = [];
-  let review;
+  let reviews = [];
   try {
     toc = await getTableOfContents({ slug: 'builder-book' });
   } catch (error) {
     console.log(error); // eslint-disable-line
   }
   try {
-    review = await getBookReviews({ slug: 'builder-book' });
+    reviews = await getBookReviews({ slug: 'builder-book' });
   } catch (error) {
     console.log(error); // eslint-disable-line
   }
-  return { toc, review };
+  return { toc, reviews };
 };
 
 export default withAuth(withLayout(Book, { noHeader: true }), { loginRequired: false });

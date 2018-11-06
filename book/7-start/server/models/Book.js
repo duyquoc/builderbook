@@ -1,4 +1,4 @@
-import mongoose, { Schema } from 'mongoose';
+import mongoose from 'mongoose';
 import frontmatter from 'front-matter';
 
 import generateSlug from '../utils/slugify';
@@ -6,6 +6,8 @@ import Chapter from './Chapter';
 
 import { getCommits, getContent } from '../github';
 import logger from '../logs';
+
+const { Schema } = mongoose;
 
 const mongoSchema = new Schema({
   name: {
@@ -87,7 +89,11 @@ class BookClass {
       modifier.slug = await generateSlug(this, name);
     }
 
-    return this.updateOne({ _id: id }, { $set: modifier });
+    await this.updateOne({ _id: id }, { $set: modifier });
+
+    const editedBook = await this.findById(id, 'slug');
+
+    return editedBook;
   }
 
 
@@ -146,7 +152,7 @@ class BookClass {
       }
     }));
 
-    return book.update({ githubLastCommitSha: lastCommitSha });
+    return book.updateOne({ githubLastCommitSha: lastCommitSha });
   }
 }
 

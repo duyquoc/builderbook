@@ -1,10 +1,10 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import Button from 'material-ui/Button';
-import TextField from 'material-ui/TextField';
-import Input from 'material-ui/Input';
-import Select from 'material-ui/Select';
-import { MenuItem } from 'material-ui/Menu';
+import Button from '@material-ui/core/Button';
+import TextField from '@material-ui/core/TextField';
+import Input from '@material-ui/core/Input';
+import Select from '@material-ui/core/Select';
+import MenuItem from '@material-ui/core/MenuItem';
 
 import { getGithubRepos } from '../../lib/api/admin';
 import { styleTextField } from '../../components/SharedStyles';
@@ -77,7 +77,6 @@ class EditBook extends React.Component {
               value={this.state.book.name}
               type="text"
               label="Book's title"
-              labelClassName="textFieldLabel"
               style={styleTextField}
               required
             />
@@ -123,7 +122,7 @@ class EditBook extends React.Component {
           </div>
           <br />
           <br />
-          <Button raised type="submit">
+          <Button variant="contained" type="submit">
             Save
           </Button>
         </form>

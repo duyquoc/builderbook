@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
-import Grid from 'material-ui/Grid';
-import Avatar from 'material-ui/Avatar';
-import { styleBigAvatar } from './SharedStyles';
+import Grid from '@material-ui/core/Grid';
+import Avatar from '@material-ui/core/Avatar';
+import { styleBigAvatar } from '../lib/SharedStyles';
 
 const styleH1 = {
   textAlign: 'center',

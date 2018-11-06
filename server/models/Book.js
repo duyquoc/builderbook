@@ -1,18 +1,18 @@
-import mongoose, { Schema } from 'mongoose';
-import _ from 'lodash';
-import frontmatter from 'front-matter';
+const mongoose = require('mongoose');
+const frontmatter = require('front-matter');
+const { getCommits, getContent } = require('../github');
+const { charge } = require('../stripe');
+const { subscribe } = require('../mailchimp');
+const generateSlug = require('../utils/slugify');
+const User = require('./User');
+const Purchase = require('./Purchase');
 
-import { getCommits, getContent } from '../github';
-import { charge as stripeCharge } from '../stripe';
-import sendEmail from '../aws';
-import logger from '../logs';
-import generateSlug from '../utils/slugify';
-import { subscribe } from '../mailchimp';
+const sendEmail = require('../aws');
+const getEmailTemplate = require('./EmailTemplate');
 
-import Chapter from './Chapter';
-import User from './User';
-import Purchase from './Purchase';
-import getEmailTemplate from './EmailTemplate';
+const logger = require('../logs');
+
+const { Schema } = mongoose;
 
 const mongoSchema = new Schema({
   name: {
@@ -55,7 +55,7 @@ class BookClass {
     return { books };
   }
 
-  static async getBySlug({ slug, userId }) {
+  static async getBySlug({ slug }) {
     const bookDoc = await this.findOne({ slug });
     if (!bookDoc) {
       throw new Error('Book not found');
@@ -63,23 +63,10 @@ class BookClass {
 
     const book = bookDoc.toObject();
 
+    // eslint-disable-next-line no-use-before-define
     book.chapters = (await Chapter.find({ bookId: book._id }, 'title slug').sort({
       order: 1,
     })).map(ch => ch.toObject());
-
-    if (userId) {
-      const purchase = await Purchase.findOne({ userId, bookId: book._id }, 'doneChapterIds');
-
-      book.isPurchased = !!purchase;
-
-      if (purchase && purchase.doneChapterIds) {
-        book.chapters.forEach((ch) => {
-          Object.assign(ch, {
-            isFinished: _.some(purchase.doneChapterIds, id => id.equals(ch._id)),
-          });
-        });
-      }
-    }
 
     return book;
   }
@@ -130,11 +117,16 @@ class BookClass {
       modifier.slug = await generateSlug(this, name);
     }
 
-    return this.updateOne({ _id: id }, { $set: modifier });
+    await this.updateOne({ _id: id }, { $set: modifier });
+
+    const editedBook = await this.findById(id, 'slug');
+
+    return editedBook;
   }
 
   static async syncOneChapter({ id, githubAccessToken, chapterId }) {
     const book = await this.findById(id, 'userId githubRepo').lean();
+    // eslint-disable-next-line no-use-before-define
     const chapter = await Chapter.findById(chapterId, 'githubFilePath').lean();
 
     if (!book) {
@@ -151,6 +143,7 @@ class BookClass {
     data.path = chapter.githubFilePath;
 
     try {
+      // eslint-disable-next-line no-use-before-define
       await Chapter.syncContent({ book, data });
       logger.info('Content is synced', { path: chapter.githubFilePath });
     } catch (error) {
@@ -207,6 +200,7 @@ class BookClass {
       data.path = f.path;
 
       try {
+        // eslint-disable-next-line no-use-before-define
         await Chapter.syncContent({ book, data });
         logger.info('Content is synced', { path: f.path });
       } catch (error) {
@@ -228,12 +222,12 @@ class BookClass {
     }
 
     const isPurchased =
-      (await Purchase.find({ userId: user._id, bookId: book._id }).count()) > 0;
+      (await Purchase.find({ userId: user._id, bookId: book._id }).countDocuments()) > 0;
     if (isPurchased) {
       throw new Error('Already bought this book');
     }
 
-    const chargeObj = await stripeCharge({
+    const chargeObj = await charge({
       amount: book.price * 100,
       token: stripeToken.id,
       bookName: book.name,
@@ -242,7 +236,7 @@ class BookClass {
 
     User.findByIdAndUpdate(user.id, { $addToSet: { purchasedBookIds: book._id } }).exec();
 
-    const template = await getEmailTemplate('purchased', {
+    const template = await getEmailTemplate('purchase', {
       userName: user.displayName,
       bookTitle: book.name,
       bookUrl: `https://builderbook.org/books/${book.slug}/introduction`,
@@ -276,7 +270,7 @@ class BookClass {
       stripeCharge: chargeObj,
     });
   }
-  
+
   static async getPurchasedBooks({ purchasedBookIds, freeBookIds }) {
     const allBooks = await this.find().sort({ createdAt: -1 });
 
@@ -307,7 +301,7 @@ class BookClass {
       throw new Error('User ID required');
     }
 
-    const isPurchased = (await Purchase.find({ userId, bookId: id }).count()) > 0;
+    const isPurchased = (await Purchase.find({ userId, bookId: id }).countDocuments()) > 0;
     if (isPurchased) {
       throw new Error('Already bought this book');
     }
@@ -328,4 +322,7 @@ mongoSchema.loadClass(BookClass);
 
 const Book = mongoose.model('Book', mongoSchema);
 
-export default Book;
+module.exports = Book;
+
+const Chapter = require('./Chapter');
+

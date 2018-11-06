@@ -1,22 +1,14 @@
 import PropTypes from 'prop-types';
 import Link from 'next/link';
-import Router from 'next/router';
-import NProgress from 'nprogress';
-import Toolbar from 'material-ui/Toolbar';
-import Grid from 'material-ui/Grid';
-import Hidden from 'material-ui/Hidden';
-import Avatar from 'material-ui/Avatar';
-import Button from 'material-ui/Button';
+import Toolbar from '@material-ui/core/Toolbar';
+import Grid from '@material-ui/core/Grid';
+import Hidden from '@material-ui/core/Hidden';
+import Avatar from '@material-ui/core/Avatar';
+import Button from '@material-ui/core/Button';
 
 import MenuDrop from './MenuDrop';
 
 import { styleToolbar } from './SharedStyles';
-
-Router.onRouteChangeStart = () => {
-  NProgress.start();
-};
-Router.onRouteChangeComplete = () => NProgress.done();
-Router.onRouteChangeError = () => NProgress.done();
 
 const optionsMenuCustomer = [
   {
@@ -61,7 +53,7 @@ function Header({ user }) {
             {user && user.isAdmin && !user.isGithubConnected ? (
               <Hidden smDown>
                 <a href="/auth/github">
-                  <Button variant="raised" color="primary">
+                  <Button variant="contained" color="primary">
                     Connect Github
                   </Button>
                 </a>

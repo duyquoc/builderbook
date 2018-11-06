@@ -1,9 +1,9 @@
 import PropTypes from 'prop-types';
 import Head from 'next/head';
 import Link from 'next/link';
-import Grid from 'material-ui/Grid';
-import Avatar from 'material-ui/Avatar';
-import Button from 'material-ui/Button';
+import Grid from '@material-ui/core/Grid';
+import Avatar from '@material-ui/core/Avatar';
+import Button from '@material-ui/core/Button';
 
 import Header from '../components/HomeHeader';
 import Footer from '../components/HomeFooter';
@@ -13,7 +13,7 @@ import {
   styleRaisedButton,
   styleHomepageFeature,
   styleH1,
-} from '../components/SharedStyles';
+} from '../lib/SharedStyles';
 import withLayout from '../lib/withLayout';
 import withAuth from '../lib/withAuth';
 
@@ -36,7 +36,7 @@ const Index = ({ user }) => (
       <Grid container direction="row" justify="space-around" align="flex-start">
         <Grid item sm={12} xs={12} style={{ textAlign: 'center' }}>
           <br />
-          <p style={{ margin: '45px auto', fontSize: '44px', fontWeight: '400' }}>Builder Book</p>
+          <h1 style={styleH1}>Open source app</h1>
           <iframe
             src="https://ghbtns.com/github-btn.html?user=builderbook&repo=builderbook&type=star&count=true&size=large"
             frameBorder="0"
@@ -47,7 +47,8 @@ const Index = ({ user }) => (
           />
           <p>
             Open source web app (MIT License) to publish documentation and books.
-            <br /> Built with React, Material-UI, Next, Express, Mongoose, and MongoDB.
+            <br />
+            Built with React, Material-UI, Next, Express, Mongoose, and MongoDB.
           </p>
           <p style={{ textAlign: 'center' }}>
             <Link
@@ -55,7 +56,7 @@ const Index = ({ user }) => (
               as="/books/builder-book/introduction"
               href="/public/read-chapter?bookSlug=builder-book&chapterSlug=introduction"
             >
-              <Button variant="raised" color="primary" style={styleRaisedButton}>
+              <Button variant="contained" color="primary" style={styleRaisedButton}>
                 Live App
               </Button>
             </Link>
@@ -64,7 +65,7 @@ const Index = ({ user }) => (
               target="_blank"
               rel="noopener noreferrer"
             >
-              <Button variant="raised" color="secondary" style={styleRaisedButton}>
+              <Button variant="contained" color="secondary" style={styleRaisedButton}>
                 Github
               </Button>
             </a>
@@ -88,7 +89,8 @@ const Index = ({ user }) => (
             >
               {' '}
               boilerplate
-            </a>{' '}
+            </a>
+            {' '}
             or clone the entire project. Customize the code to build your own web app.
           </p>
         </Grid>
@@ -120,7 +122,8 @@ const Index = ({ user }) => (
               rel="noopener noreferrer"
             >
               {' '}
-              dependencies{' '}
+              dependencies
+              {' '}
             </a>
             up-to-date.
           </p>
@@ -192,7 +195,7 @@ const Index = ({ user }) => (
           {' '}
           Harbor
         </a>. Stay tuned for
-        <a href="https://github.com/builderbook/async" target="_blank" rel="noopener noreferrer">
+        <a href="https://github.com/async-labs/async-saas" target="_blank" rel="noopener noreferrer">
           {' '}
           Async
         </a>.

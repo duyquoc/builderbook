@@ -9,9 +9,9 @@
     "start": "node compiled/server/app.js",
     "dev": "nodemon server/app.js --watch server --exec babel-node",
     "now": "now && now alias",
-    "rm": "now rm tutorial-6-end --safe --yes",
-    "processes": "ss -lptn 'sport = :8000'",
-    "kill-pud": "kill -9 <pid>"
+    "now-rm": "now rm tutorial-6-end --safe --yes",
+    "processes-8000": "ss -lptn 'sport = :8000'",
+    "processes-node": "ps -e|grep node"
   },
   "dependencies": {
     "babel-cli": "^6.26.0",

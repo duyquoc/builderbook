@@ -1,14 +1,15 @@
-/* globals StripePublishableKey */
-
 import React from 'react';
 import PropTypes from 'prop-types';
 import StripeCheckout from 'react-stripe-checkout';
 import NProgress from 'nprogress';
 
-import Button from 'material-ui/Button';
+import Button from '@material-ui/core/Button';
 
 import { buyBook } from '../../lib/api/customer';
 import notify from '../../lib/notifier';
+import env from '../../lib/env';
+
+const { StripePublishableKey } = env;
 
 const styleBuyButton = {
   margin: '20px 20px 20px 0px',
@@ -77,7 +78,7 @@ class BuyButton extends React.Component {
       return (
         <div>
           <Button
-            variant="raised"
+            variant="contained"
             style={styleBuyButton}
             color="primary"
             onClick={this.onLoginClicked}
@@ -97,7 +98,7 @@ class BuyButton extends React.Component {
         email={user.email}
         desktopShowModal={showModal || null}
       >
-        <Button variant="raised" style={styleBuyButton} color="primary">
+        <Button variant="contained" style={styleBuyButton} color="primary">
           Buy book for ${book.price}
         </Button>
       </StripeCheckout>

@@ -1,4 +1,4 @@
-import mongoose, { Schema } from 'mongoose';
+import mongoose from 'mongoose';
 import frontmatter from 'front-matter';
 
 import getRootUrl from '../../lib/api/getRootUrl';
@@ -16,6 +16,8 @@ import generateSlug from '../utils/slugify';
 import logger from '../logs';
 
 const ROOT_URL = getRootUrl();
+
+const { Schema } = mongoose;
 
 const mongoSchema = new Schema({
   name: {
@@ -97,7 +99,11 @@ class BookClass {
       modifier.slug = await generateSlug(this, name);
     }
 
-    return this.updateOne({ _id: id }, { $set: modifier });
+    await this.updateOne({ _id: id }, { $set: modifier });
+
+    const editedBook = await this.findById(id, 'slug');
+
+    return editedBook;
   }
 
   static async syncContent({ id, githubAccessToken }) {
@@ -155,7 +161,7 @@ class BookClass {
       }
     }));
 
-    return book.update({ githubLastCommitSha: lastCommitSha });
+    return book.updateOne({ githubLastCommitSha: lastCommitSha });
   }
 
   static async buy({ id, user, stripeToken }) {
@@ -169,7 +175,7 @@ class BookClass {
       throw new Error('Book not found');
     }
 
-    const isPurchased = (await Purchase.find({ userId: user._id, bookId: id }).count()) > 0;
+    const isPurchased = (await Purchase.find({ userId: user._id, bookId: id }).countDocuments()) > 0;
     if (isPurchased) {
       throw new Error('Already bought this book');
     }

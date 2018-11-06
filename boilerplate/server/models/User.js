@@ -1,5 +1,7 @@
-import _ from 'lodash';
-import mongoose, { Schema } from 'mongoose';
+const mongoose = require('mongoose');
+const _ = require('lodash');
+
+const { Schema } = mongoose;
 
 const mongoSchema = new Schema({
   googleId: {
@@ -10,11 +12,6 @@ const mongoSchema = new Schema({
   googleToken: {
     access_token: String,
     refresh_token: String,
-  },
-  slug: {
-    type: String,
-    required: true,
-    unique: true,
   },
   createdAt: {
     type: Date,
@@ -46,7 +43,7 @@ const mongoSchema = new Schema({
 class UserClass {
   // User's public fields
   static publicFields() {
-    return ['id', 'displayName', 'email', 'avatarUrl', 'slug', 'isAdmin', 'isGithubConnected'];
+    return ['id', 'displayName', 'email', 'avatarUrl', 'isAdmin', 'isGithubConnected'];
   }
 
   static async signInOrSignUp({
@@ -91,4 +88,5 @@ mongoSchema.loadClass(UserClass);
 
 const User = mongoose.model('User', mongoSchema);
 
-export default User;
+module.exports = User;
+

@@ -1,7 +1,8 @@
-import mongoose, { Schema } from 'mongoose';
-import Handlebars from 'handlebars';
-
+import mongoose from 'mongoose';
+import _ from 'lodash';
 import logger from '../logs';
+
+const { Schema } = mongoose;
 
 const mongoSchema = new Schema({
   name: {
@@ -26,21 +27,21 @@ function insertTemplates() {
     {
       name: 'welcome',
       subject: 'Welcome to builderbook.org',
-      message: `{{userName}},
+      message: `<%= userName %>,
         <p>
           Thanks for signing up for Builder Book!
         </p>
         <p>
           In our books, we teach you how to build complete, production-ready web apps from scratch.
         </p>
-        
+
         Kelly & Timur, Team Builder Book
       `,
     },
   ];
 
   templates.forEach(async (template) => {
-    if ((await EmailTemplate.find({ name: template.name }).count()) > 0) {
+    if ((await EmailTemplate.find({ name: template.name }).countDocuments()) > 0) {
       return;
     }
 
@@ -57,11 +58,13 @@ insertTemplates();
 export default async function getEmailTemplate(name, params) {
   const source = await EmailTemplate.findOne({ name });
   if (!source) {
-    throw new Error('not found');
+    throw new Error(`No EmailTemplates found.
+      Please check that at least one is generated at server startup,
+      restart your server and try again.`);
   }
 
   return {
-    message: Handlebars.compile(source.message)(params),
-    subject: Handlebars.compile(source.subject)(params),
+    message: _.template(source.message)(params),
+    subject: _.template(source.subject)(params),
   };
 }
