@@ -7,7 +7,8 @@ let globalUser = null;
 export default (
   Page,
   { loginRequired = true, logoutRequired = false, adminRequired = false } = {},
-) => class BaseComponent extends React.Component {
+) =>
+  class BaseComponent extends React.Component {
     static propTypes = {
       user: PropTypes.shape({
         id: PropTypes.string,

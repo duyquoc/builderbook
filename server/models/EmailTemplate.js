@@ -65,8 +65,9 @@ async function insertTemplates() {
 
     if (count === 0) {
       EmailTemplate.create(Object.assign({}, t, {
-        message: t.message.replace(/\n/g, '').replace(/[ ]+/g, ' '),
-      }));
+          message: t.message.replace(/\n/g, '').replace(/[ ]+/g, ' '),
+        }),
+      );
     }
   }
 }
@@ -85,4 +86,5 @@ async function getEmailTemplate(name, params) {
   };
 }
 
-module.exports = getEmailTemplate;
+exports.insertTemplates = insertTemplates;
+exports.getEmailTemplate = getEmailTemplate;

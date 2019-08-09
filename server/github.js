@@ -20,10 +20,12 @@ function setupGithub({ server }) {
     }
 
     // Redirect to Github /oauth/authorize endpoint
-    res.redirect(`${AUTHORIZE_URI}?${qs.stringify({
-      scope: 'repo',
-      client_id: CLIENT_ID,
-    })}`);
+    res.redirect(
+      `${AUTHORIZE_URI}?${qs.stringify({
+        scope: 'repo',
+        client_id: CLIENT_ID,
+      })}`,
+    );
   });
 
   server.get('/auth/github/callback', (req, res) => {
@@ -77,20 +79,7 @@ function setupGithub({ server }) {
 }
 
 function getAPI({ accessToken }) {
-  const github = new GithubAPI({
-    // debug: true,
-    timeout: 0,
-    baseUrl: 'https://api.github.com',
-    headers: {
-      accept: 'application/json',
-    },
-    requestMedia: 'application/json',
-  });
-
-  github.authenticate({
-    type: 'oauth',
-    token: accessToken,
-  });
+  const github = new GithubAPI({ auth: accessToken, request: { timeout: 10000 } });
 
   return github;
 }
@@ -98,21 +87,21 @@ function getAPI({ accessToken }) {
 function getRepos({ accessToken }) {
   const github = getAPI({ accessToken });
 
-  return github.repos.getAll({ per_page: 100 });
+  return github.repos.list({ per_page: 100 });
 }
 
 function getContent({ accessToken, repoName, path }) {
   const github = getAPI({ accessToken });
   const [owner, repo] = repoName.split('/');
 
-  return github.repos.getContent({ owner, repo, path });
+  return github.repos.getContents({ owner, repo, path });
 }
 
 function getCommits({ accessToken, repoName, limit }) {
   const github = getAPI({ accessToken });
   const [owner, repo] = repoName.split('/');
 
-  return github.repos.getCommits({ owner, repo, per_page: limit });
+  return github.repos.listCommits({ owner, repo, per_page: limit });
 }
 
 exports.setupGithub = setupGithub;
