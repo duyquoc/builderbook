@@ -1,0 +1,1839 @@
+<div id="chapter-content" style="padding: 20px 10%; background-color: white; color: black;"><h2 style="font-weight: 400; line-height: 1.5em; background-color: white; color: black;">Chapter 3: Authentication HOC. Promise. Async/await. Static method for User model. Google OAuth.</h2><div style="background-color: white; color: black;"><hr>
+<ul>
+<li>Authentication HOC <br><ul>
+<li>Parameters for withAuth HOC</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>getInitialProps() method <br></li>
+</ul>
+<ul>
+<li>Login page and Nprogress <br></li>
+</ul>
+<ul>
+<li>Promise.then() <br></li>
+</ul>
+<ul>
+<li>Async/await <br></li>
+</ul>
+<ul>
+<li>Static method signInOrSignUp() <br></li>
+</ul>
+<ul>
+<li>Generate slug <br></li>
+</ul>
+<ul>
+<li>Google OAuth: auth() function <br></li>
+</ul>
+<ul>
+<li>Express routes for auth()<br></li>
+</ul>
+<ul>
+<li>Initialize auth() on server.<br></li>
+</ul>
+<ul>
+<li>Testing <br></li>
+</ul>
+<hr>
+<p>Before you start working on Chapter 3, get the <code>3-begin</code> codebase. The <a target="_blank" href="https://github.com/builderbook/builderbook/tree/master/book/3-begin" rel="noopener noreferrer">3-begin</a> folder is located at the root of the <code>book</code> directory inside the <a target="_blank" href="https://github.com/builderbook/builderbook" rel="noopener noreferrer">builderbook repo</a>.</p>
+<ul>
+<li>If you haven't cloned the builderbook repo yet, clone it to your local machine with <code>git clone https://github.com/builderbook/builderbook.git</code>.</li>
+<li>Inside the <code>3-begin</code> folder, run <code>yarn</code> to install all packages. </li>
+</ul>
+<p>These are the packages that we install specifically for Chapter 3:</p>
+<ul>
+<li><code>"googleapis"</code></li>
+<li><code>"lodash"</code></li>
+<li><code>"nprogress"</code></li>
+<li><code>"passport"</code></li>
+<li><code>"passport-google-oauth"</code></li>
+</ul>
+<p>Check out the <a target="_blank" href="https://github.com/builderbook/builderbook/blob/master/book/3-begin/package.json" rel="noopener noreferrer">package.json</a> for Chapter 3.</p>
+<ul>
+<li>Be sure to use these specific packages and ignore any warnings about upgrading. We regularly upgrade all packages and test them in the book. But before testing, we cannot guarantee that a new package version will work properly.</li>
+</ul>
+<p>Remember to include the <code>.env</code> file you created in Chapter 2 at the root of your app. By the end of Chapter 3, you will add <code>Google_clientID</code> and <code>Google_clientSecret</code> environmental variables to your <code>.env</code> file. </p>
+<hr>
+<br>
+
+<p>In this chapter, we will create a higher-order component (HOC) called <code>withAuth.js</code> (or simply <code>withAuth</code>). This component, similiar to our <code>App</code> HOC, will wrap our pages. The main purpose of <code>App</code> is to share some of layout, for example, Material-UI's theme and <code>Header</code> component between our pages. The main purpose of <code>withAuth</code> is to check a user's session and send that <code>user</code> object to our pages as a prop.</p>
+<p>Inside the <code>withAuth</code> HOC, we will use Next.js's <code>getInitialProps()</code> method to fetch a user's data and pass it to our wrapped pages. Later in this chapter, we will make a detour to discuss this method in more detail.</p>
+<p>Besides creating the <code>withAuth</code> HOC, we will:</p>
+<ul>
+<li>add a Login page</li>
+<li>learn more about <code>Promise.then()</code>, <code>async/await</code>, and the concept of <code>this</code></li>
+<li>add basic <code>static methods</code> to our User model</li>
+</ul>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="authentication-hoc" href="#authentication-hoc" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="authentication-hoc">
+          Authentication HOC
+        </span>
+      </h2><p>Adding user authentication to our app is a big task. In this chapter, our first goal is to write a <code>withAuth</code> HOC that passes user data to the pages it wraps. We will then integrate our app with Google OAuth and test out the entire authentication flow.</p>
+<p>Two main goals for this section are:</p>
+<ol>
+<li>set up our <code>withAuth</code> HOC at <code>lib/withAuth.js</code> - this component passes a user object to pages and redirects a user according to his/her login status</li>
+<li>test our <code>withAuth</code> HOC with a manually-added user in our database</li>
+</ol>
+<p>Important note - from now on, we will start our custom server that we created in Chapter 2 with <code>yarn dev</code> instead of <code>yarn dev-express</code>. In the <code>scripts</code> section of <code>package.json</code>, replace:</p>
+<pre>"dev": "next"</pre>
+<p>and</p>
+<pre>"dev-express": "nodemon server/app.js --watch server"</pre>
+<p>with:</p>
+<pre>"dev": "nodemon server/app.js --watch server"</pre>
+
+
+<p>In Chapter 2, we passed user data from our server to our Index page by using Next's <code>getInitialProps()</code> method. That's ok since it's just one page. However, in our app, we will have multiple pages that require a user's data. Passing user data to each page independently is not productive.</p>
+<p>To be more productive, we create a HOC that will wrap pages and pass user data to all of those wrapped pages. So instead of using <code>getInitialProps()</code> directly on the <code>Index</code> page, we will use <code>getInitialProps()</code> inside a <code>withAuth</code> HOC that wraps the <code>Index</code> page.</p>
+<p>Let's place this new HOC inside the <code>lib</code> directory at <code>./lib/withAuth.js</code>. Inside our <code>withAuth</code> component, we will specify simple boolean parameters - for example, <code>loginRequired: true</code> to control when an individual page requires user authorization. Then we will wrap a page in our <code>withAuth</code> HOC <em>with</em> these parameters to specify rules for that particular page.</p>
+<p>The <code>Index</code> page (as you may have guessed) becomes a dashboard page for logged-in users. Once authenticated, we send a user's data to this page.</p>
+<p>The export code for our <code>Index</code> page will look like this:</p>
+<pre>export default withAuth(Index, { loginRequired: true })</pre>
+
+<p>It says:</p>
+<ul>
+<li><code>App</code> HOC wraps the <code>Index</code> page (as a result, this page gets the <code>Header</code> component). We don't use <code>App(Index)</code> since Next.js wraps all page components with <code>App</code> for us.</li>
+<li><code>withAuth</code> HOC wraps the <code>Index</code> page as well. The boolean parameter <code>loginRequired</code> requires a user to be authenticated to access this page.</li>
+</ul>
+<p>The structure of <code>withAuth</code> will be very similar to that of <code>App</code> HOC. The main purpose of <code>withAuth</code> is to receive a <code>user</code> prop with the help of the <code>getInitialProps()</code> method and then pass this <code>user</code> prop to a child component, which is any page that <code>withAuth</code> wraps.</p>
+<p>In fact, our <code>App</code> HOC does exactly that using Next.js's <code>getIntitialProps</code> method:<br><code>pages/_app.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> CssBaseline from <span class="hljs-string">'@material-ui/core/CssBaseline'</span>;
+<span class="hljs-keyword">import</span> { ThemeProvider } from <span class="hljs-string">'@material-ui/styles'</span>;
+<span class="hljs-keyword">import</span> App, { Container } from <span class="hljs-string">'next/app'</span>;
+<span class="hljs-keyword">import</span> React from <span class="hljs-string">'react'</span>;
+
+<span class="hljs-keyword">import</span> { theme } from <span class="hljs-string">'../lib/theme'</span>;
+
+<span class="hljs-keyword">import</span> Header from <span class="hljs-string">'../components/Header'</span>;
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">MyApp</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">App</span> </span>{
+  <span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> getInitialProps({ Component, ctx }) {
+    <span class="hljs-keyword">const</span> pageProps = {};
+
+    <span class="hljs-keyword">if</span> (Component.getInitialProps) {
+      <span class="hljs-built_in">Object</span>.assign(pageProps, <span class="hljs-keyword">await</span> Component.getInitialProps(ctx));
+    }
+
+    <span class="hljs-comment">// console.log(pageProps);</span>
+
+    <span class="hljs-keyword">return</span> { pageProps };
+  }
+
+  componentDidMount() {
+    <span class="hljs-comment">// Remove the server-side injected CSS.</span>
+    <span class="hljs-keyword">const</span> jssStyles = <span class="hljs-built_in">document</span>.<span class="hljs-built_in">querySelector</span>(<span class="hljs-string">'#jss-server-side'</span>);
+    <span class="hljs-keyword">if</span> (jssStyles &amp;&amp; jssStyles.parentNode) {
+      jssStyles.parentNode.removeChild(jssStyles);
+    }
+  }
+
+  render() {
+    <span class="hljs-keyword">const</span> { Component, pageProps } = <span class="hljs-keyword">this</span>.props;
+
+    <span class="hljs-comment">// console.log(pageProps);</span>
+
+    <span class="hljs-keyword">return</span> (
+      &lt;Container&gt;
+        {<span class="hljs-comment">/* ThemeProvider makes the theme available down the React
+              tree thanks to React context. */</span>}
+        &lt;ThemeProvider theme={theme}&gt;
+          {<span class="hljs-comment">/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */</span>}
+          &lt;CssBaseline /&gt;
+          &lt;Header {...pageProps} /&gt;
+          &lt;Component {...pageProps} /&gt;
+        &lt;/ThemeProvider&gt;
+      &lt;/Container&gt;
+    );
+  }
+}
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> MyApp;</code></pre><p>Following a similar structure as <code>App</code> HOC, we get this code for <code>withAuth</code>:<br><code>lib/withAuth.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> React <span class="hljs-keyword">from</span> <span class="hljs-string">'react'</span>;
+<span class="hljs-keyword">import</span> PropTypes <span class="hljs-keyword">from</span> <span class="hljs-string">'prop-types'</span>;
+
+<span class="hljs-keyword">let</span> globalUser = <span class="hljs-literal">null</span>;
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">withAuth</span>(<span class="hljs-params">BaseComponent</span>) </span>{
+  <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">App</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">React</span>.<span class="hljs-title">Component</span> </span>{
+    <span class="hljs-comment">// specify propTypes and defaultProps</span>
+
+    componentDidMount() {
+      <span class="hljs-keyword">const</span> { user, isFromServer } = <span class="hljs-keyword">this</span>.props;
+
+      <span class="hljs-keyword">if</span> (isFromServer) {
+        globalUser = user;
+      }
+    }
+
+    <span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> getInitialProps(ctx) {
+      <span class="hljs-keyword">const</span> isFromServer = !!ctx.req;
+      <span class="hljs-keyword">const</span> user = ctx.req ? ctx.req.user &amp;&amp; ctx.req.user.toObject() : globalUser;
+
+      <span class="hljs-keyword">if</span> (isFromServer &amp;&amp; user) {
+        user._id = user._id.toString();
+      }
+
+      <span class="hljs-keyword">const</span> props = { user, isFromServer };
+
+      <span class="hljs-comment">// Call child component's "getInitialProps", if it is defined</span>
+      <span class="hljs-keyword">if</span> (BaseComponent.getInitialProps) {
+        <span class="hljs-built_in">Object</span>.assign(props, (<span class="hljs-keyword">await</span> BaseComponent.getInitialProps(ctx)) || {});
+      }
+
+      <span class="hljs-keyword">return</span> props;
+    }
+
+    render() {
+      <span class="hljs-keyword">return</span> <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">BaseComponent</span> {<span class="hljs-attr">...this.props</span>} /&gt;</span>;
+    }
+  }
+
+  return App;
+}
+
+export default withAuth;</span></code></pre><p>You may notice a few differences.</p>
+<ul>
+<li><p>The first difference is <code>// specify propTypes and defaultProps</code>. Validation of types is optional.  However, validating props via <code>propTypes</code> and specifying <code>defaultProps</code> may become handy in situations when you pass the wrong data type to a prop, or when you need to specify a default value for a prop. Take a look at how we did it at <code>./pages/index.js</code> <a target="_blank" href="https://builderbook.org/books/builder-book/app-structure-next-js-hoc-material-ui-server-side-rendering-styles#index-page" rel="noopener noreferrer">in Chapter 1</a>.</p>
+<p>Go ahead and replace the line <code>// specify propTypes and defaultProps</code> in the <code>withAuth</code> carcass above with:</p>
+<pre><code>  static propTypes = {
+    user: <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">PropTypes</span>.</span></span>shape({
+      displayName: <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">PropTypes</span>.</span></span><span class="hljs-built_in">string</span>,
+      email: <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">PropTypes</span>.</span></span><span class="hljs-built_in">string</span>.isRequired
+    }),
+    isFromServer: <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">PropTypes</span>.</span></span><span class="hljs-built_in">bool</span>.isRequired
+  }
+
+  static defaultProps = {
+    user: null
+  }</code></pre></li>
+<li><p>The second difference is the new boolean prop <code>isFromServer</code> defined as <code>!!ctx.req</code>. This parameter ensures that context (<code>ctx</code>) is rendered on the server.</p>
+<p>Request <code>req</code> and thus <code>ctx.req</code> both exist on the server.</p>
+<ul>
+<li>In case <code>ctx.req</code> is not rendered on the server - it's <code>undefined</code> on the client and we get <code>!!undefined</code> is false.</li>
+<li>If <code>ctx.req</code> is rendered on the server and exists on the client, we get <code>!!value</code> is true.</li>
+</ul>
+<p>Remember that the first <code>!</code> converts an object to boolean and negates it. The second <code>!</code> negates that boolean. In JavaScript, <code>undefined</code> is falsy, meaning <code>!undefined</code> is true, and <code>!!undefined</code> is false.</p>
+</li>
+<li><p>Third, <code>user._id</code> is not a string but an object (<a target="_blank" href="https://stackoverflow.com/questions/13104690/nodejs-mongodb-object-id-to-string" rel="noopener noreferrer">link 1</a>, <a target="_blank" href="https://docs.mongodb.com/manual/reference/method/ObjectId.toString/" rel="noopener noreferrer">link2</a>), but on the client, we need it to be a string. Thus, we stringify MongoDB's <code>_id</code> with:</p>
+<pre>user._id = user._id.toString()</pre>
+</li>
+<li><p>Fourth, <code>withAuth</code> has no parameters.</p>
+<p>We will add two parameters to our <code>withAuth</code> HOC, but we'll do that later in this chapter. For now, let's go back to our main goal - fetch user data via <code>withAuth</code> instead of sending this data directly to our <code>Index</code> page.</p>
+</li>
+</ul>
+<p>We mentioned the main property of the <code>getInitialProps()</code> method in Chapter 1 when we discussed <a target="_blank" href="https://builderbook.org/books/builder-book/app-structure-next-js-hoc-material-ui-server-side-rendering-styles#layout-hoc" rel="noopener noreferrer">our <code>App</code> HOC</a>. This method fetches data and populates <code>props</code> with that data. If you'd like to know more, we made a detour and wrote a <code>getInitialProps()</code> section right after this one.</p>
+<p>At this point, we have a basic version of our <code>withAuth</code> HOC. Let's make necessary changes to our <code>Index</code> page. Recall this page's code:</p>
+<ul>
+<li>We wrote the page's component as a stateless functional component <a target="_blank" href="https://builderbook.org/books/builder-book/app-structure-next-js-hoc-material-ui-server-side-rendering-styles#index-page" rel="noopener noreferrer">in Chapter 1</a></li>
+<li>The page gets user data directly from the server via <code>Index.getInitialProps</code>, which we set up <a target="_blank" href="https://builderbook.org/books/builder-book/server-database-session-header-and-menudrop-components#index-page" rel="noopener noreferrer">in Chapter 2</a></li>
+</ul>
+<p>Here is the page's code:<br><code>pages/index.js</code> :</p>
+<pre><code>import PropTypes from 'prop-types';
+
+import Head from 'next/head';
+
+
+const <span class="hljs-keyword">Index</span> = ({ <span class="hljs-keyword">user</span> }) =&gt; (
+  &lt;div style={{ padding: <span class="hljs-string">'10px 45px'</span> }}&gt;
+    &lt;Head&gt;
+      &lt;<span class="hljs-built_in">title</span>&gt;<span class="hljs-keyword">Index</span> page&lt;/<span class="hljs-built_in">title</span>&gt;
+      &lt;<span class="hljs-built_in">meta</span> name=<span class="hljs-string">"description"</span> content=<span class="hljs-string">"This is the description of the Index page"</span> /&gt;
+    &lt;/Head&gt;
+    &lt;p&gt;Content <span class="hljs-keyword">on</span> <span class="hljs-keyword">Index</span> page&lt;/p&gt;
+    &lt;p&gt;Email: {<span class="hljs-keyword">user</span>.email}&lt;/p&gt;
+  &lt;/div&gt;
+);
+
+<span class="hljs-keyword">Index</span>.getInitialProps = async ({ query }) =&gt; ({ <span class="hljs-keyword">user</span>: query.<span class="hljs-keyword">user</span> });
+
+<span class="hljs-keyword">Index</span>.propTypes = {
+  <span class="hljs-keyword">user</span>: PropTypes.shape({
+    displayName: PropTypes.<span class="hljs-keyword">string</span>,
+    email: PropTypes.<span class="hljs-keyword">string</span>.isRequired,
+  }),
+};
+
+<span class="hljs-keyword">Index</span>.defaultProps = {
+  <span class="hljs-keyword">user</span>: <span class="hljs-literal">null</span>,
+};
+
+export default <span class="hljs-keyword">Index</span>;</code></pre><p>Let's make three changes to the <code>Index</code> page:</p>
+<ol>
+<li>re-write the page's component as a normal component (<code>class Index extends React.Component</code>),</li>
+<li>remove the <code>Index.getInitialProps</code> method so that user data is not directly sent to the Index page</li>
+<li>import <code>withAuth</code> and wrap this HOC around the <code>Index</code> component (we do so with <code>export default withAuth(Index)</code>):</li>
+</ol>
+<p>After you make these changes, you should get:<br><code>pages/index.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> React <span class="hljs-keyword">from</span> <span class="hljs-string">'react'</span>;
+<span class="hljs-keyword">import</span> PropTypes <span class="hljs-keyword">from</span> <span class="hljs-string">'prop-types'</span>;
+<span class="hljs-keyword">import</span> Head <span class="hljs-keyword">from</span> <span class="hljs-string">'next/head'</span>;
+
+<span class="hljs-keyword">import</span> withAuth <span class="hljs-keyword">from</span> <span class="hljs-string">'../lib/withAuth'</span>;
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Index</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">React</span>.<span class="hljs-title">Component</span> </span>{
+  <span class="hljs-keyword">static</span> propTypes = {
+    <span class="hljs-attr">user</span>: PropTypes.shape({
+      <span class="hljs-attr">displayName</span>: PropTypes.string,
+      <span class="hljs-attr">email</span>: PropTypes.string.isRequired,
+    })
+  };
+
+  <span class="hljs-keyword">static</span> defaultProps = {
+    <span class="hljs-attr">user</span>: <span class="hljs-literal">null</span>,
+  };
+
+  render() {
+    <span class="hljs-keyword">const</span> { user } = <span class="hljs-keyword">this</span>.props;
+    <span class="hljs-keyword">return</span> (
+      <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">padding:</span> '<span class="hljs-attr">10px</span> <span class="hljs-attr">45px</span>' }}&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">Head</span>&gt;</span>
+          <span class="hljs-tag">&lt;<span class="hljs-name">title</span>&gt;</span>Dashboard<span class="hljs-tag">&lt;/<span class="hljs-name">title</span>&gt;</span>
+          <span class="hljs-tag">&lt;<span class="hljs-name">meta</span> 
+            <span class="hljs-attr">name</span>=<span class="hljs-string">"description"</span> 
+            <span class="hljs-attr">content</span>=<span class="hljs-string">"List of purchased books."</span>
+          /&gt;</span>
+        <span class="hljs-tag">&lt;/<span class="hljs-name">Head</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">p</span>&gt;</span> Dashboard <span class="hljs-tag">&lt;/<span class="hljs-name">p</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">p</span>&gt;</span>Email: {user.email}<span class="hljs-tag">&lt;/<span class="hljs-name">p</span>&gt;</span>
+      <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
+    )
+  }
+}
+
+export default withAuth(Index);</span></code></pre><p>We modified the title from "Index page" to "Dashboard", since this page will become our user dashboard. We also modified the meta content from "This is the description of the Index page"" to "List of purchased books", which we'll discuss and add in Chapter 5.</p>
+<p>Eslint will show you a warning:</p>
+<pre>[eslint] Component should be written as a stateless function (react/prefer-stateless-function)</pre>
+
+<p>But we will ignore it, since this page will get gradually more complicated, and we should start using ES6's <code>class Index extends React.Component</code> version instead of a stateless function version.</p>
+<p>Start your app with <code>yarn dev</code>, navigate to <code>localhost:8000</code>. The app won't start due to an error: </p><pre>TypeError: Cannot read property 'email' of null</pre><br>It means that we did not create an <code>Express route</code> on our server.<p></p>
+<p>We need to create an Express route that sends a user's data to the <code>/</code> route (route of the <code>Index</code> page). Go to the file with our main server code (<code>server/app.js</code>).</p>
+<p>In <code>lib/withAuth.js</code>, we defined <code>user</code> as:</p>
+<pre>const user = ctx.req ? ctx.req.user &amp;&amp; ctx.req.user.toObject() : globalUser</pre>
+
+<p>On our server code, make the following change to define <code>req.user</code> as <code>user</code>:<br><code>server/app.js</code> :</p>
+<pre><code><span class="hljs-keyword">server</span>.<span class="hljs-keyword">get</span>(<span class="hljs-string">'/'</span>, (req, res) =&gt; {
+    <span class="hljs-keyword">User</span>.findOne({ slug: <span class="hljs-string">'team-builder-book'</span> }).<span class="hljs-keyword">then</span>(<span class="hljs-keyword">user</span> =&gt; {
+      req.<span class="hljs-keyword">user</span> = <span class="hljs-keyword">user</span>
+      app.render(req, res, <span class="hljs-string">'/'</span>)
+    })
+})</code></pre><p>Add this code snippet after the <code>server.use(session(sess));</code> line in <code>server/app.js</code>.</p>
+<p>Make sure that your MongoDB has a user document in the <code>users</code> collection. We added this user in Chapter 2. The user should have <code>team-builder-book</code> as a <code>slug</code>. If not, go to MongoDB Atlas, click on your <code>test.users</code> collection, and create a new user document with the following content:</p>
+<pre><code><span class="hljs-attribute">createdAt</span>: <span class="hljs-number">2017</span><span class="hljs-attribute">-12-17T02</span>:<span class="hljs-number">05</span>:<span class="hljs-number">57.426</span>+<span class="hljs-number">00</span>:<span class="hljs-number">00</span>
+<span class="hljs-attribute">email</span>: team<span class="hljs-variable">@builderbook</span>.org
+<span class="hljs-attribute">displayName</span>: Team Builder Book
+<span class="hljs-attribute">avatarUrl</span>: <span class="hljs-string">"https://lh3.googleusercontent.com/-XdUIqdMkCWA/AAAAAAAAAAI/AAAAAAAAAAA/4252rscbv5M/photo.jpg?sz=128"</span>
+<span class="hljs-attribute">slug</span>: team-builder-book</code></pre><p>Atlas will automatically generate <code>id</code> for new document, so your task is to manually add <code>createdAt</code> (type <code>Date</code>), <code>email</code> (type <code>String</code>), <code>displayName</code> (type <code>String</code>), <code>avatarUrl</code> (type <code>String</code>) and <code>slug</code> (type <code>String</code>) to the document. After you are done, click green <b>Insert</b> button:<br><img src="https://user-images.githubusercontent.com/10218864/54495961-cf3a8280-48a6-11e9-891a-c592d4a61fcb.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Now start your app with <code>yarn dev</code> and navigate to <code>localhost:8000</code>:<br><img src="https://user-images.githubusercontent.com/26158226/35841338-45f87872-0ab0-11e8-9a26-8d888fd0322d.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>If you see your user's email on the page, good job! You successfully passed the <code>user</code> prop to the <code>Index</code> page via our <code>withAuth</code> HOC!</p>
+<p>In the next subsection, we will discuss and add two boolean parameters to our <code>withAuth</code> HOC.</p>
+<h4 style="color: #FFF;">
+        <a name="parameters-for-withauth-hoc" href="#parameters-for-withauth-hoc" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Parameters for withAuth HOC
+      </h4><p>This is a good place to discuss what to do with a logged-out user. It's good UX to redirect a logged-out user to the <code>Login</code> page when that user tries to access a page that requires logging in.</p>
+<p>Currently, our <code>withAuth</code> HOC checks if a user object is server-side rendered, then passes the user prop to our <code>Index</code> page <em>without</em> checking whether that user is logged in or not. </p>
+<p>After we add user authentication to our app, the <code>Index</code> page becomes a user's dashboard and <em>will require</em> the user to be logged in to see it. At the same time, the <code>Login</code> page <em>should not</em> be available to a logged-in user.</p>
+<p>To summarize, right now we have two problems:</p>
+<ul>
+<li><code>Index</code> page is available to all users, including logged-out users.</li>
+<li><code>Login</code> page (which we create later in the chapter) is available to all users, including logged-in users.</li>
+</ul>
+<p>We solve these problems with two boolean parameters: <code>loginRequired</code> and <code>logoutRequired</code>. These parameters have the following behaviors:</p>
+<ul>
+<li><p><code>loginRequired</code> requires a page to check whether a user is logged in. When <code>loginRequired</code> is true <em>but</em> the <code>user</code> prop is empty - our app should redirect the user to the <code>Login</code> page instead of <code>Index</code> page and return <code>null</code> instead of  <code>&lt;Page {...this.props} /&gt;</code>:</p>
+<pre><code><span class="hljs-params">...</span>
+componentDidMount() {
+  <span class="hljs-params">...</span>
+  <span class="hljs-keyword">if</span> (loginRequired &amp;&amp; !logoutRequired &amp;&amp; !user) {
+      Router.push(<span class="hljs-string">'/login'</span>)
+      <span class="hljs-keyword">return</span>
+  }
+  <span class="hljs-params">...</span>
+}
+
+<span class="hljs-params">...</span>
+render() {
+      <span class="hljs-keyword">if</span> (loginRequired &amp;&amp; !logoutRequired &amp;&amp; !user) {
+        <span class="hljs-keyword">return</span> <span class="hljs-built_in">null</span>
+      }
+<span class="hljs-params">...</span>
+</code></pre><p>We will use the <code>loginRequired</code> parameter when we wrap our <code>Index</code> page.<br>For example, when a logged-out user goes to the <code>/</code> page (route of the <code>Index</code> page), our app will redirect the user to <code>/login</code> and won't render the <code>Index</code> page.</p>
+<p>Returning <code>null</code> is how you <em>prevent</em> a component from rendering in React. Read more about it in the <a target="_blank" href="https://reactjs.org/docs/conditional-rendering.html#preventing-component-from-rendering" rel="noopener noreferrer">official docs</a>.</p>
+</li>
+<li><p><code>logoutRequired</code> requires a page to check if a user is logged out.  When <code>logoutRequired</code> is true and the user prop is not empty - our app should redirect the user to the <code>/</code> page and return <code>null</code> :</p>
+<pre><code><span class="hljs-params">...</span>
+<span class="hljs-keyword">if</span> (logoutRequired &amp;&amp; user) {
+    Router.push(<span class="hljs-string">'/'</span>);
+}
+<span class="hljs-params">...</span>
+
+<span class="hljs-params">...</span>
+render() {
+    <span class="hljs-keyword">if</span> (logoutRequired &amp;&amp; user) {
+        <span class="hljs-keyword">return</span> <span class="hljs-built_in">null</span>;
+    }
+}
+<span class="hljs-params">...</span></code></pre><p>We will use the <code>logoutRequired</code> parameter when we wrap our <code>Login</code> page.<br>For example, when a logged-in user goes to the <code>/login</code> page, our app will redirect that user to <code>/</code> and won't render <code>Login</code>. Great! We don't want to show a logged-in user the <code>Login</code> page.</p>
+</li>
+</ul>
+<p>Add these new parameters to our  <code>withAuth</code> HOC. Let's make <code>loginRequired</code> true by default and <code>logoutRequired</code> false by default:<br><code>lib/withAuth.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> React <span class="hljs-keyword">from</span> <span class="hljs-string">'react'</span>;
+<span class="hljs-keyword">import</span> PropTypes <span class="hljs-keyword">from</span> <span class="hljs-string">'prop-types'</span>;
+<span class="hljs-keyword">import</span> Router <span class="hljs-keyword">from</span> <span class="hljs-string">'next/router'</span>;
+
+let globalUser = <span class="hljs-keyword">null</span>;
+
+<span class="hljs-keyword">function</span> withAuth(BaseComponent, { loginRequired = <span class="hljs-keyword">true</span>, logoutRequired = <span class="hljs-keyword">false</span> } = {}) {
+  <span class="hljs-keyword">class</span> App extends React.Component {
+    static propTypes = {
+      <span class="hljs-keyword">user</span>: PropTypes.shape({
+        displayName: PropTypes.string,
+        email: PropTypes.string.isRequired,
+      }),
+      isFromServer: PropTypes.bool.isRequired,
+    };
+
+    static defaultProps = {
+      <span class="hljs-keyword">user</span>: <span class="hljs-keyword">null</span>,
+    };
+
+    componentDidMount() {
+      const { <span class="hljs-keyword">user</span>, isFromServer } = this.props;
+
+      <span class="hljs-keyword">if</span> (isFromServer) {
+        globalUser = <span class="hljs-keyword">user</span>;
+      }
+
+      // <span class="hljs-keyword">If</span> <span class="hljs-keyword">login</span> <span class="hljs-keyword">is</span> required <span class="hljs-keyword">and</span> <span class="hljs-keyword">not</span> <span class="hljs-keyword">logged</span> <span class="hljs-keyword">in</span>, redirect <span class="hljs-keyword">to</span> "/login" page
+      <span class="hljs-keyword">if</span> (loginRequired &amp;&amp; !logoutRequired &amp;&amp; !<span class="hljs-keyword">user</span>) {
+        Router.push(<span class="hljs-string">'/login'</span>);
+        <span class="hljs-keyword">return</span>;
+      }
+
+      // <span class="hljs-keyword">If</span> logout <span class="hljs-keyword">is</span> required <span class="hljs-keyword">and</span> <span class="hljs-keyword">user</span> <span class="hljs-keyword">logged</span> <span class="hljs-keyword">in</span>, redirect <span class="hljs-keyword">to</span> "/" page
+      <span class="hljs-keyword">if</span> (logoutRequired &amp;&amp; <span class="hljs-keyword">user</span>) {
+        Router.push(<span class="hljs-string">'/'</span>);
+      }
+    }
+
+    static async getInitialProps(ctx) {
+      const isFromServer = !!ctx.req;
+      const <span class="hljs-keyword">user</span> = ctx.req ? ctx.req.<span class="hljs-keyword">user</span> &amp;&amp; ctx.req.<span class="hljs-keyword">user</span>.toObject() : globalUser;
+
+      <span class="hljs-keyword">if</span> (isFromServer &amp;&amp; <span class="hljs-keyword">user</span>) {
+        // Convert "_id"(ObjectID <span class="hljs-keyword">from</span> MongoDB) <span class="hljs-keyword">object</span> <span class="hljs-keyword">to</span> string
+        <span class="hljs-keyword">user</span>._id = <span class="hljs-keyword">user</span>._id.toString();
+      }
+
+      const props = { <span class="hljs-keyword">user</span>, isFromServer };
+
+      // <span class="hljs-keyword">Call</span> child component<span class="hljs-string">'s "getInitialProps", if it is defined
+
+      if (BaseComponent.getInitialProps) {
+        Object.assign(props, (await BaseComponent.getInitialProps(ctx)) || {});
+      }
+
+      return props;
+    }
+
+    render() {
+      const { user } = this.props;
+
+      if (loginRequired &amp;&amp; !logoutRequired &amp;&amp; !user) {
+        return null;
+      }
+
+      if (logoutRequired &amp;&amp; user) {
+        return null;
+      }
+
+      return &lt;BaseComponent {...this.props} /&gt;;
+    }
+  }
+
+  return App;
+}
+
+export default withAuth;</span></code></pre><p>To see that <code>user._id</code> from the server is not a <code>string</code> but an <code>object</code> - you can add <code>console.log()</code> statements like following:</p>
+<pre><code><span class="hljs-keyword">if</span> (isFromServer &amp;&amp; user) {
+  console.<span class="hljs-built_in">log</span>(<span class="hljs-string">'before'</span>, <span class="hljs-built_in">typeof</span> user.<span class="hljs-variable">_id</span>, user.<span class="hljs-variable">_id</span>);
+  user.<span class="hljs-variable">_id</span> = user.<span class="hljs-variable">_id</span>.<span class="hljs-built_in">toString</span>();
+  console.<span class="hljs-built_in">log</span>(<span class="hljs-string">'after'</span>, <span class="hljs-built_in">typeof</span> user.<span class="hljs-variable">_id</span>, user.<span class="hljs-variable">_id</span>);
+}</code></pre><p>Reload any page to get it server-side rendered, your terminal will print:</p>
+<pre><code>before object <span class="hljs-number">5</span>bccde<span class="hljs-number">65221770</span>a<span class="hljs-number">1</span><span class="hljs-keyword">cc</span><span class="hljs-number">2e97</span><span class="hljs-keyword">c</span><span class="hljs-number">0</span>
+after string <span class="hljs-number">5</span>bccde<span class="hljs-number">65221770</span>a<span class="hljs-number">1</span><span class="hljs-keyword">cc</span><span class="hljs-number">2e97</span><span class="hljs-keyword">c</span><span class="hljs-number">0</span></code></pre><p>The actual <code>id</code> value for you will be different from the shown above.</p>
+<p>Nice, we are done with <code>withAuth</code> HOC. From now on, we can use these parameters when we wrap pages with <code>withAuth</code>: </p>
+<ul>
+<li><p>export code for our <code>Index</code> page becomes:</p>
+<pre>export default withAuth(Index, { loginRequired: true })</pre>
+
+<p>However, <code>loginRequired</code> is true by default, so we simply omit it. Thus, there is no change to our <code>Index</code> page's export code:</p>
+<pre>export default withAuth(Index)</pre>
+</li>
+<li><p>export code for our <code>Login</code> page becomes:</p>
+<pre>export default withAuth(Login, { logoutRequired: true })</pre>
+
+
+</li>
+</ul>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="getinitialprops-method" href="#getinitialprops-method" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="getinitialprops-method">
+          getInitialProps() method
+        </span>
+      </h2><p>In this section, we take a detour to learn about the <code>getInitialProps()</code> method. We won't make any code changes in this section.</p>
+<p>Next.js uses <a target="_blank" href="https://github.com/zeit/next.js#fetching-data-and-component-lifecycle" rel="noopener noreferrer">getInitialProps()</a> to populates data to a component's props.</p>
+<p>We used <code>getInitialProps()</code> briefly in Chapter 2, as well as earlier in this chapter, to pass the <code>user</code> prop to our <code>Index</code> page, <code>App</code> HOC, and <code>withAuth</code> HOC. In this section, let's discuss the properties of this static method.</p>
+<p><code>getInitialProps()</code> is a static method that passes data to pages by populating the <code>props</code> of a component. Both HOCs and Next.js pages can use this method to get data, but child components cannot. Child components get props from a parent component. For example, we passed the <code>user</code> prop to our <code>Header</code> component from the <code>App</code> HOC in Chapter 2.</p>
+<p>In this app, we fetch data (<code>user</code> prop) asynchronously by using <code>async getInitialProps()</code> inside the <code>withAuth</code> HOC.</p>
+<p><code>Static method</code> means the method defines functions that act on a <a target="_blank" href="https://javascript.info/class" rel="noopener noreferrer">class</a> instead of a particular object of a class. For example, in Chapter 5, we will introduce the <code>pages/customer/read-chapter.js</code> page. As with any page of our app that is not written as a stateless functional component, we define the ES6 class as:</p>
+<pre><code><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ReadChapter</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">React</span>.<span class="hljs-title">Component</span> </span>{
+  <span class="hljs-comment">// some code</span>
+}</code></pre><p><code>getInitialProps()</code> is a static method of the <code>ReadChapter</code> class:</p>
+<pre><code><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ReadChapter</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">React</span>.<span class="hljs-title">Component</span> </span>{
+  static async getInitialProps({ query }) {
+    const { bookSlug, chapterSlug } = query;
+
+    const chapter = await getChapterDetail({ bookSlug, chapterSlug });
+
+    <span class="hljs-keyword">return</span> chapter;
+  }
+}</code></pre><p>In the example above, when a user loads the <code>pages/customer/read-chapter.js</code> page, <code>getInitialProps()</code> receives two slugs from the <code>query</code> part of the route, passes parameters to the API method <code>getChapterDetail()</code>, and returns the chapter <code>prop</code>. Now we are able to use the chapter <code>prop</code> to show <code>chapter.title</code> and <code>chapter.content</code> to the user.</p>
+<p>In this example, we pass <code>query</code> to our method, but you can pass other parameters as well. Check out the full list of parameters in Next.js <a target="_blank" href="https://github.com/zeit/next.js#fetching-data-and-component-lifecycle" rel="noopener noreferrer">docs</a>.</p>
+<p>As you know from our discussion of <a target="_blank" href="https://builderbook.org/books/builder-book/app-structure-next-js-hoc-material-ui-server-side-rendering-styles#server-side-rendering" rel="noopener noreferrer">server-side rendering in Chapter 1</a>, the optimal strategy for fast loading is to render a page on the server for the initial page load and then on the client for subsequent loads. Thus, in Next.js, <code>getInitialProps()</code> executes on the server for the initial load of a page but executes on the client when a user navigates to that page via <code>Link</code> or <code>Router.push</code>.</p>
+<p>Here are two choices for page rendering:</p>
+<ul>
+<li>If you want to render a page on the server for the initial load, you should fetch data with <code>getInitialProps()</code>.</li>
+<li>If you want to render a page on the client, without server-side rendering for the initial load, you should fetch data using the API method inside the <code>componentDidMount</code> lifecycle hook.</li>
+</ul>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="login-page-and-nprogress" href="#login-page-and-nprogress" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="login-page-and-nprogress">
+          Login page and Nprogress
+        </span>
+      </h2><p>For our Login page, the export code will have <code>logoutRequired: true</code>, since <code>logoutRequired</code> is false by default:</p>
+<pre>export default withAuth(Login, { logoutRequired: true })</pre>
+
+<p>Let's write our Login page as a stateless functional component. We created our <code>Index</code> page as a stateless functional component <a target="_blank" href="https://builderbook.org/books/builder-book/app-structure-next-js-hoc-material-ui-server-side-rendering-styles#index-page" rel="noopener noreferrer">in Chapter 1</a>. You should have no problem with writing code for the Login page:</p>
+<p><code>pages/login.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> Head <span class="hljs-keyword">from</span> <span class="hljs-string">'next/head'</span>;
+<span class="hljs-keyword">import</span> Button <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/core/Button'</span>;
+
+<span class="hljs-keyword">import</span> withAuth <span class="hljs-keyword">from</span> <span class="hljs-string">'../lib/withAuth'</span>;
+<span class="hljs-keyword">import</span> { styleLoginButton } <span class="hljs-keyword">from</span> <span class="hljs-string">'../components/SharedStyles'</span>;
+
+const Login = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> (
+  &lt;div style={{ textAlign: <span class="hljs-string">'center'</span>, margin: <span class="hljs-string">'0 20px'</span> }}&gt;
+    &lt;Head&gt;
+      &lt;title&gt;
+        Log <span class="hljs-keyword">in</span> to Builder Book
+      &lt;/title&gt;
+      &lt;meta name=<span class="hljs-string">"description"</span> content=<span class="hljs-string">"Login page for builderbook.org"</span> /&gt;
+    &lt;/Head&gt;
+    &lt;br /&gt;
+    &lt;p style={{ margin: <span class="hljs-string">'45px auto'</span>, fontSize: <span class="hljs-string">'44px'</span>, fontWeight: <span class="hljs-string">'400'</span> }}&gt;
+      Log <span class="hljs-keyword">in</span>
+    &lt;/p&gt;
+    &lt;p&gt;
+      You’ll be logged <span class="hljs-keyword">in</span> <span class="hljs-keyword">for</span> <span class="hljs-number">14</span> days <span class="hljs-keyword">unless</span> you log out manually.
+    &lt;/p&gt;
+    &lt;br /&gt;
+    &lt;Button variant=<span class="hljs-string">"contained"</span> style={styleLoginButton} href=<span class="hljs-string">"/auth/google"</span>&gt;
+      &lt;img
+        src=<span class="hljs-string">"https://storage.googleapis.com/builderbook/G.svg"</span>
+        alt=<span class="hljs-string">"Log in with Google"</span>
+        style={{ marginRight: <span class="hljs-string">'10px'</span> }}
+      /&gt;
+      Log <span class="hljs-keyword">in</span> with Google
+    &lt;/Button&gt;
+  &lt;/div&gt;
+);
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> withAuth(Login, { logoutRequired: <span class="hljs-literal">true</span> });</code></pre><p>We <a target="_blank" href="https://builderbook.org/books/builder-book/app-structure-next-js-hoc-material-ui-server-side-rendering-styles#app-structure" rel="noopener noreferrer">previously discussed</a> the usage of the <code>Head</code> component from Next.js and the <code>Button</code> component from Material-UI. Since we will be using Google OAuth for our users, both the login and signup buttons redirect a user to the <code>/auth/google</code> route. Later in this chapter, we will tell our server what to do when a user is on the <code>/auth/google</code> route.</p>
+<p>Start your app with <code>yarn dev</code>, navigate to <code>localhost:8000/login</code>, and click the <code>Log in</code> button located on the right side of the <code>Header</code>:</p>
+<p><img src="https://user-images.githubusercontent.com/26158226/35897620-f6f1d1de-0b76-11e8-9a1a-e5b85b3af462.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Good job, you are one step closer to adding user authentication to your app!</p>
+<p>Let's make a big UX improvement.</p>
+<p>You may have noticed that in the <code>Header</code> component, we used <code>&lt;Link prefetch href="/login"&gt;</code> syntax. We discussed Next.js's <code>prefetch</code> method <a target="_blank" href="https://builderbook.org/books/builder-book/app-structure-next-js-hoc-material-ui-server-side-rendering-styles#header-component" rel="noopener noreferrer">in Chapter 1</a>. In short, when a user loads the app for the first time, the static code for the <code>Login</code> page will be prefetched in the background. Important note: the <code>prefetch</code> feature is production-only. If your page has dynamic data - the page will not prefetch that data, only static code (page code without dynamic data).</p>
+<p>Fast loading is great, but our app still needs some visual element to <em>indicate</em> loading progress.</p>
+<p>Try clicking the hyperlinked logo (left) and <code>Log in</code> link (right) in the <code>Header</code> - nothing tells you visually that the route has changed and that you should expect a new page to load. For comparison, load this page: <a target="_blank" href="http://ricostacruz.com/nprogress/" rel="noopener noreferrer">http://ricostacruz.com/nprogress/</a></p>
+<p>This page has a nice-looking blue progress bar at the top. The bar informs you that the page is loading and shows you the progress.</p>
+<p>Let's add this Nprogress bar to our app. At the beginning of this chapter, you ran <code>yarn</code> - so you already added the <code>nprogress</code> package.</p>
+<p>We can add the Nprogress bar to our <code>Header</code> component or <code>App</code> HOC. Some of our pages may not have <code>Header</code>, also we may create another <code>Header</code> component for some of the pages. Thus, we're better off adding the loading bar to our <code>App</code> HOC that will wrap all pages in our application.</p>
+<p>Go to <code>pages/_app.js</code> and add two new imports to the imports section:</p>
+<pre><code><span class="hljs-keyword">import</span> Router <span class="hljs-keyword">from</span> <span class="hljs-string">'next/router'</span>;
+<span class="hljs-keyword">import</span> NProgress <span class="hljs-keyword">from</span> <span class="hljs-string">'nprogress'</span>;</code></pre><p>Then add two <a target="_blank" href="http://ricostacruz.com/nprogress" rel="noopener noreferrer">basic methods</a>, <code>NProgress.start()</code> and <code>NProgress.done()</code>, right after the imports section of<br><code>pages/_app.js</code> file:</p>
+<pre><code><span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">Router</span>.</span></span>onRouteChangeStart =<span class="hljs-function"> <span class="hljs-params">()</span> =&gt;</span> <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">NProgress</span>.</span></span>start<span class="hljs-literal">()</span>;
+<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">Router</span>.</span></span>onRouteChangeComplete =<span class="hljs-function"> <span class="hljs-params">()</span> =&gt;</span> <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">NProgress</span>.</span></span><span class="hljs-keyword">done</span><span class="hljs-literal">()</span>;
+<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">Router</span>.</span></span>onRouteChangeError =<span class="hljs-function"> <span class="hljs-params">()</span> =&gt;</span> <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">NProgress</span>.</span></span><span class="hljs-keyword">done</span><span class="hljs-literal">()</span>;</code></pre><p>If you'd like to learn more about router events in Next.js apps, check out the <a target="_blank" href="https://github.com/zeit/next.js/#router-events" rel="noopener noreferrer">Next.js docs</a>.</p>
+<p>Go to <a target="_blank" href="http://ricostacruz.com/nprogress/nprogress.css" rel="noopener noreferrer">http://ricostacruz.com/nprogress/nprogress.css</a> and download the <code>nprogress.css</code> file. Next.js requires static files to be located in a <code>static</code> folder, so place this <code>nprogress.css</code> file into a new <code>static</code> folder of your app. After customizing styles, here is the content of our slightly edited <code>nprogress.css</code>:<br><code>static/nprogress.css</code> :</p>
+<pre><code><span class="hljs-comment">/* Make clicks pass-through */</span>
+<span class="hljs-selector-id">#nprogress</span> {
+  <span class="hljs-attribute">pointer-events</span>: none;
+}
+
+<span class="hljs-comment">/* color and other parameter */</span>
+<span class="hljs-selector-id">#nprogress</span> <span class="hljs-selector-class">.bar</span> {
+  <span class="hljs-attribute">background</span>: <span class="hljs-number">#1976D2</span>;
+
+  <span class="hljs-attribute">position</span>: fixed;
+  <span class="hljs-attribute">z-index</span>: <span class="hljs-number">1000</span>;
+  <span class="hljs-attribute">top</span>: <span class="hljs-number">0</span>;
+  <span class="hljs-attribute">left</span>: <span class="hljs-number">0</span>;
+
+  <span class="hljs-attribute">width</span>: <span class="hljs-number">100%</span>;
+  <span class="hljs-attribute">height</span>: <span class="hljs-number">2px</span>;
+}</code></pre><p>Finally, to load the bar, add the following line of code to <code>pages/_document.js</code>. Add it just above the <code>style</code> tag:<br><code>&lt;link rel="stylesheet" type="text/css" href="/static/nprogress.css" /&gt;</code></p>
+<p>It's important to note that you should use the <code>static</code> folder for development only. If you plan to deploy your app, then you should move all static resources to a content delivery network (CDN).</p>
+<p>Since we plan to deploy our app in this book, let's add the style above to a CDN. We minified <code>nprogress.css</code> and uploaded it to Google Cloud at:<br><code>https://storage.googleapis.com/builderbook/nprogress.min.css</code></p>
+<p><a target="_blank" href="https://builderbook.org/books/builder-book/app-structure-next-js-hoc-material-ui-server-side-rendering-styles#document" rel="noopener noreferrer">In Chapter 1</a>, we customized <code>&lt;Document&gt;</code>. Among other customizations, we added the following code to the <code>&lt;Head&gt;</code> section of our <code>MyDocument</code> component at <code>pages/_document.js</code>:</p>
+<pre><code>&lt;link
+  <span class="hljs-attribute">rel</span>=<span class="hljs-string">"stylesheet"</span>
+  <span class="hljs-attribute">href</span>=<span class="hljs-string">"https://storage.googleapis.com/builderbook/nprogress.min.css"</span>
+/&gt;</code></pre><p>This <code>&lt;link&gt;</code> tag will ensure that the Nprogress bar gets styles from Google's CDN.</p>
+<p><em>Remember to remove</em> the <code>&lt;link rel="stylesheet" type="text/css" href="/static/nprogress.css" /&gt;</code> line of code as well as the <code>/static/nprogress.css</code> file.</p>
+<p>Start your app with <code>yarn dev</code>, navigate to <code>localhost:8000/login</code>, click both the hyperlinked logo and <code>Log in</code>. You will notice a dark blue progress bar. The bar's progress corresponds to the loading progress of our <code>Header</code> component.</p>
+<p>At this point, we wrote our <code>withAuth</code> HOC and <code>Login</code> page. Our next step is to write the main static method <code>signInOrSignUp</code> for <code>UserClass</code> of our User model. This static method will either log in an existing user or create a user document for a new user. However, before we write this method, you should get familiar with the concepts of <code>Promise</code> and <code>async/await</code>.</p>
+<p>The next two sections on <code>Promise</code> and <code>Async/await</code> are optional, in case you are already familiar with these concepts.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="promise-then-" href="#promise-then-" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="promise-then-">
+          Promise.then()
+        </span>
+      </h2><p>Traditionally in JavaScript, developers used <a target="_blank" href="https://stackoverflow.com/questions/824234/what-is-a-callback-function" rel="noopener noreferrer">callback</a> to figure out whether an asynchronous function has completed or not. An asynchronous function is one that completes with a delay. Callback is a function that is passed to an asynchronous function as an argument. When an asynchronous function completes - the callback function executes. As a result, you know that the asynchronous function has completed (either with success or error). Callback is typically used as an anonymous <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions" rel="noopener noreferrer">arrow function</a>. </p>
+<p>Note that you may use callback synchronously and execute it before the main function completes. But in this section, we discuss only asynchronous functions.</p>
+<p>We will write two callbacks (<code>verify</code> and <code>verified</code>) later in this chapter when we write code for integration with Google OAuth. Let's discuss the alternative to asynchronous callback - Promise.</p>
+<p>Eventually, to make code more readable, developers began using Promises. Besides better readability, Promises have some additional advantages over callbacks - for example, asynchronous <code>.then/catch</code> handlers and promise chain. </p>
+<p>To understand Promise, consider the following example:</p>
+<pre><code><span class="hljs-keyword">var</span> delay = <span class="hljs-keyword">new</span> <span class="hljs-built_in">Promise</span>(<span class="hljs-function">(<span class="hljs-params">resolve, reject</span>) =&gt;</span> {
+  setTimeout(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> resolve(<span class="hljs-string">"Resolved"</span>), <span class="hljs-number">2000</span>);
+});
+
+delay.then(
+  <span class="hljs-function"><span class="hljs-params">result</span> =&gt;</span> alert(result),
+  <span class="hljs-function"><span class="hljs-params">error</span> =&gt;</span> alert(error)
+);</code></pre><p>Go to Chrome's <code>Developer tools</code>, click <code>Console</code>, and paste the code above. Click enter to run the code. In the browser window, the alert modal says <code>Resolved</code>:<br><img src="https://user-images.githubusercontent.com/10218864/35460395-bac226c8-0298-11e8-83ce-189fa42c3d9e.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Now run this slightly modified code:</p>
+<pre><code><span class="hljs-keyword">var</span> delay = <span class="hljs-keyword">new</span> <span class="hljs-built_in">Promise</span>(<span class="hljs-function">(<span class="hljs-params">resolve, reject</span>) =&gt;</span> {
+  setTimeout(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> reject(<span class="hljs-string">"Rejected"</span>), <span class="hljs-number">2000</span>);
+});
+
+delay.then(
+  <span class="hljs-function"><span class="hljs-params">result</span> =&gt;</span> alert(result),
+  <span class="hljs-function"><span class="hljs-params">error</span> =&gt;</span> alert(error)
+);</code></pre><p>In the browser window, the alert modal says <code>Rejected</code>:<br><img src="https://user-images.githubusercontent.com/10218864/35460663-9f5b8202-0299-11e8-965a-48e932ee1e83.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>From this example, you can see that Promise has some similarities with asynchronous callback:</p>
+<ul>
+<li>the function <code>delay</code> takes time to complete (it's the main asynchronous function, and callback is the argument of this function),</li>
+<li><code>.then()</code> is <em>waiting</em> for the result and won't execute unless <code>delay</code> has completed (callback is waiting for the main function to complete),</li>
+<li>function <code>delay.then()</code> returns <code>result</code> or <code>error</code> (this is new, see the explanation below)</li>
+</ul>
+<p>In JavaScript, Promise is a special object that has <code>state</code> and <code>result</code>.</p>
+<ul>
+<li>The Promise object <em>initially</em> has <code>state: "pending", result: undefined</code>.</li>
+<li>When Promise calls <code>resolve("Resolved")</code>, the object parameters become <code>state: "fulfilled", result: "Resolved"</code></li>
+<li>When Promise calls <code>reject("Rejected")</code>, the object parameters become: <code>state: "rejected", result: "Rejected"</code></li>
+</ul>
+<p>The Promise object's <code>state</code> and <code>result</code> are <em>not available</em> in the code and have to be accessed with <code>.then()</code>.</p>
+<p>The asynchronous <code>.then()</code> handler that waits for the main function to return <code>result</code> or <code>error</code> is nice and a step up from callbacks. What about the second advantage that we mentioned - promise chain?</p>
+<p>Promise chain is an instance when you need to <em>run multiple functions one after another</em> once the main function completes and the <code>result</code> is available. Go to Chrome's <code>Developer tools</code>, click <code>Console</code>, paste and run the following promise chain:</p>
+<pre><code><span class="hljs-keyword">var</span> delay = <span class="hljs-keyword">new</span> <span class="hljs-built_in">Promise</span>(<span class="hljs-function">(<span class="hljs-params">resolve, reject</span>) =&gt;</span> {
+  setTimeout(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> resolve(<span class="hljs-string">"Resolved"</span>), <span class="hljs-number">2000</span>);
+});
+
+delay
+.then(
+  <span class="hljs-function"><span class="hljs-params">result</span> =&gt;</span> {
+    alert(result);
+    <span class="hljs-keyword">return</span> result;
+  }
+)
+.then(
+  <span class="hljs-function"><span class="hljs-params">result</span> =&gt;</span> alert(result+<span class="hljs-string">" again"</span>),
+);</code></pre><p>You will see <em>two sequential</em> alert modals. The first says <code>Resolved</code>, and the second says <code>Resolved again</code>.</p>
+<p>There is one more thing you should know to start using Promise. In Chapter 5, when we write internal APIs for our app, the Express route for fetching a list of books will look like this:</p>
+<pre><code>router.get('/books',<span class="hljs-function"> (<span class="hljs-params">req</span>, <span class="hljs-params">res</span>) =&gt;</span> {
+  <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">Book</span>.</span></span><span class="hljs-built_in">list</span><span class="hljs-literal">()</span>
+    .<span class="hljs-keyword">then</span>(books =&gt; res.json(books))
+    .catch(err =&gt; res.json({ error: err.message<span class="hljs-operator"> || </span>err.<span class="hljs-keyword">to</span><span class="hljs-constructor">String()</span> }));
+});</code></pre><p>About <code>.catch()</code> - try running this code in your browser console:</p>
+<pre><code><span class="hljs-keyword">var</span> delay = <span class="hljs-keyword">new</span> <span class="hljs-built_in">Promise</span>(<span class="hljs-function">(<span class="hljs-params">resolve, reject</span>) =&gt;</span> {
+  setTimeout(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> reject(<span class="hljs-string">"Rejected"</span>), <span class="hljs-number">2000</span>);
+});
+
+delay.then(
+  <span class="hljs-function"><span class="hljs-params">result</span> =&gt;</span> alert(result)
+);</code></pre><p>You <em>won't</em> see any alert modal. Instead, the browser will tell you that <code>error</code> is <code>uncaught</code>:<br><img src="https://user-images.githubusercontent.com/10218864/35462709-ef44fc3c-02a1-11e8-9f2d-9481b6ac19a5.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Now, add <code>null</code> to <code>.then</code> and run the code again:</p>
+<pre><code><span class="hljs-keyword">var</span> delay = <span class="hljs-keyword">new</span> <span class="hljs-built_in">Promise</span>(<span class="hljs-function">(<span class="hljs-params">resolve, reject</span>) =&gt;</span> {
+  setTimeout(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> reject(<span class="hljs-string">"Rejected"</span>), <span class="hljs-number">2000</span>);
+});
+
+delay.then(<span class="hljs-literal">null</span>,
+  <span class="hljs-function"><span class="hljs-params">result</span> =&gt;</span> alert(result)
+);</code></pre><p>In this case, you will see an alert modal that says <code>Rejected</code> - you caught the <code>error</code> successfully. To catch an error, instead of using <code>.then(null, function)</code>, you can use a shorter and more memorable <code>.catch(function)</code>. Run this code in your browser console:</p>
+<pre><code><span class="hljs-keyword">var</span> delay = <span class="hljs-keyword">new</span> <span class="hljs-built_in">Promise</span>(<span class="hljs-function">(<span class="hljs-params">resolve, reject</span>) =&gt;</span> {
+  setTimeout(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> reject(<span class="hljs-string">"Rejected"</span>), <span class="hljs-number">2000</span>);
+});
+
+delay.catch(
+  <span class="hljs-function"><span class="hljs-params">result</span> =&gt;</span> alert(result),
+);</code></pre><p>Indeed, you see an alert modal with <code>Rejected</code>, indicating that the error was caught.</p>
+<p>There are three popular solutions to asynchronous execution. Here they are in the order they were introduced in JavaScript:</p>
+<ol>
+<li>asynchronous callback</li>
+<li>promise with <code>.then()</code></li>
+<li>async/await</li>
+</ol>
+<p>Our favorite approach is <code>async/await</code>, which we'll discuss in the next section. By the end of this book, we will use this construct over two dozen times.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="async-await" href="#async-await" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="async-await">
+          Async/await
+        </span>
+      </h2><p>Node.js has supported <code>async/await</code> since version 7.6, so this feature is relatively new. We learned this feature before Promise's <code>.then()</code>. As a result, this app uses <code>async/await</code> in most instances that require asynchronous execution. As you will see from the examples below, every <code>Promise.then()</code> can be replaced with more readable and concise <code>async/await</code>. The readability gain becomes more obvious with promise chain - I'll provide an example at the end of this section to discuss our <code>signInOrSignUp()</code> method inside the User model.</p>
+<p>At the end of this chapter, we will add static methods to our User model. In Chapter 5, we will add static methods to our Book model. To explain <code>async/await</code> more clearly, let's consider a <em>simplified</em> version of our static method <code>add()</code> inside the Book model.</p>
+<p>The static method <code>add()</code> generates a <code>slug</code> with <code>generateSlug()</code> from <code>server/utils/slugify.js</code> and creates a new book with Mongoose's <code>create()</code> method. Normally, we would define <code>add()</code> using Promise's method <code>.then()</code>:</p>
+<pre><code>static <span class="hljs-keyword">add</span>({ <span class="hljs-type">name</span>, price, githubRepo }) {
+   <span class="hljs-keyword">return</span> generateSlug(this, <span class="hljs-type">name</span>).<span class="hljs-keyword">then</span>(slug =&gt;
+      this.<span class="hljs-keyword">create</span>({
+         slug,
+        // other parameters needed <span class="hljs-keyword">for</span> creating <span class="hljs-built_in">new</span> book
+      }));
+}</code></pre><p>The method <code>create()</code> inside the asynchronous handler <code>.then()</code> will run only after <code>generateSlug()</code> returns <code>slug</code> (or null).</p>
+<p>We can achieve the exact same result as the code above by using <code>async/await</code>:</p>
+<pre><code><span class="hljs-keyword">static</span> <span class="hljs-function">async <span class="hljs-title">add</span><span class="hljs-params">({ name, price, githubRepo })</span> </span>{
+   <span class="hljs-keyword">const</span> slug = <span class="hljs-function">await <span class="hljs-title">generateSlug</span><span class="hljs-params">(<span class="hljs-keyword">this</span>, name)</span></span>;
+   <span class="hljs-function"><span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.<span class="hljs-title">create</span><span class="hljs-params">({
+      slug,
+      // other parameters needed <span class="hljs-keyword">for</span> creating <span class="hljs-keyword">new</span> book
+   })</span></span>;
+}</code></pre><p>Compare the two versions. Both achieve the same result, but the <code>async/await</code> version is more readable. When you simply prepend the function <code>add()</code> with <code>async</code> - you ensure that <code>add()</code> will <em>always</em> return a Promise. <code>await</code> makes Javascript <em>pause</em> and wait for <code>slug</code> to be generated and returned, since a new book requires <code>slug</code> among other parameters.</p>
+<p>To better understand <code>async</code> behaviour, let's run some code in our browser console. Go to Chrome and click <code>Tools</code> &gt; <code>Developer tools</code> &gt; <code>Console</code>. Paste this code and run it by clicking <code>Enter</code>:</p>
+<pre><code>var foo = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+  <span class="hljs-keyword">return</span> <span class="hljs-string">'Hello world!'</span>;
+}
+
+foo().<span class="hljs-keyword">then</span>(alert);</code></pre><p><em>No alert modal</em> appears, and you can see an error that says <code>Uncaught TypeError: foo(...).then is not a function</code>:<br><img src="https://user-images.githubusercontent.com/10218864/35464056-cda17626-02a8-11e8-8df2-e444137a1e58.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>That's correct. Because <code>foo()</code> <em>does not return</em> a Promise, <code>.then()</code> <em>can not</em> catch any <code>result</code> or <code>error</code>.</p>
+<p>Now, add <code>async</code> before the function <code>()</code>:</p>
+<pre><code><span class="hljs-keyword">var</span> foo = <span class="hljs-keyword">async</span> () =&gt; {
+  <span class="hljs-keyword">return</span> <span class="hljs-string">'Hello world!'</span>;
+}
+
+foo().then(alert);</code></pre><p>Now the alert modal <em>does appear</em>:<br><img src="https://user-images.githubusercontent.com/10218864/35464080-f7443aa4-02a8-11e8-9257-c8311cba210f.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>This proves that only the function <em>with</em> <code>async</code> returns a Promise. We learned in a previous section that <code>.then()</code> gets a <code>result</code> or <code>error</code> from a Promise object only. That proves that <code>async ()</code> returns a Promise.</p>
+<p><code>async</code> is a very simple way to make a function return a Promise. As you learned from the examples above, a function always returns a Promise even for non-promise return values (<code>return 'Hello world!'</code>). When a return statement returns a non-promise value, JavaScript will automatically wrap that non-promise into a resolved Promise.</p>
+<p>Let's talk about the second half of the <code>async/await</code> construct: <code>await</code>. Inside the <code>async</code> function (not outside and not inside regular non-async functions - eslint will warn you), you may execute code in a synchronous fashion by adding <code>await</code>.</p>
+<p>In the example for our <code>add()</code> static method, JavaScript will <em>pause</em> on the line that contains <code>await</code>:</p>
+<pre>const slug = await generateSlug(this, name);</pre>
+
+<p>JavaScript pauses until the Promise settles and returns a <code>result</code> (in this case, the book <code>slug</code> or <code>null</code>).</p>
+<p>To better understand how pausing happens on the line with <code>await</code>, let's do a short exercise. In the Promise section, you ran this code:</p>
+<pre><code><span class="hljs-keyword">var</span> delay = <span class="hljs-keyword">new</span> <span class="hljs-built_in">Promise</span>(<span class="hljs-function">(<span class="hljs-params">resolve, reject</span>) =&gt;</span> {
+  setTimeout(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> resolve(<span class="hljs-string">"Resolved"</span>), <span class="hljs-number">2000</span>);
+});
+
+delay.then(
+  <span class="hljs-function"><span class="hljs-params">result</span> =&gt;</span> alert(result)
+);</code></pre><p>Rewrite this code block using <code>async/await</code>:</p>
+<ul>
+<li><p>Replace the handle <code>.then(result =&gt; ...)</code> that <em>waits</em> for <code>result</code> with a line that has <code>await</code> and <em>also waits</em> for <code>result</code>:</p>
+<pre>var result = await ...</pre>
+</li>
+<li><p>Finally, decide which function you are waiting for. We are waiting for the <code>setTimeout()</code> function. Thus:</p>
+<pre>var result = await setTimeout()</pre>
+
+
+</li>
+</ul>
+<p>If you followed these hints, you get:</p>
+<pre><code><span class="hljs-keyword">var</span> delay = <span class="hljs-keyword">async</span> () =&gt; {
+  <span class="hljs-keyword">var</span> foo = <span class="hljs-keyword">new</span> <span class="hljs-built_in">Promise</span>(<span class="hljs-function">(<span class="hljs-params">resolve, reject</span>) =&gt;</span> {
+    setTimeout(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> resolve(<span class="hljs-string">"Resolved"</span>), <span class="hljs-number">2000</span>)
+  });
+
+  <span class="hljs-keyword">var</span> result = <span class="hljs-keyword">await</span> foo;
+  alert(result);
+}
+
+delay();</code></pre><p>Run this code in your browser console and you will get the same alert modal that says <code>Resolved</code> after a 2 sec delay. We just achieved the same goal but with way more readable code, although there is no gain in size (we did not make the code more concise). We know that the code <em>pauses</em> at <code>var result = await foo;</code> line.</p>
+<p>In practice, the code can become more concise. You will see this in Chapter 5, where we write many static methods for Mongoose models. By default, all Mongoose methods (aka Mongoose Queries), such as <code>create()</code>, <code>update()</code>, and <code>findOne</code>, return a Promise. Thus, we don't need to use <code>Promise((resolve, reject) =&gt; ...)</code> when using <code>await</code> on any of these methods.</p>
+<p>Another situation when code with <code>async/await</code> gets more concise is the promise chain. You will see this in the <code>signInOrSignUp()</code> static method of our User model (discussed in the next section of this chapter).</p>
+<p>We use <code>var foo = new Promise((resolve, reject) =&gt; ...)</code> because the function after <code>await</code> must return a Promise. For JavaScript to pause at a line with <code>await</code>, the syntax is <code>await foo</code>, where <code>foo</code> must return a Promise. To demonstrate that JavaScript pauses on the line that contains <code>await foo</code> and that <code>foo</code> returns a Promise, run this code in your browser console:</p>
+<pre><code><span class="hljs-keyword">var</span> delay = <span class="hljs-keyword">async</span> () =&gt; {
+  <span class="hljs-keyword">var</span> foo = <span class="hljs-keyword">new</span> <span class="hljs-built_in">Promise</span>(<span class="hljs-function">(<span class="hljs-params">resolve, reject</span>) =&gt;</span> {
+    setTimeout(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> resolve(<span class="hljs-string">"Resolved"</span>), <span class="hljs-number">2000</span>)
+  });
+
+  <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'Line BEFORE await'</span>);
+  <span class="hljs-keyword">var</span> result = <span class="hljs-keyword">await</span> foo;
+  <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'Line AFTER await'</span>);
+
+  alert(result);
+}
+
+delay();</code></pre><p>While running this code, notice the order in which the console prints text and the browser shows the alert modal:<br><img src="https://user-images.githubusercontent.com/10218864/35467230-cbda9512-02c0-11e8-9652-e63c8b97284f.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Events in chronological order:</p>
+<ul>
+<li>the console prints <code>Line BEFORE await</code></li>
+<li>nothing happens for about 2 sec (code pauses for 2 sec at <code>await foo</code> line)</li>
+<li>the alert modal shows up</li>
+<li>the console prints  <code>Line AFTER await</code></li>
+</ul>
+<p>Now, let's try running this code where <code>foo</code> does not return Promise:</p>
+<pre><code><span class="hljs-keyword">var</span> delay = <span class="hljs-keyword">async</span> () =&gt; {
+  <span class="hljs-keyword">var</span> foo = setTimeout(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> alert(<span class="hljs-string">'Resolved'</span>), <span class="hljs-number">2000</span>);
+
+  <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'Line BEFORE await'</span>);
+  <span class="hljs-keyword">var</span> result = <span class="hljs-keyword">await</span> foo;
+  <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'Line AFTER await'</span>);
+
+  result;
+}
+
+delay();</code></pre><p>This time, you see <em>no pausing</em>, and the console prints <code>Line BEFORE await</code> and <code>Line AFTER await</code> right after the code starts to execute. That's exactly what we expected, since <code>foo</code> does not return a Promise (unlike the previous example).</p>
+<p>Important note on catching an error with <code>.catch()</code> used after <code>.then()</code> - to catch an error with <code>async/await</code>, use <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch" rel="noopener noreferrer">try/catch</a>.</p>
+<p>We frequently use this construct with <code>async/await</code> when we need to catch an error. For example, our Express route <code>/books</code> awaits for the <code>Book.list()</code> static method to return a list of books (more on Express routes in Chapter 5):</p>
+<pre><code>router.<span class="hljs-keyword">get</span>(<span class="hljs-string">'/books'</span>, <span class="hljs-keyword">async</span> (req, res) =&gt; {
+  <span class="hljs-keyword">try</span> {
+    <span class="hljs-keyword">const</span> books = <span class="hljs-keyword">await</span> Book.list();
+    res.json(books);
+  } <span class="hljs-keyword">catch</span> (err) {
+    res.json({ error: err.message || err.toString() });
+  }
+});</code></pre><p>In summary, <code>async/await</code> achieves the same goal as a Promise with <code>.then()</code> and as asynchronous callbacks. However, the syntax is more readable and thus developer-friendly.</p>
+<p>We hope this section and the previous one showed you - via practical exercises - how asynchronous callbacks, Promise and <code>.then()</code>, and <code>async/await</code> solve the problem of asynchronous execution. In our app, we will use asynchronous callbacks a few times, Promise with <code>.then()</code> a half a dozen times, and <code>async/await</code> over two dozen times.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="static-method-signinorsignup-" href="#static-method-signinorsignup-" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="static-method-signinorsignup-">
+          Static method signInOrSignUp()
+        </span>
+      </h2><p>In this section, we discuss and work on the static method <code>signInOrSignUp</code> for <code>UserClass</code> of our User model. From the <code>getInitialProps</code> section, you learned that developers use static methods to write functions that act on an entire class (for example, <code>UserClass</code>) instead of individual objects within the class.</p>
+<p>We will use <code>async/await</code> heavily inside our <code>static async signInOrSignUp</code> method. It's important to mention again that Mongoose methods (we will use <code>Model.findOne</code>, <code>Model.create</code>, and <code>Model.updateOne</code>) return a Promise by default. Since you read the <code>Promise</code> and <code>Async/Await</code> sections, you know what this means for us - we can use <code>await</code> on these Mongoose methods without creating Promises with <code>Promise((resolve, reject) =&gt; ...)</code>.</p>
+<p>You probably guessed that our <code>signInOrSignUp</code> method is used to log in or sign up a user. This method checks if a user already exists with the Mongoose method <code>this.findOne</code>:</p>
+<ul>
+<li>if a user document (MongoDB document) exists, the method will use Mongoose <code>this.updateOne</code> to update a user's google tokens (we discuss Google OAuth later in this chapter).</li>
+<li>if a user document does not exist, the method will use Mongoose's <code>this.create</code> to create a new user document.</li>
+</ul>
+<p>Before we work on <code>signInOrSignUp</code>, let's make a small detour to get familiar with <code>this</code>. If you read the <a target="_blank" href="http://mongoosejs.com/docs/api.html#create_create" rel="noopener noreferrer">Mongoose docs</a>, you'll find that the syntax for methods should be <code>Model.findOne</code>, <code>Model.create</code>, and <code>Model.updateOne</code>. In our case, it should be <code>User.findOne</code>, <code>User.create</code>, and <code>User.updateOne</code>, but we replaced <code>User</code> with <code>this</code>.</p>
+<p>In JavaScript, <a target="_blank" href="http://dmitrysoshnikov.com/ecmascript/chapter-3-this" rel="noopener noreferrer">this</a> is used to access an object in the context. Sometimes, a method needs to access data inside an object. If so, that method can use <code>this</code> to access the object's data. Consider the following example:</p>
+<pre><code><span class="hljs-keyword">var</span> user = {
+  name: <span class="hljs-string">"Peter"</span>,
+  occupation: <span class="hljs-string">"guitar player"</span>,
+
+  printToConsole() {
+    console.log(<span class="hljs-string">'My name is '</span>+ <span class="hljs-keyword">this</span>.name + <span class="hljs-string">', I am '</span> + <span class="hljs-keyword">this</span>.occupation);
+  }
+
+};
+
+user.printToConsole();</code></pre><p>The method <code>printToConsole()</code> gains access to user data (object data) with <code>this.name</code> and <code>this.occupation</code>. Run the code in your browser console:<br><img src="https://user-images.githubusercontent.com/10218864/35478492-cbef436c-0393-11e8-8dff-6174d5b17c8a.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>You get an output with the proper data. In our case, <code>this.name</code> and <code>this.occupation</code> are equal to <code>user.name</code> and <code>user.occupation</code>. Thus <code>this</code> in the context of <code>printToConsole()</code> is a <code>user</code> object. You can think of <code>this</code> in JavaScript like <code>this</code> in English. Say two developers are discussing a new app idea and one says <em>we gotta build <code>this</code></em>.</p>
+<p>In the context of <code>this.findOne</code>, <code>this.create</code>, and <code>this.updateOne</code>, <code>this</code> is equal to <code>User</code> (for our User model). Hence, these methods are equal to <code>User.findOne</code>, <code>User.create</code>, and <code>User.updateOne</code>, and the use of <code>this</code> allows us to properly find, create, or update a user document in our users collection.</p>
+<p>Below, we will write our <code>signInOrSignUp</code> method. At the end of this section, we will add this method to our User model at <code>server/models/User.js</code>.</p>
+<p><code>signInOrSignUp</code> is a static method of the class <code>UserClass</code>. Mongoose <a target="_blank" href="http://mongoosejs.com/docs/advanced_schemas.html" rel="noopener noreferrer">creates ES6 classes</a> using the <code>loadClass()</code> method. Here is an example:</p>
+<pre><code><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">PersonClass</span> {</span>
+  <span class="hljs-function"><span class="hljs-keyword">static</span> <span class="hljs-title">findByFullName</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-comment">// some code</span>
+  }
+}
+
+schema.loadClass(PersonClass)</code></pre><p>In our case, the class is <code>UserClass</code>, and we have two static methods instead of one:</p>
+<pre><code><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">UserClass</span> {</span>
+  <span class="hljs-function"><span class="hljs-keyword">static</span> <span class="hljs-title">publicFields</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-comment">// some code</span>
+  }
+
+  <span class="hljs-function"><span class="hljs-keyword">static</span> <span class="hljs-title">signInOrSignUp</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-comment">// some code</span>
+  }
+}
+
+schema.loadClass(UserClass)</code></pre><p>The <code>publicFields()</code> method contains user parameters that we call <em>public</em> parameters. We send public parameters to the client (browser). To render our app's dashboard, the client needs to know if a user is Admin or not and needs to get the user's Avatar - thus we add <code>isAdmin</code> and <code>avatarUrl</code> to our public parameters:</p>
+<pre><code><span class="hljs-function"><span class="hljs-keyword">static</span> <span class="hljs-title">publicFields</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-keyword">return</span> [
+      <span class="hljs-string">'id'</span>,
+      <span class="hljs-string">'displayName'</span>,
+      <span class="hljs-string">'email'</span>,
+      <span class="hljs-string">'avatarUrl'</span>,
+      <span class="hljs-string">'slug'</span>,
+      <span class="hljs-string">'isAdmin'</span>,
+      <span class="hljs-string">'isGithubConnected'</span>,
+    ]
+  }</code></pre><p>The parameters <code>id</code>, <code>displayName</code>, <code>email</code>, <code>avatarUrl</code>, <code>slug</code>, and <code>isAdmin</code> are self-explanatory. We will discuss <code>isGithubConnected</code> in Chapter 6.</p>
+<p>The method <code>signInOrSignUp()</code> won't be this easy, since it does way more:</p>
+<ol>
+<li><p>If a user exists, the method finds this exisitng user with <code>this.findOne</code> and updates each token inside <code>googleToken</code> with <code>this.updateOne</code>.</p>
+</li>
+<li><p>If user does not exist, the method creates a <code>slug</code> out of the user's <code>displayName</code> and then creates a new user with <code>this.create</code>.</p>
+</li>
+</ol>
+<pre><code>static async signInOrSignUp({
+    googleId, email, googleToken, displayName, avatarUrl
+}) {
+    const <span class="hljs-keyword">user</span> = await this.findOne({ googleId }).<span class="hljs-keyword">select</span>(UserClass.publicFields().<span class="hljs-keyword">join</span>(<span class="hljs-string">' '</span>));
+
+    <span class="hljs-keyword">if</span> (<span class="hljs-keyword">user</span>) {
+        // <span class="hljs-number">1.</span> <span class="hljs-keyword">for</span> existing <span class="hljs-keyword">user</span>, <span class="hljs-keyword">update</span> <span class="hljs-keyword">each</span> token inside googleToken
+    }
+
+    // <span class="hljs-number">2.</span> <span class="hljs-keyword">else</span>, <span class="hljs-keyword">for</span> <span class="hljs-built_in">new</span> <span class="hljs-keyword">user</span>, generate slug <span class="hljs-keyword">and</span> <span class="hljs-keyword">create</span> <span class="hljs-keyword">user</span>
+    }</code></pre><p>The Mongoose method (aka aka Mongoose Query) <a target="_blank" href="http://mongoosejs.com/docs/api.html#query_Query-select" rel="noopener noreferrer">select()</a> specifies which document parameters to include. We want to include public parameters when we return a user to the client.</p>
+<p>JavaScript's <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/join" rel="noopener noreferrer">join()</a> method joins parameters into a string like this:</p>
+<pre><code><span class="hljs-keyword">var</span> elements = [<span class="hljs-string">'Fire'</span>, <span class="hljs-string">'Wind'</span>, <span class="hljs-string">'Rain'</span>];
+
+console.log(elements.<span class="hljs-keyword">join</span>(<span class="hljs-string">' '</span>));
+<span class="hljs-comment">// browser console: Fire Wind Rain</span></code></pre><p>Let's discuss the two main parts of our static method <code>signInOrSignUp()</code>.</p>
+<ol>
+<li><p>If a user exists, the method updates each token inside <code>googleToken</code>. </p>
+<p>We have to update these tokens because they expire. A typical <code>googleToken</code> is an object that contains <code>access_token</code> and <code>refresh_token</code>, among other parameters:</p>
+<pre><code><span class="hljs-string">"googleToken"</span>: {
+       <span class="hljs-string">"access_token"</span>: <span class="hljs-string">"ya29.GlwABQCOnfwd4zfuV7mpg8aePBLTafv9l3te62C97NyByJHPScsM3NPFZzcWITksb7zGdfXwlDEfzf33S7U"</span>,
+       <span class="hljs-string">"refresh_token"</span>: <span class="hljs-string">"1/QpdBoQURq1uxY4m6p9T48nHtb_XMCGfMmag3WCqS0c0"</span>,
+       <span class="hljs-string">"token_type"</span>: <span class="hljs-string">"Bearer"</span>,
+       <span class="hljs-string">"expiry_date"</span>: <span class="hljs-number">1510363003035</span>
+}</code></pre><p>Google sets expiration rules on tokens. For example <code>refresh_token</code> expires in these situations:</p>
+<ul>
+<li>user did not use the app for 3+ months</li>
+<li>user resets the password to his/her Google Account</li>
+<li>user manually revokes permission</li>
+</ul>
+<p>To replace each parameter token inside <code>googleToken</code>, we check if the parameter exists. If it exists, we add the parameter to <code>modifier</code>. Later, we use <code>modifier</code> to update the user document on our database:</p>
+<pre><code><span class="hljs-keyword">const</span> modifier = {};
+
+<span class="hljs-keyword">if</span> (googleToken.accessToken) {
+ modifier.access_token = googleToken.accessToken;
+}
+
+<span class="hljs-keyword">if</span> (googleToken.<span class="hljs-built_in">ref</span>reshToken) {
+ modifier.<span class="hljs-built_in">ref</span>resh_token = googleToken.<span class="hljs-built_in">ref</span>reshToken;
+}</code></pre><p>If <code>modifier</code> is empty - say, Google did not provide tokens - then we should return a user <em>without</em> updating the user document:</p>
+<pre><code><span class="hljs-keyword">if</span> (_.isEmpty(modifier)) {
+ return<span class="hljs-built_in"> user;
+</span>}</code></pre><p>Else, we update the user <em>with</em> <code>modifier</code>:</p>
+<pre>await this.updateOne({ googleId }, { $set: modifier });</pre>
+
+<p>Put these constructs together and you get:</p>
+<pre><code><span class="hljs-keyword">if</span> (user) {
+ const modifier = {};
+
+ <span class="hljs-keyword">if</span> (googleToken.accessToken) {
+   modifier.access_token = googleToken.accessToken;
+ }
+
+ <span class="hljs-keyword">if</span> (googleToken.refreshToken) {
+   modifier.refresh_token = googleToken.refreshToken;
+ }
+
+ <span class="hljs-keyword">if</span> (_.isEmpty(modifier)) {
+   return<span class="hljs-built_in"> user;
+</span> }
+
+ await this.updateOne({ googleId }, { <span class="hljs-variable">$set</span>: modifier });
+
+ return<span class="hljs-built_in"> user;
+</span>}</code></pre><p>We use <a target="_blank" href="https://lodash.com/docs/4.17.4#isEmpty" rel="noopener noreferrer">_.isEmpty()</a> from <a target="_blank" href="https://lodash.com/docs" rel="noopener noreferrer">lodash</a> to check if <code>modifier</code> is empty.</p>
+</li>
+<li><p>If a user does not exist, our <code>signInOrSignUp()</code> method creates a <code>slug</code> by waiting for <code>generateSlug()</code> (we define <code>generateSlug()</code> in the next section of this chapter):</p>
+<pre>const slug = await generateSlug(this, displayName);</pre>
+
+<p>When a <code>slug</code> is available, <code>signInOrSignUp()</code> creates a user with <code>this.create</code>:</p>
+<pre><code><span class="hljs-keyword">const</span> slug = <span class="hljs-keyword">await</span> generateSlug(<span class="hljs-keyword">this</span>, displayName);
+<span class="hljs-keyword">const</span> userCount = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.find().countDocuments();
+
+<span class="hljs-keyword">const</span> newUser = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.create({
+ <span class="hljs-attr">createdAt</span>: <span class="hljs-keyword">new</span> <span class="hljs-built_in">Date</span>(),
+ googleId,
+ email,
+ googleToken,
+ displayName,
+ avatarUrl,
+ slug,
+ <span class="hljs-attr">isAdmin</span>: userCount === <span class="hljs-number">0</span>,
+});
+
+<span class="hljs-keyword">return</span> _.pick(newUser, UserClass.publicFields());</code></pre><p>Note that we use <code>this.find().countDocuments()</code> instead of <code>this.find().count()</code> in order to avoid a deprecation warning described in the <a target="_blank" href="https://mongoosejs.com/docs/api.html#model_Model.countDocuments" rel="noopener noreferrer">Mongoose docs</a> and <a target="_blank" href="https://docs.mongodb.com/manual/reference/method/db.collection.count/" rel="noopener noreferrer">MongoDB docs</a>.</p>
+<p>If our database has no users at all, we want to make the very first user an Admin. When <code>userCount</code> is zero, we add <code>isAdmin: true</code> to our user document. That means the very first user is Admin user.</p>
+<p>We can also get user count with <code>this.count()</code>. This method is similar in performance to <code>this.find().count()</code>. Check up these links: <a target="_blank" href="https://docs.mongodb.com/manual/reference/method/db.collection.count/#count-all-documents-in-a-collection" rel="noopener noreferrer">MongoDB docs</a>, <a target="_blank" href="https://github.com/builderbook/builderbook/issues/121" rel="noopener noreferrer">relevant discussion on Github</a>.</p>
+<p>The lodash method <a target="_blank" href="https://lodash.com/docs/4.17.4#pick" rel="noopener noreferrer">_.pick</a> picks/adds <em>only</em> public parameters to a returned new user. We don't want to send all parameters. For example, sending <code>googleToken</code> to the client is unnecessary and unsafe.</p>
+</li>
+</ol>
+<p>Let's add our static methods <code>publicFields()</code> and <code>signInOrSignUp()</code> to our <code>UserClass</code> carcass:</p>
+<pre><code><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">UserClass</span> {</span>
+  <span class="hljs-function"><span class="hljs-keyword">static</span> <span class="hljs-title">publicFields</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-comment">// some code</span>
+  }
+
+  <span class="hljs-function"><span class="hljs-keyword">static</span> <span class="hljs-title">signInOrSignUp</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-comment">// some code</span>
+  }
+}
+
+schema.loadClass(UserClass)</code></pre><p>You will get: </p>
+<pre><code><span class="hljs-keyword">class</span> <span class="hljs-title">UserClass</span> {
+  <span class="hljs-function"><span class="hljs-keyword">static</span> <span class="hljs-title">publicFields</span>(<span class="hljs-params"></span>)</span> {
+    <span class="hljs-keyword">return</span> [
+      <span class="hljs-string">'id'</span>,
+      <span class="hljs-string">'displayName'</span>,
+      <span class="hljs-string">'email'</span>,
+      <span class="hljs-string">'avatarUrl'</span>,
+      <span class="hljs-string">'slug'</span>,
+      <span class="hljs-string">'isAdmin'</span>,
+      <span class="hljs-string">'isGithubConnected'</span>,
+    ];
+  }
+
+  <span class="hljs-function"><span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> <span class="hljs-title">signInOrSignUp</span>(<span class="hljs-params">{
+    googleId, email, googleToken, displayName, avatarUrl,
+  }</span>)</span> {
+    <span class="hljs-keyword">const</span> user = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.findOne({ googleId }).<span class="hljs-keyword">select</span>(UserClass.publicFields().<span class="hljs-keyword">join</span>(<span class="hljs-string">' '</span>));
+
+    <span class="hljs-keyword">if</span> (user) {
+      <span class="hljs-keyword">const</span> modifier = {};
+
+      <span class="hljs-keyword">if</span> (googleToken.accessToken) {
+        modifier.access_token = googleToken.accessToken;
+      }
+
+      <span class="hljs-keyword">if</span> (googleToken.refreshToken) {
+        modifier.refresh_token = googleToken.refreshToken;
+      }
+
+      <span class="hljs-keyword">if</span> (_.isEmpty(modifier)) {
+        <span class="hljs-keyword">return</span> user;
+      }
+
+      <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.updateOne({ googleId }, { $<span class="hljs-keyword">set</span>: modifier });
+
+      <span class="hljs-keyword">return</span> user;
+    }
+
+    <span class="hljs-keyword">const</span> slug = <span class="hljs-keyword">await</span> generateSlug(<span class="hljs-keyword">this</span>, displayName);
+    <span class="hljs-keyword">const</span> userCount = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.find().countDocuments();
+
+    <span class="hljs-keyword">const</span> newUser = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.create({
+      createdAt: <span class="hljs-keyword">new</span> Date(),
+      googleId,
+      email,
+      googleToken,
+      displayName,
+      avatarUrl,
+      slug,
+      isAdmin: userCount === <span class="hljs-number">0</span>,
+    });
+
+    <span class="hljs-keyword">return</span> _.pick(newUser, UserClass.publicFields());
+  }
+}
+
+schema.loadClass(UserClass)</code></pre><p>This code is easy to read. Our <code>signInOrSignUp()</code> method will <em>wait</em> for <code>this.findOne()</code>. If a <code>user</code> exists, then the method will <em>wait</em> for <code>this.updateOne()</code> to update the user's tokens. If a user does not exist, our method will <em>wait</em> for <code>generateSlug()</code> and <em>then will wait</em> for <code>this.create()</code>.</p>
+<p>Compare the readability of this code above (written with <code>async/await</code>) to the code below (written with <code>Promise</code> and <code>.then()</code>):</p>
+<pre><code><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">UserClass</span> </span>{
+  <span class="hljs-keyword">static</span> publicFields() {
+    <span class="hljs-keyword">return</span> [
+      <span class="hljs-string">'id'</span>,
+      <span class="hljs-string">'displayName'</span>,
+      <span class="hljs-string">'email'</span>,
+      <span class="hljs-string">'avatarUrl'</span>,
+      <span class="hljs-string">'slug'</span>,
+      <span class="hljs-string">'isAdmin'</span>,
+      <span class="hljs-string">'isGithubConnected'</span>,
+    ];
+  }
+
+  <span class="hljs-keyword">static</span> signInOrSignUp({
+    googleId, email, googleToken, displayName, avatarUrl,
+  }) {
+    <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.findOne({ googleId }, UserClass.publicFields().join(<span class="hljs-string">' '</span>)).then(<span class="hljs-function">(<span class="hljs-params">user</span>) =&gt;</span> {
+
+      <span class="hljs-keyword">if</span> (user) {
+        <span class="hljs-keyword">const</span> modifier = {};
+
+        <span class="hljs-keyword">if</span> (googleToken.accessToken) {
+          modifier.access_token = googleToken.accessToken;
+        }
+
+        <span class="hljs-keyword">if</span> (googleToken.refreshToken) {
+          modifier.refresh_token = googleToken.refreshToken;
+        }
+
+        <span class="hljs-keyword">if</span> (isEmpty(modifier)) {
+          <span class="hljs-keyword">return</span> <span class="hljs-built_in">Promise</span>.resolve(user);
+        }
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.updateOne({ googleId }, { <span class="hljs-attr">$set</span>: modifier }).then(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> <span class="hljs-built_in">Promise</span>.resolve(user));
+      }
+
+      <span class="hljs-keyword">const</span> userCount = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.find().countDocuments();
+
+      <span class="hljs-keyword">return</span> generateSlug(displayName).then(<span class="hljs-function"><span class="hljs-params">slug</span> =&gt;</span>
+        <span class="hljs-keyword">this</span>.create({
+          <span class="hljs-attr">createdAt</span>: <span class="hljs-keyword">new</span> <span class="hljs-built_in">Date</span>(),
+          googleId,
+          email,
+          googleToken,
+          displayName,
+          avatarUrl,
+          slug,
+          <span class="hljs-attr">isAdmin</span>: userCount === <span class="hljs-number">0</span>,
+        }).then(<span class="hljs-function"><span class="hljs-params">newUser</span> =&gt;</span> <span class="hljs-built_in">Promise</span>.resolve(pick(newUser, UserClass.publicFields()))));
+    });
+  }
+}
+
+mongoSchema.loadClass(UserClass);</code></pre><p>Take the <code>UserClass</code> version that we wrote using <code>async/await</code> and add it to our User model at <code>server/models/User.js</code> above the following line of code:</p>
+<pre>const User = mongoose.model('User', mongoSchema);</pre>
+
+<p>Remember to add all missing imports as well:<br><code>server/models/User.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> mongoose = <span class="hljs-built_in">require</span>(<span class="hljs-string">'mongoose'</span>);
+<span class="hljs-keyword">const</span> _ = <span class="hljs-built_in">require</span>(<span class="hljs-string">'lodash'</span>);
+<span class="hljs-keyword">const</span> generateSlug = <span class="hljs-built_in">require</span>(<span class="hljs-string">'../utils/slugify'</span>);
+
+<span class="hljs-keyword">const</span> { Schema } = mongoose;
+
+<span class="hljs-keyword">const</span> mongoSchema = <span class="hljs-keyword">new</span> Schema({
+  googleId: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    required: <span class="hljs-literal">true</span>,
+    unique: <span class="hljs-literal">true</span>,
+  },
+  googleToken: {
+    access_token: <span class="hljs-built_in">String</span>,
+    refresh_token: <span class="hljs-built_in">String</span>,
+    token_type: <span class="hljs-built_in">String</span>,
+    expiry_date: <span class="hljs-built_in">Number</span>,
+  },
+  slug: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    required: <span class="hljs-literal">true</span>,
+    unique: <span class="hljs-literal">true</span>,
+  },
+  createdAt: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">Date</span>,
+    required: <span class="hljs-literal">true</span>,
+  },
+  email: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    required: <span class="hljs-literal">true</span>,
+    unique: <span class="hljs-literal">true</span>,
+  },
+  isAdmin: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">Boolean</span>,
+    <span class="hljs-keyword">default</span>: <span class="hljs-literal">false</span>,
+  },
+  displayName: <span class="hljs-built_in">String</span>,
+  avatarUrl: <span class="hljs-built_in">String</span>,
+
+  isGithubConnected: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">Boolean</span>,
+    <span class="hljs-keyword">default</span>: <span class="hljs-literal">false</span>,
+  },
+  githubAccessToken: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+  },
+});
+
+<span class="hljs-keyword">class</span> UserClass {
+  <span class="hljs-keyword">static</span> publicFields() {
+    <span class="hljs-keyword">return</span> [
+      <span class="hljs-string">'id'</span>,
+      <span class="hljs-string">'displayName'</span>,
+      <span class="hljs-string">'email'</span>,
+      <span class="hljs-string">'avatarUrl'</span>,
+      <span class="hljs-string">'slug'</span>,
+      <span class="hljs-string">'isAdmin'</span>,
+      <span class="hljs-string">'isGithubConnected'</span>,
+    ];
+  }
+
+  <span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> signInOrSignUp({
+    googleId, email, googleToken, displayName, avatarUrl,
+  }) {
+    <span class="hljs-keyword">const</span> user = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.findOne({ googleId }).select(UserClass.publicFields().join(<span class="hljs-string">' '</span>));
+
+    <span class="hljs-keyword">if</span> (user) {
+      <span class="hljs-keyword">const</span> modifier = {};
+
+      <span class="hljs-keyword">if</span> (googleToken.accessToken) {
+        modifier.access_token = googleToken.accessToken;
+      }
+
+      <span class="hljs-keyword">if</span> (googleToken.refreshToken) {
+        modifier.refresh_token = googleToken.refreshToken;
+      }
+
+      <span class="hljs-keyword">if</span> (_.isEmpty(modifier)) {
+        <span class="hljs-keyword">return</span> user;
+      }
+
+      <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.updateOne({ googleId }, { $<span class="hljs-keyword">set</span>: modifier });
+
+      <span class="hljs-keyword">return</span> user;
+    }
+
+    <span class="hljs-keyword">const</span> slug = <span class="hljs-keyword">await</span> generateSlug(<span class="hljs-keyword">this</span>, displayName);
+    <span class="hljs-keyword">const</span> userCount = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.find().countDocuments();
+
+    <span class="hljs-keyword">const</span> newUser = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.create({
+      createdAt: <span class="hljs-keyword">new</span> <span class="hljs-built_in">Date</span>(),
+      googleId,
+      email,
+      googleToken,
+      displayName,
+      avatarUrl,
+      slug,
+      isAdmin: userCount === <span class="hljs-number">0</span>,
+    });
+
+    <span class="hljs-keyword">return</span> _.pick(newUser, UserClass.publicFields());
+  }
+}
+
+mongoSchema.loadClass(UserClass);
+
+<span class="hljs-keyword">const</span> User = mongoose.model(<span class="hljs-string">'User'</span>, mongoSchema);
+
+<span class="hljs-built_in">module</span>.exports = User;</code></pre><p>At this point in the chapter, we've written our <code>withAuth</code> HOC and <code>Login</code> page. We've also wrapped our <code>Index</code> page with <code>withAuth</code> and written the main static method <code>signInOrSignUp()</code> that logs in or signs up our users.</p>
+<p>In the next section of Chapter 3, we will discuss and write the <code>generateSlug()</code> method.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="generate-slug" href="#generate-slug" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="generate-slug">
+          Generate slug
+        </span>
+      </h2><p>In the previous section, we created two static methods for <code>UserClass</code>. The method <code>signInOrSignUp()</code> requires <code>generateSlug()</code>, which is imported from <code>server/utils/slugify.js</code>. The method <code>generateSlug()</code> is a <em>utility</em> method - thus we place it in our <code>server/utils/*</code> directory.</p>
+<p>Before our method generates a <em>unique</em> <code>slug</code>, we make a <code>slug</code> from <code>name</code> <em>without</em> checking for uniqueness.</p>
+<p>The function <code>slugify()</code> performs simple string operations using the JavaScript methods <code>.toString()</code>, <code>.toLowerCase()</code>, <code>.trim()</code>, and <code>.replace</code>. For example, for a user with <code>name: John Johnson</code>, we want the <code>slug</code> to be <code>john-johnson</code>:</p>
+<pre><code><span class="hljs-keyword">const</span> _ = <span class="hljs-built_in">require</span>(<span class="hljs-string">'lodash'</span>);
+
+<span class="hljs-comment">// https://devdocs.io/lodash~4/index#kebabCase</span>
+
+<span class="hljs-keyword">const</span> slugify = <span class="hljs-function"><span class="hljs-params">text</span> =&gt;</span> _.kebabCase(text);</code></pre><p>To learn more about <code>kebabCase</code>, check out <a target="_blank" href="https://devdocs.io/lodash~4/index#kebabCase" rel="noopener noreferrer">Lodash's official docs</a>.<br>Here are examples of how <code>kebabCase()</code> works:</p>
+<pre><code><span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">_</span>.</span></span>kebab<span class="hljs-constructor">Case('Foo Bar')</span>;
+<span class="hljs-comment">// =&gt; 'foo-bar'</span>
+
+<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">_</span>.</span></span>kebab<span class="hljs-constructor">Case('<span class="hljs-params">fooBar</span>')</span>;
+<span class="hljs-comment">// =&gt; 'foo-bar'</span>
+
+<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">_</span>.</span></span>kebab<span class="hljs-constructor">Case('<span class="hljs-params">__FOO_BAR__</span>')</span>;
+<span class="hljs-comment">// =&gt; 'foo-bar'</span></code></pre><p><code>kebabCase()</code> transformation is exacty what we need to generate slug from person's name.</p>
+<p>Let's create <code>generateSlug()</code>. This method is Model-agnostic and will generate a unique slug for our User, Book, and Chapter models from <code>name</code>. The method will take <code>Model</code> and <code>name</code> as arguments. To ensure that two chapters can have the same <code>slug</code> <em>providing</em> that the chapters belong to two different books, we add one extra argument <code>filter</code>.</p>
+<p>To generate a non-unique <code>slug</code>, simply use the <code>slugify()</code> function that we wrote above:</p>
+<pre>const origSlug = slugify(name);</pre>
+
+<p>Then <em>wait</em> for <code>Model.findOne()</code> to find a user with the <em>same</em> <code>slug</code> value.</p>
+<p>If a user with the same <code>slug</code> does not exist, then deem this <code>slug</code> original and return it as an output of <code>generateSlug()</code>:</p>
+<pre><code><span class="hljs-keyword">if</span> (!user) {
+  <span class="hljs-keyword">return</span> origSlug;
+}</code></pre><p><em>Else</em>, if a user with the same <code>slug</code> exists, call the <code>createUniqueSlug()</code> function that appends <code>slug</code> with a number to make it unique.</p>
+<p>Let's summarize this discussion to create our <code>generateSlug(Model, name, filter = {})</code> method. Prepend the function with <code>export default</code> and <code>async</code>:</p>
+<pre><code>async <span class="hljs-keyword">function</span> generate<span class="hljs-constructor">Slug(Model, <span class="hljs-params">name</span>, <span class="hljs-params">filter</span> = {})</span> {
+  const origSlug = slugify(name);
+
+  const user = await <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">Model</span>.</span></span>find<span class="hljs-constructor">One(Object.<span class="hljs-params">assign</span>({ <span class="hljs-params">slug</span>: <span class="hljs-params">origSlug</span> }, <span class="hljs-params">filter</span>)</span>, 'id');
+
+  <span class="hljs-keyword">if</span> (!user) {
+    return origSlug;
+  }
+
+  return create<span class="hljs-constructor">UniqueSlug(Model, <span class="hljs-params">origSlug</span>, 1)</span>;
+}
+
+<span class="hljs-keyword">module</span>.exports = generateSlug;</code></pre><p>The function <code>createUniqueSlug()</code> is very similar to <code>generateSlug()</code>. At first, it adds a number to <code>slug</code> with <code>${slug}-${count}</code>.</p>
+<p>Then, like <code>generateSlug()</code>, it <em>waits</em> for <code>Model.findOne()</code> to find a user with the same slug (in case a user with <code>${slug}-${count}</code> already exists).</p>
+<p>If a user does not exist, the function deems <code>${slug}-${count}</code> unique and returns it as an output of <code>generateSlug()</code>.</p>
+<p><em>Else</em>, if a user with the <code>slug</code> value <code>${slug}-${count}</code> exists, the function increases <code>count</code> by 1 and runs again:</p>
+<pre><code><span class="hljs-keyword">async</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">createUniqueSlug</span>(<span class="hljs-params">Model, slug, count</span>) </span>{
+  <span class="hljs-keyword">const</span> user = <span class="hljs-keyword">await</span> Model.findOne({ <span class="hljs-attr">slug</span>: <span class="hljs-string">`<span class="hljs-subst">${slug}</span>-<span class="hljs-subst">${count}</span>`</span> }, <span class="hljs-string">'id'</span>);
+
+  <span class="hljs-keyword">if</span> (!user) {
+    <span class="hljs-keyword">return</span> <span class="hljs-string">`<span class="hljs-subst">${slug}</span>-<span class="hljs-subst">${count}</span>`</span>;
+  }
+
+  <span class="hljs-keyword">return</span> createUniqueSlug(Model, slug, count + <span class="hljs-number">1</span>);
+}</code></pre><p>Here is an example of how <code>generateSlug()</code> works. Say a user named Jack Frost signs up on our app. If our database already has a user with the slug <code>jack-frost</code> and does not have a user with slug <code>jack-frost-1</code>, then <code>generateSlug()</code> will return <code>jack-frost-1</code>. If a user with the slug <code>jack-frost-1</code> already exists, then the function will return <code>jack-frost-2</code>.</p>
+<p>Create a new <code>server/utils/slugify.js</code> file and put the three pieces of code from above into this file in the following order:</p>
+<ul>
+<li>first, <code>const slugify</code></li>
+<li>second, we <em>have to define</em> <code>createUniqueSlug()</code> before we can use it</li>
+<li>third, <code>generateSlug()</code></li>
+</ul>
+<p>You should get:<br><code>server/utils/slugify.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> _ = <span class="hljs-built_in">require</span>(<span class="hljs-string">'lodash'</span>);
+
+<span class="hljs-comment">// https://devdocs.io/lodash~4/index#kebabCase</span>
+
+<span class="hljs-keyword">const</span> slugify = <span class="hljs-function"><span class="hljs-params">text</span> =&gt;</span> _.kebabCase(text);
+
+<span class="hljs-keyword">async</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">createUniqueSlug</span>(<span class="hljs-params">Model, slug, count</span>) </span>{
+  <span class="hljs-keyword">const</span> user = <span class="hljs-keyword">await</span> Model.findOne({ <span class="hljs-attr">slug</span>: <span class="hljs-string">`<span class="hljs-subst">${slug}</span>-<span class="hljs-subst">${count}</span>`</span> }, <span class="hljs-string">'id'</span>);
+
+  <span class="hljs-keyword">if</span> (!user) {
+    <span class="hljs-keyword">return</span> <span class="hljs-string">`<span class="hljs-subst">${slug}</span>-<span class="hljs-subst">${count}</span>`</span>;
+  }
+
+  <span class="hljs-keyword">return</span> createUniqueSlug(Model, slug, count + <span class="hljs-number">1</span>);
+}
+
+<span class="hljs-keyword">async</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">generateSlug</span>(<span class="hljs-params">Model, name, filter = {}</span>) </span>{
+  <span class="hljs-keyword">const</span> origSlug = slugify(name);
+
+  <span class="hljs-keyword">const</span> user = <span class="hljs-keyword">await</span> Model.findOne(<span class="hljs-built_in">Object</span>.assign({ <span class="hljs-attr">slug</span>: origSlug }, filter), <span class="hljs-string">'id'</span>);
+
+  <span class="hljs-keyword">if</span> (!user) {
+    <span class="hljs-keyword">return</span> origSlug;
+  }
+
+  <span class="hljs-keyword">return</span> createUniqueSlug(Model, origSlug, <span class="hljs-number">1</span>);
+}
+
+<span class="hljs-built_in">module</span>.exports = generateSlug;</code></pre><p>Phew, done!</p>
+<p>In the next sections, we will work on a big task - adding Google OAuth to our app. Once added, we will test the entire authentication flow of our app.</p>
+<p>At this point, we've completed half of the work to add user authentication to our app. We wrote a <code>withAuth</code> HOC (at <code>lib/withAuth.js</code>) that passes user data to the pages it wraps and redirects a user depending on his/her authentication state. We created a key static method <code>signInOrSignUp()</code> (for our User model) that either logs in a user (and updates <code>googleToken</code>) or signs up a user (creates a new user document).</p>
+<p>The only missing part in our user authentication is Google OAuth. In this chapter, we will write the main authentication function <code>auth()</code> (located at <code>server/google.js</code>).</p>
+<p>If you start your app and navigate between pages, you will notice that redirects from the <code>withAuth</code> HOC don't work and that both <code>Index</code> and <code>Login</code> pages are available to the public, logged-out user. Since we have not added Google OAuth yet, this behaviour is expected. </p>
+<p>To implement Google OAuth, we will use the packages <code>passport</code> and <code>passport-google-oauth</code>, as well as <a target="_blank" href="https://developers.google.com/identity/protocols/OAuth2" rel="noopener noreferrer">Google OAuth2 documentation</a></p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="google-oauth-auth-function" href="#google-oauth-auth-function" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="google-oauth-auth-function">
+          Google Oauth: auth() function
+        </span>
+      </h2><p>In <code>server/google.js</code>, we will define an <code>auth()</code> function. Later in this chapter, we will initialize this function on our server (<code>server/app.js</code>). We use <code>auth()</code> to:</p>
+<ul>
+<li>create a new strategy by calling  <code>new Strategy()</code></li>
+<li>pass env variables to this strategy</li>
+<li>get <code>googleId</code>, <code>email</code>, <code>googleToken</code>, <code>displayName</code>, and <code>avatarURL</code> from Google's response</li>
+<li>pass this data to <code>User.signInOrSignUp()</code> to create or update a user</li>
+<li>serialize/deserialize a user</li>
+<li>initialize passport and session</li>
+<li>define three Express routes: <code>/auth/google</code>, <code>/auth/google/callback</code>,  and <code>/logout</code> (to be done in the next section called <code>Express routes</code>)</li>
+</ul>
+<p>To write <code>auth()</code>, we will follow <a target="_blank" href="https://github.com/jaredhanson/passport-google-oauth2#configure-strategy" rel="noopener noreferrer">this official example</a> for Google OAuth 2.0 authentication strategy.</p>
+<p>The author gives this example of configuring Strategy:</p>
+<pre><code>passport.<span class="hljs-keyword">use</span>(<span class="hljs-keyword">new</span> GoogleStrategy({
+    clientID: GOOGLE_CLIENT_ID,
+    clientSecret: GOOGLE_CLIENT_SECRET,
+    callbackURL: <span class="hljs-string">"http://www.example.com/auth/google/callback"</span>
+  },
+  <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(accessToken, refreshToken, profile, cb)</span> </span>{
+    User.findOrCreate({ googleId: profile.id }, <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(err, user)</span> </span>{
+      <span class="hljs-keyword">return</span> cb(err, user);
+    });
+  }
+));</code></pre><p>The function <code>function(accessToken, refreshToken, profile, cb)</code> is a <code>verify</code> callback. This function <em>receives</em> tokens and a user profile from Google. In our implementation, we will explicitly call this function <code>verify</code>.</p>
+<p>You know from Chapter 1 that we use the <code>dotenv</code> package to manage env variables. We can access any variable's value by prepending <code>process.env</code> to the variable's name. For example, <code>MONGO_URL</code> in <code>server/app.js</code> is defined as <code>const MONGO_URL = process.env.MONGO_URL_TEST</code>. Thus, we define Google-related variables as:</p>
+<pre><code>clientID: process<span class="hljs-selector-class">.env</span><span class="hljs-selector-class">.Google_clientID</span>,
+clientSecret: process<span class="hljs-selector-class">.env</span><span class="hljs-selector-class">.Google_clientSecret</span>,
+callbackURL: `${ROOT_URL}/auth/google/callback`</code></pre><p>Pass these env variables and our <code>verify</code> function to <code>new Strategy()</code>. Create a <code>server/google.js</code> file with the following carcass for our <code>auth()</code> function:<br><code>server/google.js</code> :</p>
+<pre><code>const passport = require(<span class="hljs-string">'passport'</span>);
+const Strategy = require(<span class="hljs-string">'passport-google-oauth'</span>).OAuth2Strategy;
+const <span class="hljs-keyword">User</span> = require(<span class="hljs-string">'./models/User'</span>);
+
+<span class="hljs-keyword">function</span> auth({ ROOT_URL, <span class="hljs-keyword">server</span> }) {
+  passport.use(<span class="hljs-built_in">new</span> Strategy(
+    // <span class="hljs-number">1.</span> define `verify` <span class="hljs-keyword">function</span>: <span class="hljs-keyword">get</span> profile <span class="hljs-keyword">and</span> googleToken <span class="hljs-keyword">from</span> Google <span class="hljs-keyword">AND</span>
+    // <span class="hljs-number">2.</span> <span class="hljs-keyword">call</span> <span class="hljs-keyword">and</span> wait <span class="hljs-keyword">for</span> static <span class="hljs-keyword">method</span> `signInOrSignUp` <span class="hljs-keyword">to</span> <span class="hljs-keyword">return</span> <span class="hljs-keyword">user</span> 
+    {
+      clientID: process.env.Google_clientID,
+      clientSecret: process.env.Google_clientSecret,
+      callbackURL: `${ROOT_URL}/auth/google/callback`
+    },
+    verify
+  ))
+
+  // <span class="hljs-number">3.</span> serialize <span class="hljs-keyword">user</span> <span class="hljs-keyword">AND</span>
+  // deserialize <span class="hljs-keyword">user</span>;
+
+  // <span class="hljs-number">4.</span> initial passport <span class="hljs-keyword">AND</span>
+  // save <span class="hljs-keyword">session</span> <span class="hljs-keyword">to</span> keep <span class="hljs-keyword">user</span> <span class="hljs-keyword">logged</span> <span class="hljs-keyword">in</span> (via browser cookie);
+
+  // Express routes (see next section)
+}
+
+module.exports = auth;</code></pre><p>Note that instead of calling <code>User.findOrCreate()</code> (as shown in the example), we will call and wait for our <code>User.signInOrSignUp()</code> method.</p>
+<p>Let's discuss and write code for each of the four steps in the boilerplate code above.</p>
+<ol>
+<li><p>The function <code>verify()</code> receives <code>profile</code> and <code>googleToken</code> from Gooogle's response. Passport requires a <code>verify</code> function to have a <code>verified()</code> callback (function that is an argument of another function).</p>
+<p>Remember that we will call and wait for <code>User.signInOrSignUp()</code>, thus we use <code>async/await</code> syntax. So far, this is what we know about <code>verify()</code>:</p>
+<pre>const verify = async (accessToken, refreshToken, profile, verified) =&gt; { ... }</pre>
+
+<p>From <code>profile</code>, we get the following data:</p>
+<ul>
+<li><code>googleId</code> (<code>profile.id</code>)</li>
+<li><code>email</code> (<code>profile.emails[0].value</code>)</li>
+<li><code>displayName</code> (<code>profile.displayName</code>)</li>
+<li><code>avatarUrl</code> (<code>profile.image.url</code>)</li>
+</ul>
+<p>As you can see, <code>profile.emails</code> is an array, so we will take the first email from it:</p>
+<pre><code><span class="hljs-keyword">if</span> (profile.emails) {
+ email = profile.emails[<span class="hljs-number">0</span>].value;
+}</code></pre><p>Also we will specify the profile image size by appending <code>?sz=128</code> instead of <code>?sz=50</code> to <code>profile.image.url</code>:</p>
+<pre><code><span class="hljs-meta">if</span> (profile.photos <span class="hljs-variable">&amp;&amp;</span> profile.photos.<span class="hljs-meta">length</span> &gt; 0) {
+ avatarUrl = profile.photos[0].value.<span class="hljs-meta">replace</span>(<span class="hljs-string">'sz=50'</span>, <span class="hljs-string">'sz=128'</span>);
+}</code></pre><p>Read more about the JavaScript method <code>replace()</code> in the <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/replace" rel="noopener noreferrer">Mozilla docs</a>.</p>
+<p>Plug these two code snippets into <code>verify()</code>, and we get:</p>
+<pre><code><span class="hljs-keyword">const</span> verify = <span class="hljs-keyword">async</span> (accessToken, refreshToken, profile, verified) =&gt; {
+ <span class="hljs-keyword">let</span> email;
+ <span class="hljs-keyword">let</span> avatarUrl;
+
+ <span class="hljs-keyword">if</span> (profile.emails) {
+   email = profile.emails[<span class="hljs-number">0</span>].<span class="hljs-keyword">value</span>;
+ }
+
+ <span class="hljs-keyword">if</span> (profile.photos &amp;&amp; profile.photos.length &gt; <span class="hljs-number">0</span>) {
+   avatarUrl = profile.photos[<span class="hljs-number">0</span>].<span class="hljs-keyword">value</span>.replace(<span class="hljs-string">'sz=50'</span>, <span class="hljs-string">'sz=128'</span>);
+ }
+
+ <span class="hljs-comment">// call and wait for `User.signInOrSignUp()`</span>
+};</code></pre></li>
+<li><p>Since we <em>wait</em> for <code>User.signInOrSignUp()</code> to return <code>user</code>:</p>
+<pre>const user = await User.signInOrSignUp()</pre>
+
+<p>We need to pass all data we received from Google to <code>User.signInOrSignUp()</code>:</p>
+<pre><code>const<span class="hljs-built_in"> user </span>= await User.signInOrSignUp({
+ googleId: profile.id,
+ email,
+ googleToken: { accessToken, refreshToken },
+ displayName: profile.displayName,
+ avatarUrl,
+});</code></pre><p>Also we need to catch an error in case there is one. Thus we use <code>try/catch</code> in combination with <code>async/await</code>. We discussed how <code>async/await</code> works with <code>try/catch</code> <a target="_blank" href="https://builderbook.org/books/builder-book/authentication-hoc-promise-async-await-static-method-for-user-model-google-oauth#async-await" rel="noopener noreferrer">earlier in this chapter</a>:</p>
+<pre><code><span class="hljs-keyword">try</span> {
+ <span class="hljs-keyword">const</span> user = <span class="hljs-keyword">await</span> User.signInOrSignUp({
+   <span class="hljs-attr">googleId</span>: profile.id,
+   email,
+   <span class="hljs-attr">googleToken</span>: { accessToken, refreshToken },
+   <span class="hljs-attr">displayName</span>: profile.displayName,
+   avatarUrl,
+ });
+
+ verified(<span class="hljs-literal">null</span>, user);
+} <span class="hljs-keyword">catch</span> (err) {
+
+ verified(err);
+ <span class="hljs-built_in">console</span>.log(err); <span class="hljs-comment">// eslint-disable-line</span>
+}</code></pre><p>The callback <code>verified()</code> has the following arguments: <code>verified(err, user, info)</code>.</p>
+<ul>
+<li>in case of success, we return <code>null</code> for <code>error</code> and <code>user</code>: <code>verified(null, user)</code></li>
+<li>in case of error, we return <code>null</code> for <code>user</code> and <code>err</code>: <code>verified(err, null)</code></li>
+</ul>
+<p>Alright, add the <code>try/catch</code> construct to our <code>verify()</code> code, and you will get:</p>
+<pre><code><span class="hljs-keyword">const</span> verify = <span class="hljs-keyword">async</span> (accessToken, refreshToken, verified) =&gt; {
+ <span class="hljs-keyword">let</span> email;
+ <span class="hljs-keyword">let</span> avatarUrl;
+
+ <span class="hljs-keyword">if</span> (profile.emails) {
+   email = profile.emails[<span class="hljs-number">0</span>].<span class="hljs-keyword">value</span>;
+ }
+
+ <span class="hljs-keyword">if</span> (profile.photos &amp;&amp; profile.photos.length &gt; <span class="hljs-number">0</span>) {
+   avatarUrl = profile.photos[<span class="hljs-number">0</span>].<span class="hljs-keyword">value</span>.replace(<span class="hljs-string">'sz=50'</span>, <span class="hljs-string">'sz=128'</span>);
+ }
+
+ <span class="hljs-keyword">try</span> {
+   <span class="hljs-keyword">const</span> user = <span class="hljs-keyword">await</span> User.signInOrSignUp({
+     googleId: profile.id,
+     email,
+     googleToken: { accessToken, refreshToken },
+     displayName: profile.displayName,
+     avatarUrl,
+   });
+   verified(<span class="hljs-literal">null</span>, user);
+ } <span class="hljs-keyword">catch</span> (err) {
+   verified(err);
+   console.log(err); <span class="hljs-comment">// eslint-disable-line</span>
+ }
+};</code></pre></li>
+<li><p>Say you log in to our web app, close a tab within the app, re-open that tab, and then see that you are still logged in. This means you have a persistent login session. How does this work? A unique cookie on your browser matches (after decoding) a unique session in our database (sessions collection in MongoDB). This session has your unique user id.</p>
+<p>To allow a user to stay logged in, Passport associates a session with a user by saving <code>user.id</code> to the session using the <code>passport.serializeUser()</code> method:</p>
+<pre><code>passport.serializeUser(<span class="hljs-function"><span class="hljs-params">(user, done)</span> =&gt;</span> {
+   done(<span class="hljs-literal">null</span>, user.id)
+ })</code></pre><p>The callback <code>done</code> has a <code>null</code> value for an error argument as you learned from the <code>verified()</code> callback.</p>
+<p>Recall our <a target="_blank" href="https://builderbook.org/books/builder-book/server-database-session-header-and-menudrop-components#session" rel="noopener noreferrer">experiments with session in Chapter 2</a>. A typical session in our DB looks like:</p>
+<pre><code>{
+   <span class="hljs-string">"_id"</span>: <span class="hljs-string">"NUpFf89Dwy9PNYmsC2DTRF9MP1GqTGQ_"</span>,
+   <span class="hljs-string">"session"</span>: <span class="hljs-string">"{\"</span>cookie\<span class="hljs-string">":{\"</span>originalMaxAge\<span class="hljs-string">":null,\"</span>expires\<span class="hljs-string">":null,\"</span>httpOnly\<span class="hljs-string">":true,\"</span>path\<span class="hljs-string">":\"</span>/\<span class="hljs-string">"}}"</span>,
+   <span class="hljs-string">"expires"</span>: {
+       <span class="hljs-string">"$date"</span>: <span class="hljs-string">"2017-11-25T00:17:12.829Z"</span>
+   }
+}</code></pre><p>Here is a snapshot of the session document that contains a user id (added to session by <code>passport.serializeUser()</code>):<br><img src="https://user-images.githubusercontent.com/10218864/35585187-2131680e-05ac-11e8-95f0-eed59e19aeea.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>The method <code>passport.serializeUser()</code> <em>indeed saves</em> a user id into the session document at <code>session.passport.user.id</code>.</p>
+<p>If the cookie from the browser matches with the session, and that session contains a user id, then we need to take that id and find the user in our database with <code>User.findById()</code>. We only send public parameters to the client with <code>User.publicFields()</code> (as dicussed earlier in this chapter).</p>
+<p>Once we find a user by id, Passport uses <code>passport.deserializeUser()</code> to pass the <code>user</code> object to <code>req.user</code>.</p>
+<pre><code>passport.deserialize<span class="hljs-constructor">User((<span class="hljs-params">id</span>, <span class="hljs-params">done</span>)</span> =&gt; {
+   <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">User</span>.</span></span>find<span class="hljs-constructor">ById(<span class="hljs-params">id</span>, User.<span class="hljs-params">publicFields</span>()</span>,<span class="hljs-function"> (<span class="hljs-params">err</span>, <span class="hljs-params">user</span>) =&gt;</span> {
+     <span class="hljs-keyword">done</span>(err, user)
+   })
+})</code></pre><p>Let's discuss the importance of <code>req.user</code>.</p>
+<p>For every request-response cycle, Passport will create a <code>req.user</code> on the server. As you can see from the code snippet above, <code>req.user</code> contains a user object with public user parameters. The server uses <code>req.user</code> in two important places in our app:</p>
+<ul>
+<li><p>Our <code>withAuth</code> HOC uses <code>req.user</code> via the <code>getInitialProps()</code> method. The <code>withAuth</code> HOC passes the <code>user</code> prop to any page it wraps.</p>
+<p>At the end of this chapter, we want to display <code>user.email</code> and <code>user.avatarUrl</code> on the <code>Index</code> page (route <code>/</code>). The <code>Index</code> page becomes a dashboard for logged-in users. Here is how <code>withAuth</code> uses <code>req.user</code> to pass the <code>user</code> prop (we wrote this code earlier in this chapter):</p>
+<pre><code>static async get<span class="hljs-constructor">InitialProps(<span class="hljs-params">ctx</span>)</span> {
+ const isFromServer = !!ctx.req;
+ const user = ctx.req ? ctx.req.user<span class="hljs-operator"> &amp;&amp; </span>ctx.req.user.<span class="hljs-keyword">to</span><span class="hljs-constructor">Object()</span> : globalUser;
+
+ <span class="hljs-keyword">if</span> (isFromServer<span class="hljs-operator"> &amp;&amp; </span>user) {
+   user._id = user.<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">_id</span>.</span></span><span class="hljs-keyword">to</span><span class="hljs-constructor">String()</span>;
+ }
+
+ const props = { user, isFromServer };
+
+ <span class="hljs-keyword">if</span> (<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">Page</span>.</span></span>getInitialProps) {
+   <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">Object</span>.</span></span>assign(props, (await <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">Page</span>.</span></span>get<span class="hljs-constructor">InitialProps(<span class="hljs-params">ctx</span>)</span>)<span class="hljs-operator"> || </span>{});
+ }
+
+ return props;
+}</code></pre></li>
+<li><p>In Chapter 5, section <code>Internal APIs</code>, we will write Express middleware and routes for our Admin and Customer users at <code>server/api/admin.js</code> and <code>server/api/customer.js</code>, respectively. For example, here is how we use <code>req.user</code> inside middleware that checks if a user is authorized to use an API endpoint:</p>
+<pre><code>router.use(<span class="hljs-function"><span class="hljs-params">(req, res, <span class="hljs-built_in">next</span>)</span> =&gt;</span> {
+<span class="hljs-keyword">if</span> (!req.user || !req.user.isAdmin) {
+ res.status(<span class="hljs-number">401</span>).json({ <span class="hljs-name">error</span>: <span class="hljs-string">'Unauthorized'</span> });
+ <span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-built_in">next</span>();
+});</code></pre></li>
+</ul>
+<p>Note that <code>req.user</code> does not come from the client. Instead, our Express server (with Passport's help) <em>creates</em> <code>req.user</code> for <em>internal use on the server</em> and stores its value in server memory.</p>
+<p>Read more about serialize/deserialize methods in the <a target="_blank" href="http://www.passportjs.org/docs/configure" rel="noopener noreferrer">passport docs</a>.</p>
+</li>
+<li><p>You may remember <a target="_blank" href="https://builderbook.org/books/builder-book/server-database-session-header-and-menudrop-components#configure-session" rel="noopener noreferrer">from Chapter 2</a> that <code>server.use()</code> mounts/initializes middleware on our Express server. For example, find <code>server.use(session(sess));</code> in <code>server/app.js</code>.<br>To initialize passport on our Express server, we mount <code>passport.initialize()</code>:</p>
+<pre>server.use(passport.initialize())</pre>
+
+<p>To create a persistent login session, we mount <code>passport.session()</code>:</p>
+<pre>server.use(passport.session())</pre>
+
+<p>Important note - later on, when we export and import <code>auth()</code> to our server (<code>server/app.js</code>) - for Passport's serialization to work properly, we should initiate <code>auth()</code> <em>after</em> <code>server.use(session(sess));</code>.</p>
+</li>
+</ol>
+<p>Let's outline what happens behind the scenes when a logged-in user opens a tab on the browser:</p>
+<ul>
+<li>user opens a tab</li>
+<li>browser sends a request to the server via HTTP (extremely simplified)</li>
+<li>this request contains <code>headers</code> and inside them <code>cookie</code></li>
+<li>on the server, cookie (from <code>req.headers.cookie</code>) finds <code>session</code> (see Chapter 2, <a target="_blank" href="https://builderbook.org/books/builder-book/server-database-session-header-and-menudrop-components#session" rel="noopener noreferrer">section <code>Session</code></a>)</li>
+<li><code>session</code> contains a user id (done with <code>serializeUser()</code> when the user is logged in)</li>
+<li>passport finds <code>user</code> by id</li>
+<li>passport via <code>deserializeUser()</code> stores <code>user</code> to <code>req.user</code></li>
+<li>server uses <code>req.user</code> to pass <code>user</code> data to <code>withAuth</code> and some other API endpoints (see Chapter 5, <a target="_blank" href="https://builderbook.org/books/builder-book/book-and-chapter-models-internal-api-render-chapter#internal-apis" rel="noopener noreferrer">section <code>Internal APIs</code></a>)</li>
+</ul>
+<p>We are almost done. The only missing part in our <code>auth()</code> function is the Express routes. Nevertheless, let's put the four code snippets above into <code>server/google.js</code>. Add them in the order we discussed them:<br><code>server/google.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> passport = <span class="hljs-built_in">require</span>(<span class="hljs-string">'passport'</span>);
+<span class="hljs-keyword">const</span> Strategy = <span class="hljs-built_in">require</span>(<span class="hljs-string">'passport-google-oauth'</span>).OAuth2Strategy;
+<span class="hljs-keyword">const</span> User = <span class="hljs-built_in">require</span>(<span class="hljs-string">'./models/User'</span>);
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">auth</span>(<span class="hljs-params">{ ROOT_URL, server }</span>) </span>{
+  <span class="hljs-keyword">const</span> verify = <span class="hljs-keyword">async</span> (accessToken, refreshToken, profile, verified) =&gt; {
+    <span class="hljs-keyword">let</span> email;
+    <span class="hljs-keyword">let</span> avatarUrl;
+
+    <span class="hljs-keyword">if</span> (profile.emails) {
+      email = profile.emails[<span class="hljs-number">0</span>].value;
+    }
+
+    <span class="hljs-keyword">if</span> (profile.photos &amp;&amp; profile.photos.length &gt; <span class="hljs-number">0</span>) {
+      avatarUrl = profile.photos[<span class="hljs-number">0</span>].value.replace(<span class="hljs-string">'sz=50'</span>, <span class="hljs-string">'sz=128'</span>);
+    }
+
+    <span class="hljs-keyword">try</span> {
+      <span class="hljs-keyword">const</span> user = <span class="hljs-keyword">await</span> User.signInOrSignUp({
+        googleId: profile.id,
+        email,
+        googleToken: { accessToken, refreshToken },
+        displayName: profile.displayName,
+        avatarUrl,
+      });
+      verified(<span class="hljs-literal">null</span>, user);
+    } <span class="hljs-keyword">catch</span> (err) {
+      verified(err);
+      <span class="hljs-built_in">console</span>.log(err); <span class="hljs-comment">// eslint-disable-line</span>
+    }
+  };
+  passport.use(<span class="hljs-keyword">new</span> Strategy(
+    {
+      clientID: process.env.Google_clientID,
+      clientSecret: process.env.Google_clientSecret,
+      callbackURL: <span class="hljs-string">`<span class="hljs-subst">${ROOT_URL}</span>/oauth2callback`</span>,
+    },
+    verify,
+  ));
+
+  passport.serializeUser(<span class="hljs-function">(<span class="hljs-params">user, done</span>) =&gt;</span> {
+    done(<span class="hljs-literal">null</span>, user.id);
+  });
+
+  passport.deserializeUser(<span class="hljs-function">(<span class="hljs-params">id, done</span>) =&gt;</span> {
+    User.findById(id, User.publicFields(), <span class="hljs-function">(<span class="hljs-params">err, user</span>) =&gt;</span> {
+      done(err, user);
+    });
+  });
+
+  server.use(passport.initialize());
+  server.use(passport.session());
+
+  <span class="hljs-comment">// Express routes</span>
+}
+
+<span class="hljs-built_in">module</span>.exports = auth;</code></pre><p>In the next section, we will discuss Express routes. We need to tell our server what to do when a user navigates to authentication-related routes, such as <code>/auth/google</code>.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="express-routes-for-auth-" href="#express-routes-for-auth-" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="express-routes-for-auth-">
+          Express routes for auth()
+        </span>
+      </h2><p>In this section, we want to tell our server what to do when a user accesses (or is redirected) to the following routes:</p>
+<ul>
+<li><code>/auth/google</code></li>
+<li><code>/oauth2callback</code></li>
+<li><code>/logout</code></li>
+</ul>
+<p>You may not be familiar with Express routes. We explain how routes and middleware work in Chapter 5, <a target="_blank" href="https://builderbook.org/books/builder-book/book-and-chapter-models-internal-api-render-chapter#internal-apis" rel="noopener noreferrer">section <code>Internal APIs</code></a>. You can check up that section and/or read the <a target="_blank" href="http://expressjs.com/en/guide/routing.html" rel="noopener noreferrer">official docs</a> about routing.</p>
+<p>At a high level, an Express route listens for requests that match its endpoint or route. If a request has the proper route, the Express route executes some function.</p>
+<p>A basic route looks like this:</p>
+<pre><code>app.<span class="hljs-built_in">get</span>(<span class="hljs-string">'/'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-title">req</span>, <span class="hljs-title">res</span>) {</span>
+  res.<span class="hljs-built_in">send</span>(<span class="hljs-string">'hello world'</span>)
+})</code></pre><p>This Express route has a <code>path</code> (<code>/</code> in the example above), a request <code>method</code> (<code>GET</code>), and a function that modifies the response <code>res</code>. In some cases, the function extracts data from <code>req</code> (could be data stored in a query string or data from the <code>req</code> body).</p>
+<p>Here is an <a target="_blank" href="https://github.com/jaredhanson/passport-google-oauth2#authenticate-requests" rel="noopener noreferrer">official example</a> for implementing two main routes when using passport:</p>
+<pre><code><span class="hljs-selector-tag">app</span><span class="hljs-selector-class">.get</span>(<span class="hljs-string">'/auth/google'</span>,
+  passport.authenticate(<span class="hljs-string">'google'</span>, { <span class="hljs-attribute">scope</span>: [<span class="hljs-string">'profile'</span>] }));
+
+<span class="hljs-selector-tag">app</span><span class="hljs-selector-class">.get</span>(<span class="hljs-string">'/auth/google/callback'</span>, 
+  passport.authenticate(<span class="hljs-string">'google'</span>, { <span class="hljs-attribute">failureRedirect</span>: <span class="hljs-string">'/login'</span> }),
+  function(req, res) {
+    <span class="hljs-comment">// Successful authentication, redirect home.</span>
+    <span class="hljs-selector-tag">res</span><span class="hljs-selector-class">.redirect</span>(<span class="hljs-string">'/'</span>);
+  });</code></pre><p>We will follow this example closely. As usual, let's construct a boilerplate for all three routes. Unlike the example, we prefer using the arrow function (<code>=&gt;</code>):</p>
+<pre><code><span class="hljs-keyword">server</span>.<span class="hljs-keyword">get</span>(<span class="hljs-string">'/auth/google'</span>, 
+  passport.authenticate(<span class="hljs-string">'google'</span>, {
+  // <span class="hljs-number">1.</span> <span class="hljs-keyword">options</span> such <span class="hljs-keyword">as</span> scope <span class="hljs-keyword">and</span> prompt
+}));
+
+<span class="hljs-keyword">server</span>.<span class="hljs-keyword">get</span>(<span class="hljs-string">'/oauth2callback'</span>,
+  passport.authenticate(<span class="hljs-string">'google'</span>, { failureRedirect: <span class="hljs-string">'/login'</span> }),
+  (req, res) =&gt; {
+  // <span class="hljs-number">2.</span> <span class="hljs-keyword">if</span> successful, redirect <span class="hljs-keyword">user</span> <span class="hljs-keyword">to</span> <span class="hljs-keyword">Index</span> page (`/`)
+  })
+
+<span class="hljs-keyword">server</span>.<span class="hljs-keyword">get</span>(<span class="hljs-string">'/logout'</span>, (req, res) =&gt; {
+  // <span class="hljs-number">3.</span> remove `req.<span class="hljs-keyword">user</span>` property <span class="hljs-keyword">and</span> <span class="hljs-keyword">user</span> id <span class="hljs-keyword">from</span> <span class="hljs-keyword">session</span>, redirect <span class="hljs-keyword">to</span> <span class="hljs-keyword">Login</span> page (`/<span class="hljs-keyword">login</span>`)
+})</code></pre><p>Notice that we are using <code>/oauth2callback</code> as suggested by Google; however, you can make this route whatever you want, as long as you specify this route on your Google Cloud dashboard when creating credentials for this app.</p>
+<ol>
+<li><p>On the <code>/auth/google</code> route, we want to access a Google profile with two API scopes: <code>userinfo.profile</code>and <code>userinfo.email</code>;</p>
+<p>Read more about <a target="_blank" href="https://developers.google.com/+/web/api/rest/oauth#profile" rel="noopener noreferrer">profile</a> and <a target="_blank" href="https://developers.google.com/+/web/api/rest/oauth#email" rel="noopener noreferrer">email</a> scopes.</p>
+<p>We define these options (scopes and prompt) as:</p>
+<pre><code><span class="hljs-string">scope:</span> [<span class="hljs-string">'profile'</span>, <span class="hljs-string">'email'</span>],
+<span class="hljs-string">prompt:</span> <span class="hljs-string">'select_account'</span>,</code></pre><p>Since we only need <code>profile</code> and <code>email</code> data for an authenticated user, we don't need any other scopes. You can access these scopes without any additional approval from Google.</p>
+<p>We also want to ask a user to <em>select</em> a Google account from <code>prompt</code> on every login event. This is useful in case a user wants to log in with multiple accounts or logged in with a wrong account the very first time. This is also useful when you test the app with the two types of users: Admin and Customer.</p>
+<p>Check out all of the options for <code>scope</code> and <code>prompt</code> in <a target="_blank" href="https://developers.google.com/identity/protocols/OpenIDConnect#scope-param" rel="noopener noreferrer">Google's documentation</a>.</p>
+</li>
+<li><p>After Google authenticates a user, Google will redirect the user back to our application's callbackURL (for the local app, this URL is <code>http://localhost:8000/oauth2callback</code>). Passport <em>requires</em> passport authentication again on the callback route <code>/oauth2callback</code>. We simply call <code>passport.authenticate()</code> again, as we did on the <code>/auth/google</code> route:</p>
+<pre><code>server.get(<span class="hljs-string">'/oauth2callback'</span>, 
+ passport.authenticate(<span class="hljs-string">'google'</span>, {
+   failureRedirect: <span class="hljs-string">'/login'</span>
+ }),
+ <span class="hljs-function"><span class="hljs-params">(req, res)</span> =&gt;</span> {
+   res.redirect(<span class="hljs-string">'/'</span>);
+ });</code></pre><p>When Google redirects a user back to our app, we call <code>passport.authenticate()</code> a second time. If this authentication fails, we redirect the user to the <code>Login</code> page. <em>Else</em>, we redirect the user to the Index page, which becomes the user dashboard.</p>
+</li>
+<li><p>Passport exposes a <code>logout()</code> function on <code>req</code> (see <a target="_blank" href="http://www.passportjs.org/docs/logout" rel="noopener noreferrer">docs</a>). When an Express route calls <code>req.logout()</code>, this method sets the <code>req.user</code> property to null and removes <code>user</code> from the <code>session</code>:</p>
+<pre><code><span class="hljs-selector-tag">req</span><span class="hljs-selector-class">.logout</span>()
+<span class="hljs-selector-tag">res</span><span class="hljs-selector-class">.redirect</span>(<span class="hljs-string">'/login'</span>)</code></pre><p>In fact, you can see what <code>req.logout()</code> does by reading <a target="_blank" href="https://github.com/jaredhanson/passport/blob/a892b9dc54dce34b7170ad5d73d8ccfba87f4fcf/lib/passport/http/request.js#L58" rel="noopener noreferrer">passport's code</a>. Look at this snippet:</p>
+<pre><code><span class="hljs-keyword">var</span> <span class="hljs-keyword">property</span><span class="hljs-string"> </span>= <span class="hljs-keyword">this</span>._passport.instance._userProperty || <span class="hljs-string">'user'</span>;
+
+<span class="hljs-keyword">this</span>[<span class="hljs-keyword">property</span><span class="hljs-string">] </span>= <span class="hljs-literal">null</span>; <span class="hljs-comment">// sets req.user to null</span>
+<span class="hljs-keyword">delete</span> <span class="hljs-keyword">this</span>._passport.session.user; <span class="hljs-comment">// removes user from session.passport.user</span></code></pre><p>To redirect a user, we use the Express method <code>res.redirect()</code> (<a target="_blank" href="https://expressjs.com/en/4x/api.html#res.redirect" rel="noopener noreferrer">read docs</a>).</p>
+</li>
+</ol>
+<p>Combine the three Express routes above and plug them into our main <code>auth()</code> function:<br><code>server/google.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> passport = <span class="hljs-built_in">require</span>(<span class="hljs-string">'passport'</span>);
+<span class="hljs-keyword">const</span> Strategy = <span class="hljs-built_in">require</span>(<span class="hljs-string">'passport-google-oauth'</span>).OAuth2Strategy;
+<span class="hljs-keyword">const</span> User = <span class="hljs-built_in">require</span>(<span class="hljs-string">'./models/User'</span>);
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">auth</span>(<span class="hljs-params">{ ROOT_URL, server }</span>) </span>{
+  <span class="hljs-keyword">const</span> verify = <span class="hljs-keyword">async</span> (accessToken, refreshToken, profile, verified) =&gt; {
+    <span class="hljs-keyword">let</span> email;
+    <span class="hljs-keyword">let</span> avatarUrl;
+
+    <span class="hljs-keyword">if</span> (profile.emails) {
+      email = profile.emails[<span class="hljs-number">0</span>].value;
+    }
+
+    <span class="hljs-keyword">if</span> (profile.photos &amp;&amp; profile.photos.length &gt; <span class="hljs-number">0</span>) {
+      avatarUrl = profile.photos[<span class="hljs-number">0</span>].value.replace(<span class="hljs-string">'sz=50'</span>, <span class="hljs-string">'sz=128'</span>);
+    }
+
+    <span class="hljs-keyword">try</span> {
+      <span class="hljs-keyword">const</span> user = <span class="hljs-keyword">await</span> User.signInOrSignUp({
+        googleId: profile.id,
+        email,
+        googleToken: { accessToken, refreshToken },
+        displayName: profile.displayName,
+        avatarUrl,
+      });
+      verified(<span class="hljs-literal">null</span>, user);
+    } <span class="hljs-keyword">catch</span> (err) {
+      verified(err);
+      <span class="hljs-built_in">console</span>.log(err); <span class="hljs-comment">// eslint-disable-line</span>
+    }
+  };
+  passport.use(<span class="hljs-keyword">new</span> Strategy(
+    {
+      clientID: process.env.Google_clientID,
+      clientSecret: process.env.Google_clientSecret,
+      callbackURL: <span class="hljs-string">`<span class="hljs-subst">${ROOT_URL}</span>/oauth2callback`</span>,
+    },
+    verify,
+  ));
+
+  passport.serializeUser(<span class="hljs-function">(<span class="hljs-params">user, done</span>) =&gt;</span> {
+    done(<span class="hljs-literal">null</span>, user.id);
+  });
+
+  passport.deserializeUser(<span class="hljs-function">(<span class="hljs-params">id, done</span>) =&gt;</span> {
+    User.findById(id, User.publicFields(), <span class="hljs-function">(<span class="hljs-params">err, user</span>) =&gt;</span> {
+      done(err, user);
+    });
+  });
+
+  server.use(passport.initialize());
+  server.use(passport.session());
+
+  server.get(<span class="hljs-string">'/auth/google'</span>, passport.authenticate(<span class="hljs-string">'google'</span>, {
+    scope: [<span class="hljs-string">'profile'</span>, <span class="hljs-string">'email'</span>],
+    prompt: <span class="hljs-string">'select_account'</span>,
+  }));
+
+  server.get(
+    <span class="hljs-string">'/oauth2callback'</span>,
+    passport.authenticate(<span class="hljs-string">'google'</span>, {
+      failureRedirect: <span class="hljs-string">'/login'</span>,
+    }),
+    <span class="hljs-function">(<span class="hljs-params">req, res</span>) =&gt;</span> {
+      res.redirect(<span class="hljs-string">'/'</span>);
+    },
+  );
+
+  server.get(<span class="hljs-string">'/logout'</span>, <span class="hljs-function">(<span class="hljs-params">req, res</span>) =&gt;</span> {
+    req.logout();
+    res.redirect(<span class="hljs-string">'/login'</span>);
+  });
+}
+
+<span class="hljs-built_in">module</span>.exports = auth;</code></pre><p>A couple of important points. Typical Express route looks like:</p>
+<pre><code>app.<span class="hljs-built_in">get</span>(<span class="hljs-string">'/secret'</span>, (req, <span class="hljs-keyword">res</span>, <span class="hljs-keyword">next</span>) =&gt; {
+  console.<span class="hljs-built_in">log</span>(<span class="hljs-string">'Accessing the secret section ...'</span>)
+  <span class="hljs-keyword">next</span>() // pass control <span class="hljs-keyword">to</span> the <span class="hljs-keyword">next</span> handler
+})</code></pre><p>First. You can see from the above code that we used <code>passport.authenticate()</code> instead of <code>(req, res, next)</code>. That's correct because <code>passport.authenticate()</code> returns <code>authenticate(req, res, next)</code>. Here is a <a target="_blank" href="https://github.com/jaredhanson/passport/blob/master/lib/middleware/authenticate.js#L94" rel="noopener noreferrer">link</a> to passport's internal code. Here is a [link](<a target="_blank" href="https://github.com/builderbook/builderbook/issues/168" rel="noopener noreferrer">https://github.com/builderbook/builderbook/issues/168</a> at ) to a discussion about Express routes for Google OAuth in our public repo at GitHub.</p>
+<p>Second. By default package <a target="_blank" href="https://github.com/jaredhanson/passport-google-oauth" rel="noopener noreferrer">passport-google-oauth</a> uses Google+ API to fetch user's email address and image URL from Google. However, Google began depreciation of Google+ API in January 2019. The author of <code>passport-google-oauth</code> has made a fix to account for depreciation. To be able to get user's information from Google make sure that package version for <code>passport-google-oauth</code> is 2.0.0 or higher.</p>
+<pre><code><span class="hljs-selector-tag">passport</span><span class="hljs-selector-class">.use</span>(new Strategy(
+  {
+    <span class="hljs-attribute">clientID</span>: process.env.Google_clientID,
+    <span class="hljs-attribute">clientSecret</span>: process.env.Google_clientSecret,
+    <span class="hljs-attribute">callbackURL</span>: <span class="hljs-built_in">`${ROOT_URL}/oauth2callback`</span>,
+  },
+  verify,
+));</code></pre><p>We are done with Google OAuth. We finished writing our <code>auth()</code> function - good job!</p>
+<p>The only remaining task before we test our authentication flow is to add <code>auth()</code> to our main server code at <code>server/app.js</code>.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="initialize-auth-on-server" href="#initialize-auth-on-server" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="initialize-auth-on-server">
+          Initialize auth() on server
+        </span>
+      </h2><p>We are almost done implementing Google OAuth in our app.</p>
+<p>We need to import and pass the function <code>auth()</code> to our custom next/express server.</p>
+<p>Open <code>server/app.js</code> and add this import:</p>
+<pre>const auth = require('./google');</pre>
+
+<p>Remove the following Express route that helped us fetch our Index page with user data (this route is from Chapter 2 - it retrieves a single user and points <code>req.user</code> to <code>user</code>):</p>
+<pre><code><span class="hljs-keyword">server</span>.<span class="hljs-keyword">get</span>(<span class="hljs-string">'/'</span>, (req, res) =&gt; {
+    <span class="hljs-keyword">User</span>.findOne({ slug: <span class="hljs-string">'team-builder-book'</span> }).<span class="hljs-keyword">then</span>(<span class="hljs-keyword">user</span> =&gt; {
+        req.<span class="hljs-keyword">user</span> = <span class="hljs-keyword">user</span>
+        app.render(req, res, <span class="hljs-string">'/'</span>)
+    })
+})</code></pre><p>Remember to remove the import code for User, since you don't use User from our User model in <code>server/app.js</code> anymore. Remove this line: <code>const User = require('./models/User');</code></p>
+<p>In Chapter 2, we also experimented with <a target="_blank" href="https://builderbook.org/books/builder-book/server-database-session-header-and-menudrop-components#save-session" rel="noopener noreferrer">saving an express session</a> to our database. <em>Remember to delete</em> the corresponding block of code as well:</p>
+<pre><code>// this <span class="hljs-keyword">is</span> testing code, remove later
+<span class="hljs-keyword">server</span>.<span class="hljs-keyword">get</span>(<span class="hljs-string">'/'</span>, async (req, res) =&gt; {
+  req.<span class="hljs-keyword">session</span>.foo = <span class="hljs-string">'bar'</span>;
+  const <span class="hljs-keyword">user</span> = await <span class="hljs-keyword">User</span>.findOne({ slug: <span class="hljs-string">'team-builder-book'</span> });
+  app.render(req, res, <span class="hljs-string">'/'</span>, { <span class="hljs-keyword">user</span> });
+});</code></pre><p>In place of the removed block of code, <em>after</em> <code>server.use(session(sess))</code>, add our new <code>auth()</code> function:</p>
+<pre>auth({ server, ROOT_URL })</pre>
+
+<p>Make sure that the <code>server.use(session(sess))</code> line is above <code>auth({ server, ROOT_URL })</code>. For a login session to work properly, <code>session(sess)</code> should precede <code>passport.session()</code> (which is part of <code>auth()</code>). Read more in passport's <a target="_blank" href="http://www.passportjs.org/docs/configure" rel="noopener noreferrer">docs</a>.</p>
+<p>Time to create API keys and add them your <code>.env</code> file.</p>
+<p>Go to Google Cloud Platform to create credentials for your app. Here is an <a target="_blank" href="https://developers.google.com/identity/sign-in/web/devconsole-project" rel="noopener noreferrer">official tutorial</a> on how to create a project and generate OAuth credentials.</p>
+<p>Follow the guide and complete all steps to acquire <code>Client ID</code> and <code>Client secret</code>. Pay close attention to the steps for <code>Authorized JavaScript origins</code> and <code>Authorized redirect URIs</code>. Their values are <code>http://localhost:8000</code> and <code>http://localhost:8000/oauth2callback</code>, respectively.</p>
+<p>If you look at the <code>.env</code> file, you will see that we provided you with sample <code>Google_clientID</code> and <code>Google_clientSecret</code> values. These keys are working; however, we strongly encourage you create your own keys. We may remove the sample keys without notice, and you should learn how to create credentials at Google Cloud Platform.</p>
+<p>After you have your own <code>Client ID</code> and <code>Client secret</code>, add them to your <code>.env</code> file.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="testing" href="#testing" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="testing">
+          Testing
+        </span>
+      </h2><p>Done! Time to test out the entire Google OAuth flow in our app. Start the app with <code>yarn dev</code> and navigate to <code>http://localhost:8000/login</code>.</p>
+<p>Login page (same page for signup):<br><img src="https://user-images.githubusercontent.com/10218864/35597004-3d72b57a-05d1-11e8-9f4b-192a6c7abd74.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Select your Google account from the list:<br><img src="https://user-images.githubusercontent.com/26158226/36069161-66d544e8-0e99-11e8-95f7-cdd44f2437c1.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Dashboard that displays proper <code>user.email</code>:<br><img src="https://user-images.githubusercontent.com/10218864/35597226-4b5ae81e-05d2-11e8-8246-f65e108d9949.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Click on your avatar, then click <code>Log out</code> - you'll be logged out and redirected to the Login page:<br><img src="https://user-images.githubusercontent.com/10218864/36228603-772cd4f8-1189-11e8-84d6-8cd39231e5b1.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Here is a user document at MongoDB. The schema of this document was created by calling the static method <code>User.signInOrSignUp</code> from <code>server/google.js</code>:<br><img src="https://user-images.githubusercontent.com/10218864/36228722-db915130-1189-11e8-8726-46750a75c796.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Navigate to <a target="_blank" href="https://myaccount.google.com/permissions" rel="noopener noreferrer">https://myaccount.google.com/permissions</a> - you can see a list of apps that access your Google profile via Google APIs. In the list of apps, you can find our app <code>builderbook.org</code>:<br><img src="https://user-images.githubusercontent.com/10218864/36228813-22052ce0-118a-11e8-9133-4646a50f16e3.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Finally, let's test out the persistence of our login session. Log into the app. Close the tab, open a new tab, and navigate to <code>http://localhost:8000</code> - you are still logged in. The login session is persistent. Click <code>Ctrl+Shift+I</code> (Ubuntu) on Chrome to enter <code>Developer tools</code>. Then select <code>Application</code> &gt; <code>Cookies</code> &gt; <code>http://localhost:8000</code>:<br><img src="https://user-images.githubusercontent.com/10218864/36228936-79a28cb8-118a-11e8-82bf-33110ae4ae2c.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Select the <code>builderbook</code> cookie from the list and click the <code>X</code> icon to delete this cookie. Refresh the tab and behold - <em>you are logged out</em>!</p>
+<p>No cookie =&gt; no way to find session =&gt; no way to find user id =&gt; no way to create <code>req.user</code> =&gt; no data to send to <code>Index</code> page =&gt; redirect user to <code>Login</code> page. </p>
+<p>Good job so far!</p>
+<p>In the next chapter (Chapter 4), we will learn how to test with Jest, debug with Winston, integrate AWS SES, and add transactional emails and in-app notifications.</p>
+<hr>
+<p>At the end of Chapter 3, your codebase should look like the codebase in <code>3-end</code>. The <a target="_blank" href="https://github.com/builderbook/builderbook/tree/master/book/3-end" rel="noopener noreferrer">3-end</a> folder is located at the root of the <code>book</code> directory inside the <a target="_blank" href="https://github.com/builderbook/builderbook" rel="noopener noreferrer">builderbook repo</a>.</p>
+<p>Compare your codebase and make edits if needed.</p>
+<p>Enjoying the book so far? Please share a quick <a target="_blank" href="https://goo.gl/forms/JdevtnCWsLwZTAio2" rel="noopener noreferrer">review</a>. You can update your review at any time.</p>
+<hr>
+<br>
+</div></div>

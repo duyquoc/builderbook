@@ -1,0 +1,1374 @@
+<div id="chapter-content" style="padding: 20px 10%; background-color: white; color: black;"><h2 style="font-weight: 400; line-height: 1.5em; background-color: white; color: black;">Chapter 1: App structure. Next.js. HOC. Material-UI. Server-side rendering. Styles.</h2><div style="background-color: white; color: black;"><hr>
+<ul>
+<li><p>Setup <br></p>
+<ul>
+<li>Node and Yarn</li>
+<li>package.json</li>
+</ul>
+</li>
+<li><p>Code editor and lint <br></p>
+<ul>
+<li>VS editor</li>
+<li>Eslint</li>
+<li>Prettier</li>
+</ul>
+</li>
+<li><p>App structure <br></p>
+<ul>
+<li>Next.js</li>
+<li>Document</li>
+<li>Project structure</li>
+</ul>
+</li>
+<li><p>Index page <br></p>
+</li>
+<li><p>Header component <br></p>
+</li>
+<li><p>Layout HOC <br></p>
+</li>
+<li><p>Material-UI integration <br></p>
+<ul>
+<li>Add styles on server</li>
+<li>Remove server-side styles</li>
+</ul>
+</li>
+<li><p>Server-side rendering <br></p>
+</li>
+</ul>
+<hr>
+<p>Before you start working on Chapter 1, get the <code>1-begin</code> codebase. The <a target="_blank" href="https://github.com/builderbook/builderbook/tree/master/book/1-begin" rel="noopener noreferrer">1-begin</a> folder is located at the root of the <code>book</code> directory inside the <a target="_blank" href="https://github.com/builderbook/builderbook" rel="noopener noreferrer">builderbook repo</a>.</p>
+<ul>
+<li>If you haven't cloned the builderbook repo yet, clone it to your local machine with <code>git clone https://github.com/builderbook/builderbook.git</code>.</li>
+<li>Inside the <code>1-begin</code> folder, run <code>yarn</code> to install all packages.</li>
+</ul>
+<p>These are the packages that we install specifically for Chapter 1:</p>
+<ul>
+<li><code>"@material-ui/core"</code></li>
+<li><code>"next"</code></li>
+<li><code>"prop-types"</code></li>
+<li><code>"react"</code></li>
+<li><code>"react-dom"</code></li>
+<li><code>"react-jss"</code></li>
+</ul>
+<p>Check out the <a target="_blank" href="https://github.com/builderbook/builderbook/blob/master/book/1-begin/package.json" rel="noopener noreferrer">1-begin package.json</a> and <a target="_blank" href="https://github.com/builderbook/builderbook/blob/master/book/1-end/package.json" rel="noopener noreferrer">1-end package.json</a> for Chapter 1.</p>
+<ul>
+<li>Be sure to use these specific packages and ignore any warnings about upgrading. We regularly upgrade all packages and test them in the book. But before testing, we cannot guarantee that a new package version will work properly.</li>
+</ul>
+<hr>
+<br>
+
+<p>You've read about the motivation for writing this book and building a web application. Motivation aside, this book will teach you how to build a modern-stack, production-ready web application <em>from scratch</em>. Together, we will go from 0 to over 10,000 lines of code in 8 chapters of this book.</p>
+<p>In this very first chapter, we have multiple goals:</p>
+<ul>
+<li>set up our coding environment</li>
+<li>create our app structure</li>
+<li>get familiar with Next.js (Next)</li>
+<li>create our first page and component</li>
+<li>create a higher-order component</li>
+<li>integrate Next with Material-UI</li>
+<li>learn about server-side rendering</li>
+<li>add global and shared styles</li>
+</ul>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="setup" href="#setup" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="setup">
+          Setup
+        </span>
+      </h2><p>We work on Ubuntu 16.04 LTS. we skipped the 17.04 release and decided to wait for stable 18.04. Thus, we provide installation instructions specific to a Linux-based OS (for example, Ubuntu and MacOS). We use the <a target="_blank" href="https://code.visualstudio.com" rel="noopener noreferrer">Visual Studio</a> editor (VS editor), which we find easier to use and automate than any other popular editor. The web application that we build in this book will allow you, via integration with Github, to use VS editor for writing documentation and books.</p>
+<p>The core technologies of the Builder Book app are React, Material-UI, Next, Express, Mongoose, and MongoDB. By the end of this chapter, we will create a  static web app (no server and no database yet). To do so, we will install and integrate the first three technologies - React, Material-UI, and Next.</p>
+<h4 style="color: #FFF;">
+        <a name="node-and-yarn" href="#node-and-yarn" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Node and Yarn
+      </h4><p>We are building a <a target="_blank" href="https://nodejs.org" rel="noopener noreferrer">Node</a> app, and many of the tools that we use in this app also require Node.</p>
+<p>We suggest using Node with the help of <a target="_blank" href="https://github.com/creationix/nvm" rel="noopener noreferrer">nvm</a> (Node Version Manager). On Linux, press Ctrl+Alt+T to open your terminal (alternatively, use the search bar to search for terminal).</p>
+<ul>
+<li><p>Run the command below to install nvm:<br><code>curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash</code></p>
+</li>
+<li><p>Check the nvm version to confirm successful installation:<br><code>nvm --version</code></p>
+</li>
+<li><p>Trigger nvm:<br><code>. ~/.nvm/nvm.sh</code></p>
+</li>
+<li><p>Install Node 10.5.0:<br><code>nvm install 10.5.0</code></p>
+</li>
+<li><p>Make it default:<br><code>nvm alias default 10.5.0</code></p>
+</li>
+<li><p>Check Node version to confirm successful installation:<br><code>node -v</code></p>
+</li>
+</ul>
+<p>Node version should be 10.5.0.</p>
+<p>Once Node is installed, we can install Yarn, a manager for third-party packages (also called dependencies or modules). Whenever we need to use code developed by other developers - we add the package name and version to a <code>package.json</code> file and run <code>yarn</code> in the app's directory. More on <code>package.json</code> in the next section.</p>
+<p>If you're using Ubuntu:</p>
+<ul>
+<li><p>Configure the Debian package repository for <a target="_blank" href="https://yarnpkg.com/en/docs/install#linux-tab" rel="noopener noreferrer">Yarn</a> by running the following two commands in your terminal:</p>
+<pre><code>curl -sS http<span class="hljs-variable">s:</span>//<span class="hljs-keyword">dl</span>.yarnpkg.<span class="hljs-keyword">com</span>/debian/pubkey.gpg | sudo apt-key <span class="hljs-built_in">add</span> -
+<span class="hljs-keyword">echo</span> <span class="hljs-string">"deb https://dl.yarnpkg.com/debian/ stable main"</span> | sudo tee /etc/apt/sources.<span class="hljs-keyword">list</span>.d/yarn.<span class="hljs-keyword">list</span></code></pre></li>
+<li><p>Then install Yarn with:</p>
+<pre><code>sudo apt-<span class="hljs-builtin-name">get</span> update &amp;&amp; sudo apt-<span class="hljs-builtin-name">get</span> install yarn</code></pre></li>
+<li><p>Check Yarn version to confirm successful installation:<br><code>yarn -v</code></p>
+</li>
+</ul>
+<p>If you're using another operating system, find specific instructions <a target="_blank" href="https://yarnpkg.com/en/docs/install" rel="noopener noreferrer">here</a> on yarn's official website. Select your OS from the "Operating system" dropdown menu.</p>
+<p>In this book, the Yarn version is <code>1.12.3</code>.</p>
+<h4 style="color: #FFF;">
+        <a name="package-json" href="#package-json" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        package.json
+      </h4><p><code>package.json</code> is a required file at the root of any Node application. This file contains the app's metadata: app name, app version, scripts, and dependenices (described by name and version), among other properties. Read about <a target="_blank" href="https://docs.npmjs.com/getting-started/using-a-package.json" rel="noopener noreferrer">working with a package.json</a> file to learn more about metadata. Some parameters are optional (<code>keywords</code>, <code>license</code>), but some are required (<code>name</code>, <code>version</code>).</p>
+<p>Open the <code>1-begin</code> folder located at <code>builderbook/book/</code>. Take a look at our <code>package.json</code> file:<br><code>package.json</code> :</p>
+<pre><code>{
+  <span class="hljs-attr">"name"</span>: <span class="hljs-string">"1-begin"</span>,
+  <span class="hljs-attr">"version"</span>: <span class="hljs-string">"0.0.1"</span>,
+  <span class="hljs-attr">"license"</span>: <span class="hljs-string">"MIT"</span>,
+  <span class="hljs-attr">"scripts"</span>: {
+    <span class="hljs-attr">"build"</span>: <span class="hljs-string">"next build"</span>,
+    <span class="hljs-attr">"start"</span>: <span class="hljs-string">"next start"</span>,
+    <span class="hljs-attr">"dev"</span>: <span class="hljs-string">"next"</span>
+  },
+  <span class="hljs-attr">"dependencies"</span>: {
+    <span class="hljs-attr">"@material-ui/core"</span>: <span class="hljs-string">"^3.3.1"</span>,
+    <span class="hljs-attr">"next"</span>: <span class="hljs-string">"^7.0.2"</span>,
+    <span class="hljs-attr">"prop-types"</span>: <span class="hljs-string">"^15.6.2"</span>,
+    <span class="hljs-attr">"react"</span>: <span class="hljs-string">"^16.6.0"</span>,
+    <span class="hljs-attr">"react-dom"</span>: <span class="hljs-string">"^16.6.0"</span>,
+    <span class="hljs-attr">"react-jss"</span>: <span class="hljs-string">"^8.6.1"</span>
+  },
+  <span class="hljs-attr">"devDependencies"</span>: {}
+}</code></pre><p>You can see required metadata like <code>name</code> and <code>version</code> (version format is <code>major.minor.patch</code>).</p>
+<p>The section of <code>package.json</code> called <code>scripts</code> contains shortcuts for commands. At the end of this book, the <code>scripts</code> section will contain the following command:</p>
+<pre>"dev": "nodemon server/app.js --watch server"</pre>
+
+<p>This command (shortcut) allows us to run our app locally by typing <code>yarn dev</code> in the terminal <em>instead</em> of manually typing:</p>
+<pre>yarn nodemon server/app.js --watch server</pre>
+
+<p>It's ok if you don't understand the above command. We will discuss it detail in Chapter 2 when we write our first server-side code. In this chapter and part of Chapter 2, since there is no server to start, you will run your app locally with <code>yarn next</code> or <code>yarn dev</code> (<code>"dev": "next"</code>).</p>
+<p>Also in Chapter 2, we'll introduce the <a target="_blank" href="https://www.npmjs.com/package/dotenv" rel="noopener noreferrer">dotenv</a> package, which will manage most of our environmental variables (over a dozen in total) in our app.</p>
+<p>Inside the <code>scripts</code> commands, you may choose to pass environmental variables. You would set it up by adding <code>NODE_ENV=production</code> to one of the commands in the <code>scripts</code> section. Let's consider an example. At the end of this book, we will start our app <em>locally</em> using <code>yarn dev</code>, which has the following shortcut in the <code>scripts</code> section:</p>
+<pre>"dev": "nodemon server/app.js --watch server"</pre>
+
+<p>We don't pass <em>any environmental variables</em> inside this command. Thus, <code>NODE_ENV</code> and <code>ROOT_URL</code> <em>default</em> to <code>development</code> and <code>http://localhost:8000</code>, respectively.</p>
+<p>We are able to pass environmental variables by prepending them to the command. For example, to build our app on a <em>remote</em> production server, we may use <code>yarn build</code> with this shortcut:</p>
+<pre>"build": "NODE_ENV=production next build"</pre>
+
+<p>In this case, the value of <code>NODE_ENV</code> is explicitly set to <code>production</code>. Next.js will build the production app properly with <code>NODE_ENV</code> equal to <code>production</code>. In Chapter 2, we will discuss how to manage server-side environmental variables. In Chapter 8, we will discuss how to manage universally available (available on client and server) environmental variables.</p>
+<p>The next section in our <code>package.json</code> file is <code>dependencies</code>. This section contains a list of third-party packages that we need in production <em>and</em> development environments. To install all packages from <code>package.json</code>, simply run <code>yarn</code> in your terminal while inside the app's directory.</p>
+<p>To check if Yarn successfully installed the packages, look for a newly generated <code>node_modules</code> folder and <code>yarn.lock</code> lockfile at the app's root directory. The former folder contains the code of third-party packages, and the latter file contains the exact versions of packages and their dependencies.</p>
+<p>In the <code>scripts</code> section, you can specify a combination of commands or run the scripts directly from your files. From our <code>package.json</code> file, if you run <code>yarn dev</code> in your terminal, you will first run <code>yarn next</code>.</p>
+<p><code>devDependencies</code> are dependencies that our app uses in development but <em>not</em> in production. Typically, developers use packages in <code>devDependencies</code> to run tests, compile code, or lint code locally.</p>
+<p>If you ran the <code>yarn</code> command inside the <code>1-begin</code> folder, then you successfully installed all packages we need for Chapter 1. We will discuss each installed package later in this chapter.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="code-editor-and-lint" href="#code-editor-and-lint" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="code-editor-and-lint">
+          Code editor and lint
+        </span>
+      </h2><p>In this section, we will set up preferences for Visual Studio Code editor (VS editor) and discuss/install two extensions that help us <em>format</em> code: Eslint and Prettier.</p>
+<h4 style="color: #FFF;">
+        <a name="vs-editor" href="#vs-editor" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        VS editor
+      </h4><p>We prefer the <a target="_blank" href="https://code.visualstudio.com" rel="noopener noreferrer">Visual Studio</a> code editor, because it easily integrates with Github and Eslint (which formats code), and it comes with Terminal (this allows you to stay within the editor while running commands). Here is a typical view of the editor with terminal. A list of staged changes is one click away, and you can see that we have 2 staged changes:<br><img src="https://user-images.githubusercontent.com/10218864/36002112-cf3d1eb0-0cdd-11e8-8ca6-3e483fc659f8.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>In addition, VS editor has many optional settings that may increase your productivity. VS editor has 2 types of settings: User settings and Workspace settings. Read more in Visual Studio's <a target="_blank" href="https://code.visualstudio.com/docs/getstarted/settings" rel="noopener noreferrer">docs</a>.</p>
+<p>The User settings are specific to your machine and will apply globally to any project you work on <em>unless</em> you configure Workspace settings. Since we only want to create settings for our builder book project, and not affect any settings you'd like on your own machine, we will modify the Workspace settings.</p>
+<p>You can access Workspace Settings by going to <code>File</code>(or <code>Code</code>)&gt;<code>Preferences</code>&gt;<code>Settings</code>&gt;<code>Workspace Settings</code>. Then click <code>...</code> at the top right and select <code>Open settings.json</code>. Here is a list of our Workspace Settings:</p>
+<pre><code>{
+  <span class="hljs-attr">"window.zoomLevel"</span>: <span class="hljs-number">-1</span>,
+  <span class="hljs-attr">"files.autoSave"</span>: <span class="hljs-string">"afterDelay"</span>,
+  <span class="hljs-attr">"git.enableSmartCommit"</span>: <span class="hljs-literal">true</span>,
+  <span class="hljs-attr">"editor.formatOnSave"</span>: <span class="hljs-literal">true</span>,
+  <span class="hljs-attr">"eslint.autoFixOnSave"</span>: <span class="hljs-literal">true</span>,
+  <span class="hljs-attr">"prettier.eslintIntegration"</span>: <span class="hljs-literal">true</span>,
+}</code></pre><p>And here is a snapshot of our Workspace Settings:<br><img src="https://user-images.githubusercontent.com/10218864/36043261-97adb33c-0d83-11e8-887c-01bc611790a2.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<ul>
+<li><code>"window.zoomLevel": -1</code> sets the zoom level to 80% - our personal preference, since we like to scroll less, especially when writing a tutorial or book.</li>
+<li><code>"files.autoSave": "afterDelay"</code> saves files automatically for you, so you don't need to save your files manually.</li>
+<li><code>"git.enableSmartCommit": true</code> stages changes automatically, so you don't need to stage your changes manually.</li>
+<li><code>"editor.formatOnSave": true</code> detects formatters, such as Eslint, and formats your code on each save event. To format code on a save event, you have to <em>manually</em> save the file.</li>
+</ul>
+<p>Below, we will discuss the remaining 2 settings that are related to Eslint and Prettier code formatters.</p>
+<p>To format code, we use the <em>ESLint</em> extension by <a target="_blank" href="https://github.com/dbaeumer" rel="noopener noreferrer">Dirk Baeumer</a> in Visual Studio. We configure this extension with dependencies for <em>Prettier</em> by <a target="_blank" href="https://github.com/esbenp" rel="noopener noreferrer">Esben Petersen</a>:</p>
+<h4 style="color: #FFF;">
+        <a name="eslint-and-prettier" href="#eslint-and-prettier" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Eslint and Prettier
+      </h4><p><a target="_blank" href="https://eslint.org" rel="noopener noreferrer">Eslint</a> lints code, i.e. it checks code for potential formatting problems and fixes them. After you install the Eslint extension on VS editor, you will see new settings. Read the <a target="_blank" href="https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint" rel="noopener noreferrer">full list of settings here</a>. One setting that we want to set to true is:</p>
+<pre>"eslint.autoFixOnSave": true</pre>
+
+<p>This setting makes Eslint apply fixes to your code when you save a file manually.</p>
+<p><a target="_blank" href="https://prettier.io/docs/en/index.html" rel="noopener noreferrer">Prettier</a> is also a code formatter. Rather than install the Prettier extension in VS editor, we will use Prettier installed as a dev dependency with Eslint. We chose this set up because it is compatible with VS Editor, Sublime Text 3, and Atom, in case you prefer one of the latter two code editors over VS Editor.</p>
+<p>Before we jump in and test Eslint and Prettier out, we need to create a configuration file and install missing dependencies. Eslint requires a <code>.eslintrc.js</code> file that contains a list of formatting rules. Formatting rules can specify the type of quotes and commas to use, the maximum length for a line of code, and more. Make sure to place the <code>.eslintrc.js</code> file at the app's root directory:<br><code>.eslintrc.js</code> :</p>
+<pre><code>module.exports = {
+  parser: <span class="hljs-symbol">'babel</span>-eslint',
+  extends: [<span class="hljs-symbol">'airbnb'</span>, <span class="hljs-symbol">'plugin</span>:prettier/recommended'],
+  env: {
+    browser: <span class="hljs-literal">true</span>,
+    jest: <span class="hljs-literal">true</span>,
+  },
+  plugins: [<span class="hljs-symbol">'react'</span>, <span class="hljs-symbol">'jsx</span>-a11y', <span class="hljs-symbol">'import'</span>, <span class="hljs-symbol">'prettier'</span>],
+  rules: {
+    <span class="hljs-symbol">'max</span>-len': [<span class="hljs-symbol">'error'</span>, <span class="hljs-number">100</span>],
+    <span class="hljs-symbol">'no</span>-underscore-dangle': [<span class="hljs-symbol">'error'</span>, { allow: [<span class="hljs-symbol">'_id'</span>] }],
+    <span class="hljs-symbol">'no</span>-mixed-operators': <span class="hljs-symbol">'off'</span>,
+    <span class="hljs-symbol">'prefer</span>-destructuring': [
+      <span class="hljs-symbol">'error'</span>,
+      {
+        <span class="hljs-type">VariableDeclarator</span>: {
+          <span class="hljs-built_in">array</span>: <span class="hljs-literal">false</span>,
+          object: <span class="hljs-literal">true</span>,
+        },
+        <span class="hljs-type">AssignmentExpression</span>: {
+          <span class="hljs-built_in">array</span>: <span class="hljs-literal">true</span>,
+          object: <span class="hljs-literal">false</span>,
+        },
+      },
+      {
+        enforceForRenamedProperties: <span class="hljs-literal">false</span>,
+      },
+    ],
+    <span class="hljs-symbol">'import</span>/prefer-default-export': <span class="hljs-symbol">'off'</span>,
+    <span class="hljs-symbol">'jsx</span>-a11y/anchor-is-valid': <span class="hljs-symbol">'off'</span>,
+    <span class="hljs-symbol">'react</span>/react-<span class="hljs-keyword">in</span>-jsx-scope': <span class="hljs-symbol">'off'</span>,
+    <span class="hljs-symbol">'react</span>/jsx-filename-extension': [
+      <span class="hljs-symbol">'error'</span>,
+      {
+        extensions: [<span class="hljs-string">'.js'</span>],
+      },
+    ],
+    <span class="hljs-symbol">'prettier</span>/prettier': [
+      <span class="hljs-symbol">'error'</span>,
+      {
+        singleQuote: <span class="hljs-literal">true</span>,
+        trailingComma: <span class="hljs-symbol">'all'</span>,
+        arrowParens: <span class="hljs-symbol">'always'</span>,
+        printWidth: <span class="hljs-number">100</span>,
+      },
+    ],
+  },
+};</code></pre><p>We included the <code>.eslintrc.js</code> file with all necessary rules in our <a target="_blank" href="https://github.com/builderbook/builderbook/tree/master/book/1-end" rel="noopener noreferrer">1-end</a> folder.</p>
+<p>To make Eslint and Prettier work properly, we need to install the missing packages that they rely on.<br>Add the following dependencies to your <code>package.json</code> file and run <code>yarn</code>:</p>
+<pre><code><span class="hljs-string">"devDependencies"</span>: {
+    <span class="hljs-string">"babel-eslint"</span>: <span class="hljs-string">"^10.0.1"</span>,
+    <span class="hljs-string">"eslint"</span>: <span class="hljs-string">"^5.7.0"</span>,
+    <span class="hljs-string">"eslint-config-airbnb"</span>: <span class="hljs-string">"^17.1.0"</span>,
+    <span class="hljs-string">"eslint-plugin-import"</span>: <span class="hljs-string">"^2.14.0"</span>,
+    <span class="hljs-string">"eslint-plugin-jsx-a11y"</span>: <span class="hljs-string">"^6.1.2"</span>,
+    <span class="hljs-string">"eslint-plugin-react"</span>: <span class="hljs-string">"^7.11.1"</span>,
+    <span class="hljs-string">"eslint-config-prettier"</span>: <span class="hljs-string">"^3.3.0"</span>,
+    <span class="hljs-string">"eslint-plugin-prettier"</span>: <span class="hljs-string">"^3.0.0"</span>,
+    <span class="hljs-string">"prettier"</span>: <span class="hljs-string">"^1.15.3"</span>
+  }
+}</code></pre><p>A list of all Eslint rules is in the <a target="_blank" href="https://eslint.org/docs/rules" rel="noopener noreferrer">official docs</a>. Check out, for example, the <a target="_blank" href="https://eslint.org/docs/rules/max-len" rel="noopener noreferrer">max-len</a> rule.</p>
+<p>Here's an example of code with an Eslint error for <code>max-len</code>:</p>
+<pre>var foo = { "bar": "This is a bar.", "baz": { "qux": "This is a qux" }, "difficult": "to read" };</pre>
+
+<p>And here's the same code without the <code>max-len</code> error:</p>
+<pre><code><span class="hljs-attribute">var foo</span> = {
+  <span class="hljs-string">"bar"</span>: <span class="hljs-string">"This is a bar."</span>,
+  <span class="hljs-string">"baz"</span>: { <span class="hljs-string">"qux"</span>: <span class="hljs-string">"This is a qux"</span> },
+  <span class="hljs-string">"easier"</span>: <span class="hljs-string">"to read"</span>
+};</code></pre><p>You may have noticed that we installed the <a target="_blank" href="https://www.npmjs.com/package/eslint-config-airbnb" rel="noopener noreferrer"><code>eslint-config-airbnb</code></a> package and <a target="_blank" href="https://eslint.org/docs/user-guide/configuring#extending-configuration-files" rel="noopener noreferrer">extended</a> Eslint with <code>extends: 'airbnb'</code>. In addition to rules that we specified in <code>.eslintrc.js</code>, we use rules from the <code>eslint-config-airbnb</code> package.</p>
+<p>Now that you've properly installed and configured Eslint and Prettier, let's test them. We'll start with testing Eslint.</p>
+<p>Create a <code>pages/index.js</code> file inside your <code>1-begin</code> folder, then paste the following code:<br><code>pages/index.js</code> :</p>
+<pre><code>[<span class="hljs-number">1</span>, <span class="hljs-number">2</span>, <span class="hljs-number">3</span>].map(function (<span class="hljs-symbol">x</span>) {
+  const <span class="hljs-symbol">y</span> = <span class="hljs-symbol">x</span> + <span class="hljs-number">1</span>;
+  <span class="hljs-keywords">return</span> <span class="hljs-symbol">x</span> * <span class="hljs-symbol">y</span>;
+});</code></pre><p>Eslint will highlight this code, and when you <em>hover over the highlighted code</em>, you will see a description of the error(s):</p>
+<pre><code>[eslint] Unexpected unnamed <span class="hljs-function"><span class="hljs-keyword">function</span>. <span class="hljs-params">(func-names)</span></span>
+[eslint] Unexpected <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">expression</span>. <span class="hljs-params">(prefer-arrow-callback)</span></span></code></pre><p>This type of Eslint error is a result of <a target="_blank" href="https://github.com/airbnb/javascript#arrow-functions" rel="noopener noreferrer">Airbnb's format rule for arrow functions</a>. To fix this error, simply save the file manually with <code>Ctrl+S</code>, and the code will be edited into:<br><code>pages/index.js</code> :</p>
+<pre><code>[<span class="hljs-number">1</span>, <span class="hljs-number">2</span>, <span class="hljs-number">3</span>].map((x) =&gt; {
+  <span class="hljs-keyword">const</span> y = x + <span class="hljs-number">1</span>;
+  <span class="hljs-keyword">return</span> x * y;
+});</code></pre><p>As we mentioned above, Eslint is able to fix some problems automatically when you save the file manually and have <code>"eslint.autoFixOnSave": true</code> in your User Settings on VS editor.</p>
+<p>You can also find Eslint problems in all files of your application. To do so, add one new script shortcut to the <code>scripts</code> section of your <code>package.json</code> file:<br><code>"lint": "eslint pages"</code></p>
+<p>The <code>scripts</code> section becomes:</p>
+<pre><code><span class="hljs-string">"scripts"</span>: {
+    <span class="hljs-string">"build"</span>: <span class="hljs-string">"next build"</span>,
+    <span class="hljs-string">"start"</span>: <span class="hljs-string">"next start"</span>,
+    <span class="hljs-string">"dev"</span>: <span class="hljs-string">"next"</span>,
+    <span class="hljs-string">"lint"</span>: <span class="hljs-string">"eslint pages"</span>
+}</code></pre><p>Go back to <code>pages/index.js</code> and re-add the code that contains Eslint errors:<br><code>pages/index.js</code> :</p>
+<pre><code>[<span class="hljs-number">1</span>, <span class="hljs-number">2</span>, <span class="hljs-number">3</span>].map(function (<span class="hljs-symbol">x</span>) {
+  const <span class="hljs-symbol">y</span> = <span class="hljs-symbol">x</span> + <span class="hljs-number">1</span>;
+  <span class="hljs-keywords">return</span> <span class="hljs-symbol">x</span> * <span class="hljs-symbol">y</span>;
+});</code></pre><p>Run <code>yarn lint</code> inside your <code>1-begin</code> folder. Eslint will find errors and a warning in <code>pages/index.js</code>:<br><img src="https://user-images.githubusercontent.com/10218864/36347051-4a395432-1402-11e8-81f7-130a2ca90e6b.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Cool part - you can fix some of these code style errors automatically by running <code>yarn lint --fix</code>.<br>Run <code>yarn lint --fix</code> and check out the <code>pages/index.js</code> file. The code will be automatically fixed by Eslint.</p>
+<p>In case you want to prevent Eslint from editing or noting errors on part of your code, you can specify lines of code or files that Eslint should not run on.</p>
+<p>To disable Eslint on a line of code, add the following code to that line:</p>
+<pre>// eslint-disable-line</pre>
+
+<p>To disable Eslint inside a file, add the following code to the top of that file:</p>
+<pre>/* eslint-disable */</pre>
+
+
+<p>Now that we've tested Eslint, let's do a practical example to understand why we need Prettier.</p>
+<p>Open your <code>pages/index.js</code> file and paste the following code:</p>
+<pre>foo(reallyLongArg(), reallyReallyLongArg(), omgSoManyParameters(), IShouldRefactorThis(), isThereSeriouslyAnotherOne());</pre>
+
+<p>Hover over the first highlight by Eslint:</p>
+<pre>[eslint] Line 17 exceeds the maximum line length of 100. (max-len)</pre>n bg573
+
+<p>Manually save file the with <code>Ctrl+S</code>, and the code will be automatically be formatted to:</p>
+<pre><code>foo(
+  <span class="hljs-name">reallyLongArg</span>(),
+  reallyReallyLongArg(),
+  omgSoManyParameters(),
+  IShouldRefactorThis(),
+  isThereSeriouslyAnotherOne(),
+)<span class="hljs-comment">;</span></code></pre><p>Note that this code, unlike the arrow function example from above, does not get fixed with Eslint. In this case, we needed Prettier.</p>
+<p>Now you're set for writing cleaner, formatted code. In the next section, we will discuss how to structure our app and get familiar with the Next.js framework.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="app-structure" href="#app-structure" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="app-structure">
+          App structure
+        </span>
+      </h2><p>In this section we will discuss how to organize our app. We'll discuss where to put:</p>
+<ul>
+<li>client-only code</li>
+<li>code that is available on both client and server</li>
+<li>server-only code</li>
+</ul>
+<h4 style="color: #FFF;">
+        <a name="next-js" href="#next-js" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Next.js
+      </h4><p><a target="_blank" href="https://github.com/zeit/next.js" rel="noopener noreferrer">Next.js</a> provides our app with simple routing, error handling (404 and 500 HTTP errors), server-side rendering on initial load, and hot code reloading. In addition, Next.js uses <a target="_blank" href="https://webpack.js.org" rel="noopener noreferrer">webpack</a> to automatically bundle modules (for example, pages and components) without any manual configuration by developers. Basically, if you like to start quickly and don't want to build these basic features of your web app from scratch, Next.js is a good choice.</p>
+<p>We'll be discussing Next.js as we go through this book. To learn the basics, check out this <a target="_blank" href="https://learnnextjs.com/basics/getting-started" rel="noopener noreferrer">tutorial</a> created by <a target="_blank" href="https://arunoda.me" rel="noopener noreferrer">Arunoda Susiripala</a> from <a target="_blank" href="https://zeit.co" rel="noopener noreferrer">Zeit</a>.</p>
+<p>We will discuss server-side rendering in more detail in the last three sections of this chapter, especially in the section titled <code>Server-side rendering</code>.</p>
+<p>If you ran <code>yarn</code> inside the <code>1-begin</code> folder, then Next.js is already installed. To check it - run <code>yarn build</code> in your terminal, and the <code>.next</code> folder will be generated at the root. Alternatively, run <code>yarn dev</code>, and the app should start at <code>http://localhost:3000</code>. You won't see any page on your browser, since we haven't created a page yet.</p>
+<p>Next.js specifies rules on how to structure your app. You store code for pages in a <code>/pages</code> folder, and the name of each page file becomes that page's route.</p>
+<p>You store components and static files (such as images) in <code>/components</code> and <code>/static</code> folders, respectively. Important note - when we prepare our app for production, we strongly recommend moving files from <code>/static</code> to some content delivery network (CDN). We store static resources at Google Cloud.</p>
+<pre><code>├── components                  # React components
+├── lib                         # Code available on both<span class="hljs-built_in"> client </span><span class="hljs-keyword">and</span><span class="hljs-built_in"> server
+</span>├── pages                       # Pages
+├──<span class="hljs-built_in"> server </span>                     #<span class="hljs-built_in"> Server </span>code
+├── static                      # Static resources
+├── package.json                # List of packages <span class="hljs-keyword">and</span> scripts</code></pre><p>We place code that should be available on both client and server (for example, higher-order components and API methods) in the <code>/lib</code> folder. Code in this folder should be available on the server for server-side rendering of pages (more on this below), and also on the client for client-side rendering.</p>
+<p>We will put all server-only code, such as Express server, Express routes, and third-party APIs, in the <code>/server</code> folder.</p>
+<p>Next.js lets you configure webpack by creating a <code>next.config.js</code> file at the root. You can also customize error pages 404 and 500 by creating a custom page inside <code>pages/_error.js</code>.</p>
+<p>We won't customize webpack or error pages, but we will customize <code>&lt;Document&gt;</code> by creating <code>pages/_document.js</code>.</p>
+<h4 style="color: #FFF;">
+        <a name="document" href="#document" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Document
+      </h4><p>In Next.js, you don't need to specify <code>&lt;head&gt;</code>, <code>&lt;html&gt;</code>, and <code>&lt;body&gt;</code> elements on every page. These elements are included automatically, but you can <a target="_blank" href="https://github.com/zeit/next.js#custom-document" rel="noopener noreferrer">customize</a> these shared elements by customizing the <code>Document</code> class inside a <code>pages/_document.js</code> file.</p>
+<p>Create your <code>pages/_document.js</code> file:<br><code>pages/_document.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> Document, { Head, Main, NextScript } <span class="hljs-keyword">from</span> <span class="hljs-string">'next/document'</span>;
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">MyDocument</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">Document</span> </span>{
+  render() {
+    <span class="hljs-keyword">return</span> (
+      <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">html</span> <span class="hljs-attr">lang</span>=<span class="hljs-string">"en"</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">Head</span> /&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">body</span>&gt;</span>
+          <span class="hljs-tag">&lt;<span class="hljs-name">Main</span> /&gt;</span>
+          <span class="hljs-tag">&lt;<span class="hljs-name">NextScript</span> /&gt;</span>
+        <span class="hljs-tag">&lt;/<span class="hljs-name">body</span>&gt;</span>
+      <span class="hljs-tag">&lt;/<span class="hljs-name">html</span>&gt;</span></span>
+    )
+  }
+}</code></pre><p>Our web app, like any other, should have the following three elements inside its <code>&lt;Header&gt;</code>:</p>
+<ul>
+<li>useful metadata for browsers</li>
+<li>static resources (favicon, font, Material icons, minified css files for Nprogress bar and code highlighting)</li>
+<li>global styles</li>
+</ul>
+<p>In addition:</p>
+<ul>
+<li>though not inside <code>&lt;Header&gt;</code>, we should add some styles for the <code>&lt;body&gt;</code> element as well</li>
+</ul>
+<p>Translate English into HTML and update the code snippet above. You get this carcass for our page:<br><code>pages/_document.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> <span class="hljs-type">Document</span>, { <span class="hljs-type">Head</span>, <span class="hljs-type">Main</span>, <span class="hljs-type">NextScript</span> } from <span class="hljs-symbol">'next</span>/document';
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">MyDocument</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">Document</span> </span>{
+  render() {
+    <span class="hljs-keyword">return</span> (
+      &lt;html lang=<span class="hljs-string">"en"</span>&gt;
+        &lt;<span class="hljs-type">Head</span>&gt;
+
+          <span class="hljs-comment">// 1. metadata</span>
+
+          <span class="hljs-comment">// 2. static resources (from CDN)</span>
+
+          <span class="hljs-comment">// 3. global styles</span>
+
+        &lt;/<span class="hljs-type">Head</span>&gt;
+        &lt;body
+          style={{ <span class="hljs-comment">/* styles for body */</span> }}
+        &gt;
+          &lt;<span class="hljs-type">Main</span> /&gt;
+          &lt;<span class="hljs-type">NextScript</span> /&gt;
+        &lt;/body&gt;
+      &lt;/html&gt;
+    )
+  }
+}
+
+export <span class="hljs-keyword">default</span> <span class="hljs-type">MyDocument</span>;</code></pre><p>Let's fill it out.</p>
+<ol>
+<li><p>Add the following four <a target="_blank" href="https://www.w3schools.com/tags/tag_meta.asp" rel="noopener noreferrer">meta tags</a>, though all of them are optional:</p>
+<pre><code>&lt;meta charSet=<span class="hljs-string">"utf-8"</span> /&gt; 
+// tells browser that <span class="hljs-built_in">content</span> <span class="hljs-built_in">is</span> UTF-<span class="hljs-number">8</span> encoded
+
+&lt;meta name=<span class="hljs-string">"viewport"</span> <span class="hljs-built_in">content</span>=<span class="hljs-string">"width=device-width, initial-scale=1.0"</span> /&gt; 
+// sets page <span class="hljs-built_in">width</span> to screen <span class="hljs-built_in">width</span>, sets initial zoom
+
+&lt;meta name=<span class="hljs-string">"google"</span> <span class="hljs-built_in">content</span>=<span class="hljs-string">"notranslate"</span> /&gt; 
+// tell google to <span class="hljs-keyword">not</span> <span class="hljs-built_in">show</span> <span class="hljs-built_in">translate</span> modals
+
+&lt;meta name=<span class="hljs-string">"theme-color"</span> <span class="hljs-built_in">content</span>=<span class="hljs-string">"#1976D2"</span> /&gt; 
+// specifies <span class="hljs-built_in">color</span> of browser on mobile device</code></pre></li>
+<li><p>Add these four resources from CDN (we use Google Cloud, but you can upload your resources to any other CDN). We suggest adding favicon image, font, styles for Nprogress (introduced in Chapter 3), and styles for highlighting markdown (introduced in Chapter 5):</p>
+<pre><code>&lt;link
+ <span class="hljs-attribute">rel</span>=<span class="hljs-string">"shortcut icon"</span>
+ <span class="hljs-attribute">href</span>=<span class="hljs-string">"https://storage.googleapis.com/builderbook/favicon32.png"</span>
+/&gt;
+&lt;link
+ <span class="hljs-attribute">rel</span>=<span class="hljs-string">"stylesheet"</span>
+ <span class="hljs-attribute">href</span>=<span class="hljs-string">"https://fonts.googleapis.com/css?family=Muli:300,400:latin"</span>
+/&gt;
+&lt;link
+ <span class="hljs-attribute">rel</span>=<span class="hljs-string">"stylesheet"</span>
+ <span class="hljs-attribute">href</span>=<span class="hljs-string">"https://fonts.googleapis.com/icon?family=Material+Icons"</span>
+/&gt;
+&lt;link
+ <span class="hljs-attribute">rel</span>=<span class="hljs-string">"stylesheet"</span>
+ <span class="hljs-attribute">href</span>=<span class="hljs-string">"https://storage.googleapis.com/builderbook/nprogress.min.css"</span>
+/&gt;
+&lt;link <span class="hljs-attribute">rel</span>=<span class="hljs-string">"stylesheet"</span> <span class="hljs-attribute">href</span>=<span class="hljs-string">"https://storage.googleapis.com/builderbook/vs.min.css"</span> /&gt;</code></pre></li>
+<li><p>Add global styles for <code>&lt;a&gt;</code>, <code>&lt;blockquote&gt;</code>, <code>&lt;pre&gt;</code>, and <code>&lt;code&gt;</code>. Our book content will contain the latter three elements. In Chapter 5, you will learn about the <code>marked</code> package and how it converts <code>markdown</code> into <code>HTML</code>. Styles:</p>
+<pre><code>&lt;style&gt;
+ {`
+   <span class="hljs-selector-tag">a</span>, <span class="hljs-selector-tag">a</span>:focus {
+     <span class="hljs-attribute">font-weight</span>: <span class="hljs-number">400</span>;
+     <span class="hljs-attribute">color</span>: <span class="hljs-number">#1565C0</span>;
+     <span class="hljs-attribute">text-decoration</span>: none;
+     <span class="hljs-attribute">outline</span>: none
+   }
+   <span class="hljs-selector-tag">a</span>:hover, <span class="hljs-selector-tag">button</span>:hover {
+     <span class="hljs-attribute">opacity</span>: <span class="hljs-number">0.75</span>;
+     <span class="hljs-attribute">cursor</span>: pointer
+   }
+   <span class="hljs-selector-tag">blockquote</span> {
+     <span class="hljs-attribute">padding</span>: <span class="hljs-number">0</span> <span class="hljs-number">1em</span>;
+     <span class="hljs-attribute">color</span>: <span class="hljs-number">#555</span>;
+     <span class="hljs-attribute">border-left</span>: <span class="hljs-number">0.25em</span> solid <span class="hljs-number">#dfe2e5</span>;
+   }
+   pre {
+     <span class="hljs-attribute">display</span>:block;
+     <span class="hljs-attribute">overflow-x</span>:auto;
+     <span class="hljs-attribute">padding</span>:<span class="hljs-number">0.5em</span>;
+     <span class="hljs-attribute">background</span>:<span class="hljs-number">#FFF</span>;
+     <span class="hljs-attribute">color</span>: <span class="hljs-number">#000</span>;
+     <span class="hljs-attribute">border</span>: <span class="hljs-number">1px</span> solid <span class="hljs-number">#ddd</span>;
+   }
+   <span class="hljs-selector-tag">code</span> {
+     <span class="hljs-attribute">font-size</span>: <span class="hljs-number">14px</span>;
+     <span class="hljs-attribute">background</span>: <span class="hljs-number">#FFF</span>;
+     <span class="hljs-attribute">padding</span>: <span class="hljs-number">3px</span> <span class="hljs-number">5px</span>;
+   }
+ `}
+&lt;/style&gt;</code></pre></li>
+<li><p>Finally, add a <code>&lt;body&gt;</code> element with these styles:</p>
+<pre><code>&lt;<span class="hljs-selector-tag">body</span>
+ style={{
+   <span class="hljs-attribute">font</span>: <span class="hljs-string">'16px Muli'</span>,
+   <span class="hljs-attribute">color</span>: <span class="hljs-string">'#222'</span>,
+   <span class="hljs-attribute">margin</span>: <span class="hljs-string">'0px auto'</span>,
+   fontWeight: <span class="hljs-string">'300'</span>,
+   lineHeight: <span class="hljs-string">'1.5em'</span>,
+   backgroundColor: <span class="hljs-string">'#F7F9FC'</span>,
+ }}
+&gt;
+ <span class="hljs-comment">// some code</span>
+&lt;/body&gt;</code></pre></li>
+</ol>
+<p>Paste the code snippets from steps 1 to 4 into the page carcass, and you get:<br><code>pages/_document.js</code> :</p>
+<pre><code>import Document, { Head, Main, NextScript } from <span class="hljs-string">'next/document'</span><span class="hljs-comment">;</span>
+
+class MyDocument extends Document {
+  render() {
+    <span class="hljs-keyword">return</span> (
+      &lt;html lang=<span class="hljs-string">"en"</span>&gt;
+        &lt;Head&gt;
+          &lt;meta charSet=<span class="hljs-string">"utf-8"</span> /&gt;
+          &lt;meta name=<span class="hljs-string">"viewport"</span> content=<span class="hljs-string">"width=device-width, initial-scale=1.0"</span> /&gt;
+          &lt;meta name=<span class="hljs-string">"google"</span> content=<span class="hljs-string">"notranslate"</span> /&gt;
+          &lt;meta name=<span class="hljs-string">"theme-color"</span> content=<span class="hljs-string">"#1976D2"</span> /&gt;
+
+          &lt;link
+            rel=<span class="hljs-string">"shortcut icon"</span>
+            href=<span class="hljs-string">"https://storage.googleapis.com/builderbook/favicon32.png"</span>
+          /&gt;
+          &lt;link
+            rel=<span class="hljs-string">"stylesheet"</span>
+            href=<span class="hljs-string">"https://fonts.googleapis.com/css?family=Muli:300,400:latin"</span>
+          /&gt;
+          &lt;link
+            rel=<span class="hljs-string">"stylesheet"</span>
+            href=<span class="hljs-string">"https://fonts.googleapis.com/icon?family=Material+Icons"</span>
+          /&gt;
+          &lt;link
+            rel=<span class="hljs-string">"stylesheet"</span>
+            href=<span class="hljs-string">"https://storage.googleapis.com/builderbook/nprogress.min.css"</span>
+          /&gt;
+          &lt;link rel=<span class="hljs-string">"stylesheet"</span> href=<span class="hljs-string">"https://storage.googleapis.com/builderbook/vs.min.css"</span> /&gt;
+
+          &lt;style&gt;
+            {`
+              a, a:focus {
+                <span class="hljs-keyword">font</span>-weight: <span class="hljs-number">400</span><span class="hljs-comment">;</span>
+                <span class="hljs-keyword">color</span>: <span class="hljs-meta">#<span class="hljs-number">1565</span>C0;</span>
+                text-decoration: none<span class="hljs-comment">;</span>
+                outline: none
+              }
+              a:hover, <span class="hljs-keyword">button</span>:hover {
+                opacity: <span class="hljs-number">0.75</span><span class="hljs-comment">;</span>
+                cursor: pointer
+              }
+              blockquote {
+                padding: <span class="hljs-number">0</span> <span class="hljs-number">1</span>em<span class="hljs-comment">;</span>
+                <span class="hljs-keyword">color</span>: <span class="hljs-meta">#<span class="hljs-number">555</span>;</span>
+                border-left: <span class="hljs-number">0.25</span>em solid <span class="hljs-meta">#dfe2e5;</span>
+              }
+              pre {
+                display: block<span class="hljs-comment">;</span>
+                overflow-x: auto<span class="hljs-comment">;</span>
+                padding: <span class="hljs-number">0.5</span>em<span class="hljs-comment">;</span>
+                background: <span class="hljs-meta">#FFF;</span>
+                border: <span class="hljs-number">1</span>px solid <span class="hljs-meta">#ddd;</span>
+              }
+              code {
+                <span class="hljs-keyword">font</span>-size: <span class="hljs-number">14</span>px<span class="hljs-comment">;</span>
+                background: <span class="hljs-meta">#FFF;</span>
+                padding: <span class="hljs-number">3</span>px <span class="hljs-number">5</span>px<span class="hljs-comment">;</span>
+              }
+            `}
+          &lt;/style&gt;
+        &lt;/Head&gt;
+        &lt;body
+          style={{
+            <span class="hljs-keyword">font</span>: <span class="hljs-string">'16px Muli'</span>,
+            <span class="hljs-keyword">color</span>: <span class="hljs-string">'#222'</span>,
+            margin: <span class="hljs-string">'0px auto'</span>,
+            fontWeight: <span class="hljs-string">'300'</span>,
+            lineHeight: <span class="hljs-string">'1.5em'</span>,
+            backgroundColor: <span class="hljs-string">'#F7F9FC'</span>,
+          }}
+        &gt;
+          &lt;Main /&gt;
+          &lt;NextScript /&gt;
+        &lt;/body&gt;
+      &lt;/html&gt;
+    )<span class="hljs-comment">;</span>
+  }
+}
+
+export <span class="hljs-keyword">default</span> MyDocument<span class="hljs-comment">;</span></code></pre><h4 style="color: #FFF;">
+        <a name="babel" href="#babel" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Babel
+      </h4><p><a target="_blank" href="https://babeljs.io" rel="noopener noreferrer">Babel</a> is a JavaScript compiler. It will take the Javascript code that we wrote and convert it into JavaScript that browsers understand. To configure Babel, we need to tell Babel which presets to use. </p>
+<p>Babel preset is a set of plugins that support particular language features. For example, the preset <code>react</code> supports <code>JSX</code> features, while the preset <code>es2015</code> supports <code>ES2015/ES6</code> features. You specify presets in a <code>.babelrc</code> file at your app's root. Normally, since Babel does not do anything to the code by default, you would need to create <code>.babelrc</code> file at the app's root and specify <a target="_blank" href="https://babeljs.io/docs/plugins/#presets" rel="noopener noreferrer">presets</a> and <a target="_blank" href="https://babeljs.io/docs/plugins/#transform-plugins" rel="noopener noreferrer">plugins</a> in this file.</p>
+<p>However, Next.js uses Babel internally. Currently, Next.js uses the following <a target="_blank" href="https://github.com/zeit/next.js/blob/0d4d7d840a1769ad0c65a9c62efa5958b429f894/package.json#L55" rel="noopener noreferrer">Babel presets and plugins</a>. </p>
+<p>It's important to emphasize: since Next.js uses Babel <strong>internally</strong> to compile code - we don't need to configure Babel with <code>.babelrc</code>.</p>
+<p>If you build some other app that requires you to configure babel, check out how to <a target="_blank" href="https://github.com/zeit/next.js#customizing-babel-config" rel="noopener noreferrer">customize Babel in a Next.js app</a>. In short, you would create a <code>.babelrc</code> file:</p>
+<pre><code>{
+  <span class="hljs-attr">"presets"</span>: [<span class="hljs-string">"next/babel"</span>],
+  <span class="hljs-attr">"plugins"</span>: []
+}</code></pre><p>The default behavior of Next.js will be overwritten with configs specified in the <code>.babelrc</code> file.</p>
+<p>Important note: Next.js compiles all modules that are imported to <em>pages</em>. That means that any code that is not imported into pages has to be compiled by us. If we want to use newer ES6 syntax (such as <code>import/export</code> instead of <code>require/module.exports</code>) for server code, we would have to compile server code with <code>babel-node</code>. However, in this book we use older <code>require/module.exports</code> and there is <strong>no need</strong> in using <code>babel-node</code>. Eventually, Node.js will support newer ES6 syntax for importing and exporting modules.</p>
+<p>In addition to the <code>.eslintrc.js</code> file, we provided you with a <code>.gitignore</code> file that contains a list of sensitive files that we strongly recommend <em>not</em> to store on a remote Github repository. For example, <code>.gitignore</code> has the <code>.env</code> file that contains sensitive API keys and secrets (discussed in Chapter 2).</p>
+<p>In the next section, we will write our first page and component. After that, we will start our app with <code>yarn dev</code> and check out <code>&lt;head&gt;</code>, <code>&lt;html&gt;</code>, and <code>&lt;body&gt;</code> of our page using <code>Developer tools &gt; Elements</code> on Chrome.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="index-page" href="#index-page" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="index-page">
+          Index page
+        </span>
+      </h2><p>Time to create our very first page - the <code>Index</code> page. In ES6, <code>const Index = React.createClass({})</code> becomes <code>class Index extends React.Component {}</code>. Thus, you get:<br><code>pages/index.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> <span class="hljs-type">React</span> from <span class="hljs-symbol">'reac</span>t';
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Index</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">React</span>.<span class="hljs-title">Component</span> </span>{
+  render() {
+    <span class="hljs-keyword">return</span> &lt;div&gt;some content&lt;/div&gt;;
+  }
+};</code></pre><p>We will use the above syntax for components with <code>state</code>. <em>However</em>, since our first version of the <code>Index</code> component <em>has no</em>:</p>
+<ul>
+<li><code>state</code>,</li>
+<li><a target="_blank" href="https://reactjs.org/docs/refs-and-the-dom.html" rel="noopener noreferrer">refs</a>,</li>
+<li>lifecycle methods (such as <code>componentDidMount</code> or any other).</li>
+</ul>
+<p>Thus we may choose to write component as stateless functional component. Example of a stateless functional component, <code>Pure</code>:</p>
+<pre><code><span class="hljs-keyword">const</span> Pure = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+  <span class="hljs-keyword">return</span> <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span>&gt;</span>some content<span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span></span>
+};
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> Pure;</code></pre><p>In the case of our <code>Index</code> component, we get:<br><code>pages/index.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> Head <span class="hljs-keyword">from</span> <span class="hljs-string">'next/head'</span>;
+
+<span class="hljs-keyword">const</span> Index = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> (
+  <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">padding:</span> '<span class="hljs-attr">10px</span> <span class="hljs-attr">45px</span>' }}&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Head</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">title</span>&gt;</span>Index page<span class="hljs-tag">&lt;/<span class="hljs-name">title</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">meta</span> <span class="hljs-attr">name</span>=<span class="hljs-string">"description"</span> <span class="hljs-attr">content</span>=<span class="hljs-string">"This is the description of the Index page"</span> /&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Head</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">p</span>&gt;</span>Content on Index page<span class="hljs-tag">&lt;/<span class="hljs-name">p</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
+);
+
+export default Index;</span></code></pre><p>Check out <a target="_blank" href="https://hackernoon.com/react-stateless-functional-components-nine-wins-you-might-have-overlooked-997b0d933dbc" rel="noopener noreferrer">this blog</a> post about the pros and cons of using stateless functional component.</p>
+<p>We imported <code>Head</code> from <code>next/head</code> and specified a title and description for proper indexing by search engines (good for SEO). Title and description will be added to the <code>&lt;head&gt;</code> element of our <code>Index</code> page. We also added some padding to the page by using the inline (local) style <code>style={{ padding: '10px 45px' }}</code>.</p>
+<p>Time to test. Start your app with <code>yarn dev</code>, go to <code>http://localhost:3000</code>. You will see a page with <code>Content on Index page</code>. On Chrome, go to <code>Developer tools &gt; Elements</code>. Find and click on the <code>&lt;head&gt;</code> element:<br><img src="https://user-images.githubusercontent.com/10218864/36058930-b507ef7a-0de1-11e8-9c6c-184f3bd321cd.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Good job if you see the proper <code>&lt;title&gt;</code> and <code>&lt;meta name="description"&gt;</code> from <code>pages/index.js</code>. You can also see the link tags and styles, as well as other meta tags, that we added earlier to <code>pages/_document.js</code>. Now you know how customize <code>&lt;Document&gt;</code> and create a page in a React/Next.js app!</p>
+<p>Rename <code>pages/index.js</code> to <code>pages/about.js</code>. Start your app with <code>yarn dev</code> and go to <code>http://localhost:3000</code>. You see a simple 404 error page provided by Next.js:<br><img src="https://user-images.githubusercontent.com/10218864/36058956-8015dff6-0de2-11e8-9f71-7881897d8065.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>To see our page, you have to navigate to the <code>/about</code> route (<code>http://localhost:3000/about</code>), since the file name is the page route in Next.js.</p>
+<p>Remember to rename the file back to <code>pages/index.js</code>.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="header-component" href="#header-component" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="header-component">
+          Header component
+        </span>
+      </h2><p>You may have noticed that our <code>Index</code> page has no Header. Let's create a <code>Header</code> component as a stateless functional component in the same way we wrote the <code>Index</code> component:<br><code>components/Header.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> Header = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+  <span class="hljs-keyword">return</span> <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span>&gt;</span>some content<span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span></span>
+};
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> Header;</code></pre><p>We use Next.js's <code>&lt;Link&gt;</code> element for routing - <a target="_blank" href="https://github.com/zeit/next.js#with-link" rel="noopener noreferrer">read more about it</a>. It's possible to prefetch a route with <code>&lt;Link prefetch&gt;</code>. The <a target="_blank" href="https://github.com/zeit/next.js#prefetching-pages" rel="noopener noreferrer">prefetch feature</a> is production-only. If you specify a <code>prefetch</code> option, then your app will download the static code of a page with the route specified in the <code>href</code> parameter of <code>&lt;Link&gt;</code>.</p>
+<p>If your page has only static code and no data to wait for, then loading the prefetched page will feel almost instant. When a page needs to wait for data, there will be a delay; however, the page will still load faster than without using <code>prefetch</code>.</p>
+<p>We will use the <code>prefetch</code> option to almost instantly load our <code>Login</code> page (introduced in Chapter 3 and tested, after deployment, in Chapter 8). The <code>Login</code> page is a static page that has no data to wait for. In Chapter 3, we will test how prefetch works. For now, we will only add <code>prefetch</code> to <code>&lt;Link&gt;</code>:<br><code>components/Header.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> Link <span class="hljs-keyword">from</span> <span class="hljs-string">'next/link'</span>;
+
+<span class="hljs-keyword">const</span> Header = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> (
+  <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Link</span> <span class="hljs-attr">prefetch</span> <span class="hljs-attr">href</span>=<span class="hljs-string">"/login"</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">a</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">margin:</span> '<span class="hljs-attr">0px</span> <span class="hljs-attr">20px</span> <span class="hljs-attr">0px</span> <span class="hljs-attr">auto</span>' }}&gt;</span>Log in<span class="hljs-tag">&lt;/<span class="hljs-name">a</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Link</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span></span>
+);
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> Header;</code></pre><p>Import this <code>Header</code> component into the <code>Index</code> page:</p>
+<pre><code><span class="hljs-keyword">import</span> Head <span class="hljs-keyword">from</span> <span class="hljs-string">'next/head'</span>;
+<span class="hljs-keyword">import</span> Header <span class="hljs-keyword">from</span> <span class="hljs-string">'../components/Header'</span>;
+
+<span class="hljs-keyword">const</span> Index = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> (
+  <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">padding:</span> '<span class="hljs-attr">10px</span> <span class="hljs-attr">45px</span>' }}&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Head</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">title</span>&gt;</span>Index page<span class="hljs-tag">&lt;/<span class="hljs-name">title</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">meta</span> <span class="hljs-attr">name</span>=<span class="hljs-string">"description"</span> <span class="hljs-attr">content</span>=<span class="hljs-string">"This is the description of the Index page"</span> /&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Head</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Header</span> /&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">p</span>&gt;</span>Content on Index page<span class="hljs-tag">&lt;/<span class="hljs-name">p</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
+);
+
+export default Index;</span></code></pre><p>Start your app with <code>yarn dev</code> and go to <code>http://localhost:3000</code>:<br><img src="https://user-images.githubusercontent.com/10218864/36064797-89e2f240-0e45-11e8-84bf-526a8ae3302d.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>That's a starting point but not acceptable. We should make some UI improvements.</p>
+<p>Eventually, in our <code>Header</code> component, we want to place multiple items in separate columns. In the Material-UI library (installed with <code>yarn</code> at the start of this chapter), the <a target="_blank" href="https://material-ui-next.com/layout/grid" rel="noopener noreferrer"><code>Grid</code></a> element creates a column grid, and the <a target="_blank" href="https://material-ui-next.com/demos/app-bar" rel="noopener noreferrer"><code>Toolbar</code></a> element adds a bar with action items. Click the hyperlinks to learn more about their properties. We use them as follows:<br><code>components/Header.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> Link <span class="hljs-keyword">from</span> <span class="hljs-string">'next/link'</span>;
+
+<span class="hljs-keyword">import</span> Toolbar <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/core/Toolbar'</span>;
+<span class="hljs-keyword">import</span> Grid <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/core/Grid'</span>;
+
+<span class="hljs-keyword">import</span> { styleToolbar } <span class="hljs-keyword">from</span> <span class="hljs-string">'./SharedStyles'</span>;
+
+<span class="hljs-keyword">const</span> Header = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> (
+  <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Toolbar</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{styleToolbar}</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">Grid</span> <span class="hljs-attr">container</span> <span class="hljs-attr">direction</span>=<span class="hljs-string">"row"</span> <span class="hljs-attr">justify</span>=<span class="hljs-string">"space-around"</span> <span class="hljs-attr">align</span>=<span class="hljs-string">"center"</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">Grid</span> <span class="hljs-attr">item</span> <span class="hljs-attr">xs</span>=<span class="hljs-string">{12}</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">textAlign:</span> '<span class="hljs-attr">right</span>' }}&gt;</span>
+          <span class="hljs-tag">&lt;<span class="hljs-name">Link</span> <span class="hljs-attr">prefetch</span> <span class="hljs-attr">href</span>=<span class="hljs-string">"/login"</span>&gt;</span>
+            <span class="hljs-tag">&lt;<span class="hljs-name">a</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">margin:</span> '<span class="hljs-attr">0px</span> <span class="hljs-attr">20px</span> <span class="hljs-attr">0px</span> <span class="hljs-attr">auto</span>' }}&gt;</span>Log in<span class="hljs-tag">&lt;/<span class="hljs-name">a</span>&gt;</span>
+          <span class="hljs-tag">&lt;/<span class="hljs-name">Link</span>&gt;</span>
+        <span class="hljs-tag">&lt;/<span class="hljs-name">Grid</span>&gt;</span>
+      <span class="hljs-tag">&lt;/<span class="hljs-name">Grid</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Toolbar</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span></span>
+);
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> Header;</code></pre><p>Earlier in this chapter, we added some <em>global</em> styles to our <code>pages/_document.js</code>. We call these styles global because our app applies them to <em>all</em> elements. However, in some situations, you want to use a style only in a few places. We can call these styles <em>shared</em> to emphasize that they can be exported/imported and shared among a few components and pages.</p>
+<p>We place <em>shared</em> styles in <code>components/SharedStyles.js</code>. Create this file with the following content:</p>
+<pre><code><span class="hljs-keyword">const</span> styleToolbar = {
+  <span class="hljs-built_in">background</span>: <span class="hljs-string">'#FFF'</span>,
+  <span class="hljs-built_in">height</span>: <span class="hljs-string">'64px'</span>,
+  paddingRight: <span class="hljs-string">'20px'</span>
+}
+
+<span class="hljs-keyword">module</span>.exports = {
+  styleToolbar
+}</code></pre><p>As you can see, we imported <code>styleToolbar</code> to our <code>Header</code> component and used this style on the <code>&lt;Toolbar&gt;</code> element.</p>
+<p>In <a target="_blank" href="https://github.com/builderbook/builderbook/blob/master/book/1-end/components/SharedStyles.js" rel="noopener noreferrer"><code>1-end/components/SharedStyles.js</code></a>, we provide a few more styles that we will use in this book.</p>
+<p>Start your app with <code>yarn dev</code> and go to <code>http://localhost:3000</code>:<br><img src="https://user-images.githubusercontent.com/10218864/36064939-fc9dfa94-0e47-11e8-9307-c20d31c34e74.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Looking better. We will add one more improvement in the next section.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="layout-hoc" href="#layout-hoc" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="layout-hoc">
+          Layout HOC
+        </span>
+      </h2><p>In the previous section, we imported and added the <code>Header</code> component to our <code>Index</code> page. Our final app will have 8 pages, so importing and adding the <code>Header</code> component to <em>each</em> page will be time-consuming. It will be much faster to <em>wrap</em> our pages with a <a target="_blank" href="https://reactjs.org/docs/higher-order-components.html" rel="noopener noreferrer">higher-order component</a> that contains the <code>Header</code> component. In addition to the <code>Header</code> component, this higher-order component (HOC) can pass some props to our pages in order to control layout or data. For example, in Chapter 3, we will use an authentication HOC <code>withAuth</code> to pass a <code>user</code> prop to our <code>Header</code> component, this allows to perform a check on <code>user</code> object and show different different type of data (to different type of user (for example. customer user vs admin user). In other words, authentication HOC <code>withAuth</code> will allow us to check for user permissions.</p>
+<p>We will discuss <code>withAuth</code> HOC in Chapter 3, in this section our goal is to implement a layout HOC - a HOC that allows pages to have a shared layout.</p>
+<p>In React, by definition, a HOC (or HOC function) is a function that takes a component (<code>BaseComponent</code>) and returns a new component (<code>App</code>):</p>
+<pre>const App = higherOrderComponent(BaseComponent)</pre>
+
+<p>In our case, we will <em>wrap</em> our <code>Index</code> component with our <code>Layout</code> HOC during export:</p>
+<pre>export default Layout(Index)</pre>
+
+<p>This is how we would wrap every page in our app. And in Chapter 3 you will indeed see that we wrap page components with <code>withAuth</code> HOC, for example:</p>
+<pre>withAuth(Index)</pre>
+
+<p>or</p>
+<pre>withAuth(Login)</pre>
+
+<p>However, there is no need to wrap pages with <code>Layout</code> HOC becase Next.js has a custom HOC called <a target="_blank" href="https://github.com/zeit/next.js/#custom-app" rel="noopener noreferrer">App</a>. We can define and customize shared layout for all pages of the Next.js app by extending <code>App</code> HOC inside <code>pages/_app.js</code> file.</p>
+<p>To override a default <code>App</code> HOC, you have to create a custom <code>pages/_app.js</code> file in which you extend <code>App</code> class:</p>
+<pre><code><span class="hljs-keyword">import</span> React <span class="hljs-keyword">from</span> <span class="hljs-string">'react'</span>;
+<span class="hljs-keyword">import</span> App, { Container } <span class="hljs-keyword">from</span> <span class="hljs-string">'next/app'</span>;
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">MyApp</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">App</span> </span>{
+  <span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> getInitialProps({ Component, ctx }) {
+    <span class="hljs-keyword">let</span> pageProps = {};
+
+    <span class="hljs-keyword">if</span> (Component.getInitialProps) {
+      pageProps = <span class="hljs-keyword">await</span> Component.getInitialProps(ctx);
+    }
+
+    <span class="hljs-keyword">return</span> { pageProps };
+  }
+
+  render() {
+    <span class="hljs-keyword">const</span> { Component, pageProps } = <span class="hljs-keyword">this</span>.props;
+
+    <span class="hljs-keyword">return</span> (
+      <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">Container</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">Component</span> {<span class="hljs-attr">...pageProps</span>} /&gt;</span>
+      <span class="hljs-tag">&lt;/<span class="hljs-name">Container</span>&gt;</span>
+    );
+  }
+}
+
+export default MyApp;</span></code></pre><p>Now import and add <code>Header</code> component to the above HOC:</p>
+<pre><code><span class="hljs-keyword">import</span> <span class="hljs-type">React</span> from <span class="hljs-symbol">'reac</span>t';
+<span class="hljs-keyword">import</span> <span class="hljs-type">App</span>, { <span class="hljs-type">Container</span> } from <span class="hljs-symbol">'next</span>/app';
+<span class="hljs-keyword">import</span> <span class="hljs-type">Header</span> from '../components/<span class="hljs-type">Header</span>';
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">MyApp</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">App</span> </span>{
+  static async getInitialProps({ <span class="hljs-type">Component</span>, ctx }) {
+    let pageProps = {};
+
+    <span class="hljs-keyword">if</span> (<span class="hljs-type">Component</span>.getInitialProps) {
+      pageProps = await <span class="hljs-type">Component</span>.getInitialProps(ctx);
+    }
+
+    <span class="hljs-keyword">return</span> { pageProps };
+  }
+
+  render() {
+    const { <span class="hljs-type">Component</span>, pageProps } = <span class="hljs-keyword">this</span>.props;
+
+    <span class="hljs-keyword">return</span> (
+      &lt;<span class="hljs-type">Container</span>&gt;
+        &lt;<span class="hljs-type">Header</span> {...pageProps} /&gt;
+        &lt;<span class="hljs-type">Component</span> {...pageProps} /&gt;
+      &lt;/<span class="hljs-type">Container</span>&gt;
+    );
+  }
+}
+
+export <span class="hljs-keyword">default</span> <span class="hljs-type">MyApp</span>;</code></pre><p>Remove the <code>Header</code> component from the <code>Index</code> page component.<br><code>pages/index.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> Head <span class="hljs-keyword">from</span> <span class="hljs-string">'next/head'</span>;
+
+<span class="hljs-keyword">const</span> Index = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> (
+  <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">padding:</span> '<span class="hljs-attr">10px</span> <span class="hljs-attr">45px</span>' }}&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Head</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">title</span>&gt;</span>Index page<span class="hljs-tag">&lt;/<span class="hljs-name">title</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">meta</span> <span class="hljs-attr">name</span>=<span class="hljs-string">"description"</span> <span class="hljs-attr">content</span>=<span class="hljs-string">"This is the description of the Index page"</span> /&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Head</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">p</span>&gt;</span>Content on Index page<span class="hljs-tag">&lt;/<span class="hljs-name">p</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
+);
+
+export default Index;</span></code></pre><p>Remember, we do not need to wrap <code>Index</code> page component with <code>App</code> HOC since Next.js takes care of it under the hood.</p>
+<p>This is a good place to test. Start your app with <code>yarn dev</code> and go to <code>http://localhost:3000</code>:<br><img src="https://user-images.githubusercontent.com/10218864/36066890-8940c390-0e67-11e8-97a7-ff31a91a8e3d.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Good job if you can see the <code>Header</code> component. That means that layout <code>App</code> HOC works as expected.</p>
+<p>Go to <code>pages/_app.js</code>, remove <code>&lt;Header {...this.props} /&gt;</code> and comment out <code>import Header from '../components/Header';</code>.<br>Save the file, and Next.js will reload the app. Go to <code>http://localhost:3000</code>:<br><img src="https://user-images.githubusercontent.com/10218864/36066924-fdd57f02-0e67-11e8-9323-5b59f18dc7f4.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>As it should be, no <code>Header</code> component this time.</p>
+<p>As a bonus try adding two <code>Header</code> component to <code>App</code> HOC. After reloading tab, you should see two <code>Header</code> elements in your layout.</p>
+<p>Remember to undo all changes after testing so <code>App</code> HOC contains only only one <code>Header</code> component.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="material-ui-integration" href="#material-ui-integration" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="material-ui-integration">
+          Material-UI integration
+        </span>
+      </h2><p><a target="_blank" href="https://material.io/guidelines" rel="noopener noreferrer">Material Design</a> is a design framework for web and mobile apps. It was developed and released by Google under an Apache-2 license. Since then, developers have created React-specific libraries for material design. We use the <a target="_blank" href="https://github.com/mui-org/material-ui" rel="noopener noreferrer">Material-UI</a> library.</p>
+<p>To test out if we properly integrated Material-UI with Next.js, let's add <code>&lt;Button&gt;</code> from Material-UI to our <code>Index</code> page:<br><code>pages/index.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> Head <span class="hljs-keyword">from</span> <span class="hljs-string">'next/head'</span>;
+<span class="hljs-keyword">import</span> Button <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/core/Button'</span>;
+
+<span class="hljs-keyword">const</span> Index = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> (
+  <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">padding:</span> '<span class="hljs-attr">10px</span> <span class="hljs-attr">45px</span>' }}&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Head</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">title</span>&gt;</span>Index page<span class="hljs-tag">&lt;/<span class="hljs-name">title</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">meta</span> <span class="hljs-attr">name</span>=<span class="hljs-string">"description"</span> <span class="hljs-attr">content</span>=<span class="hljs-string">"This is the description of the Index page"</span> /&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Head</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">p</span>&gt;</span>Content on Index page<span class="hljs-tag">&lt;/<span class="hljs-name">p</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Button</span> <span class="hljs-attr">variant</span>=<span class="hljs-string">"contained"</span>&gt;</span>MUI button<span class="hljs-tag">&lt;/<span class="hljs-name">Button</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
+);
+
+export default Index;</span></code></pre><p>Start your app with <code>yarn dev</code> and go to <code>http://localhost:3000</code>. Look at the button while refreshing the tab a few times. You will see a flash of style - at first, the button looks like a simple HTML button:<br><img src="https://user-images.githubusercontent.com/10218864/36067926-818a8792-0e7d-11e8-9b26-18cf3711de26.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>After 500 ms or so, the button gets styling from Material-UI and looks like:<br><img src="https://user-images.githubusercontent.com/10218864/36067911-547db864-0e7d-11e8-96b7-8fa45876981c.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>You see a flash of style because the server renders the page with HTML only, <em>without styles</em>. The server sends this HTML-rendered page to the client (browser), where you see a simple HTML button. A few moments later, the client injects styles to HTML, and you see the button styled with Material-UI.</p>
+<p>To better understand what we mean by <code>the client injects styles to HTML</code>, go to <code>http://localhost:3000</code>. Open <code>Developer tools &gt; Elements</code>. Click on the <code>&lt;head&gt;</code> element and delete the following two <code>&lt;style&gt;</code> tags:</p>
+<ul>
+<li><code>&lt;style type="text/css" data-jss="" data-meta="MuiButtonBase"&gt;&lt;/style&gt;</code></li>
+<li><code>&lt;style type="text/css" data-jss="" data-meta="MuiButton"&gt;&lt;/style&gt;</code></li>
+</ul>
+<p>Here is a screenshot to help you find these tags:<br><img src="https://user-images.githubusercontent.com/10218864/36069169-7f721c1a-0e99-11e8-8583-aabdf9dd59f4.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>After you delete these <code>&lt;style&gt;</code> tags, you will see a simple HTML button with no style, i.e. the client has no style to inject to the HTML:<br><img src="https://user-images.githubusercontent.com/10218864/36069201-d304ef88-0e99-11e8-9385-be9bf034d9cc.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Next.js renders pages on the server (for initial load). However, injecting Material-UI styles to the server before rendering does not come out-of-the-box. We need to write code to integrate Material-UI with Next.js. It's not a small task, but luckily, Material-UI contributors maintain a <a target="_blank" href="https://github.com/mui-org/material-ui/tree/master/examples/nextjs" rel="noopener noreferrer">good example of Next.js/Material-UI integration</a>. We encourage you to check out this official example, since we will follow it closely.</p>
+<p>From the above testing, we understand why the flash of style happens. We see that the client injects styles to HTML, but our app <em>does not</em> add styles to HTML <em>on the server</em> before rendering a page.</p>
+<p>We want to set up our app to add styles on the server. But after we successfully inject styles to our HTML on the server (server-side styles), we'll need to <em>remove</em> the server-side styles once the client code injects styles (client-side styles) on the browser. </p>
+<p>If we don't remove server-side styles, then the same HTML elements will have both server-side and client-side styles, and this may lead to errors. Remember that with Next.js, only the initial load is server-rendered. Subsequent render events happen on the client, so there's no reason to keep server-side styles after injecting client-side styles.</p>
+<p>To be able to pass styles to a page on the server, we need to:</p>
+<ol>
+<li>Create a Material-UI's theme</li>
+<li>Inject styles and render page on the server</li>
+<li>Remove server-side styles to avoid side effects</li>
+</ol>
+<h4 style="color: #FFF;">
+        <a name="create-a-theme" href="#create-a-theme" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Create a theme
+      </h4><p>We will create a theme by following the <a target="_blank" href="https://github.com/mui-org/material-ui/blob/master/examples/nextjs/src/theme.js" rel="noopener noreferrer">official Next.js/Material-UI example</a> closely. Theme is created using <code>createMuiTheme</code> method that is defined in <code>@material-ui/core/styles</code>:</p>
+<pre><code><span class="hljs-keyword">import</span> { createMuiTheme } <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/core/styles'</span>;
+<span class="hljs-keyword">import</span> blue <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/core/colors/blue'</span>;
+<span class="hljs-keyword">import</span> grey <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/core/colors/grey'</span>;
+
+<span class="hljs-keyword">const</span> theme = createMuiTheme({
+  palette: {
+    primary: { main: blue[<span class="hljs-number">700</span>] },
+    secondary: { main: grey[<span class="hljs-number">700</span>] },
+    <span class="hljs-keyword">type</span>: <span class="hljs-string">'light'</span>,
+  },
+});
+
+<span class="hljs-keyword">export</span> { theme };</code></pre><p>We can customize theme in many different ways, read about <a target="_blank" href="https://material-ui.com/customization/themes/" rel="noopener noreferrer">all ways</a> in official Material-UI docs. In the above code snippet, we specify primary and secondary colors for <a target="_blank" href="https://material-ui.com/customization/palette/#custom-palette" rel="noopener noreferrer">palette</a>, and specify theme's <a target="_blank" href="https://material-ui.com/customization/palette/#type-light-dark-theme" rel="noopener noreferrer">type</a> (light or dark).</p>
+<p>Create <code>lib/theme.js</code> file and the above code to that file. Save the file.</p>
+<p>Next, we need to wrap our <code>Header</code> component and page component <code>Component</code> (inside <code>App</code> HOC) with Material-UI's <a target="_blank" href="link" rel="noopener noreferrer">ThemeProvider</a>:</p>
+<pre><code><span class="hljs-keyword">import</span> CssBaseline <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/core/CssBaseline'</span>;
+<span class="hljs-keyword">import</span> { ThemeProvider } <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/styles'</span>;
+<span class="hljs-keyword">import</span> App, { Container } <span class="hljs-keyword">from</span> <span class="hljs-string">'next/app'</span>;
+<span class="hljs-keyword">import</span> React <span class="hljs-keyword">from</span> <span class="hljs-string">'react'</span>;
+
+<span class="hljs-keyword">import</span> { theme } <span class="hljs-keyword">from</span> <span class="hljs-string">'../lib/theme'</span>;
+
+<span class="hljs-keyword">import</span> Header <span class="hljs-keyword">from</span> <span class="hljs-string">'../components/Header'</span>;
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">MyApp</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">App</span> {</span>
+  static async getInitialProps({ Component, ctx }) {
+    <span class="hljs-keyword">const</span> pageProps = {};
+
+    <span class="hljs-keyword">if</span> (Component.getInitialProps) {
+      Object.assign(pageProps, await Component.getInitialProps(ctx));
+    }
+
+    <span class="hljs-keyword">return</span> { pageProps };
+  }
+
+  render() {
+    <span class="hljs-keyword">const</span> { Component, pageProps } = <span class="hljs-keyword">this</span>.props;
+
+    <span class="hljs-keyword">return</span> (
+      &lt;Container&gt;
+        {<span class="hljs-comment">/* ThemeProvider makes the theme available down the React
+              tree thanks to React context. */</span>}
+        &lt;ThemeProvider theme={theme}&gt;
+          &lt;Header {...pageProps} /&gt;
+          &lt;Component {...pageProps} /&gt;
+        &lt;/ThemeProvider&gt;
+      &lt;/Container&gt;
+    );
+  }
+}
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> MyApp;</code></pre><p>Finally, let's add some basic styles to our theme using <a target="_blank" href="link" rel="noopener noreferrer">CssBaseline</a>:</p>
+<pre><code><span class="hljs-keyword">import</span> CssBaseline <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/core/CssBaseline'</span>;
+<span class="hljs-keyword">import</span> { ThemeProvider } <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/styles'</span>;
+<span class="hljs-keyword">import</span> App, { Container } <span class="hljs-keyword">from</span> <span class="hljs-string">'next/app'</span>;
+<span class="hljs-keyword">import</span> React <span class="hljs-keyword">from</span> <span class="hljs-string">'react'</span>;
+
+<span class="hljs-keyword">import</span> { theme } <span class="hljs-keyword">from</span> <span class="hljs-string">'../lib/theme'</span>;
+
+<span class="hljs-keyword">import</span> Header <span class="hljs-keyword">from</span> <span class="hljs-string">'../components/Header'</span>;
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">MyApp</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">App</span> {</span>
+  static async getInitialProps({ Component, ctx }) {
+    <span class="hljs-keyword">const</span> pageProps = {};
+
+    <span class="hljs-keyword">if</span> (Component.getInitialProps) {
+      Object.assign(pageProps, await Component.getInitialProps(ctx));
+    }
+
+    <span class="hljs-keyword">return</span> { pageProps };
+  }
+
+  render() {
+    <span class="hljs-keyword">const</span> { Component, pageProps } = <span class="hljs-keyword">this</span>.props;
+
+    <span class="hljs-keyword">return</span> (
+      &lt;Container&gt;
+        {<span class="hljs-comment">/* ThemeProvider makes the theme available down the React
+              tree thanks to React context. */</span>}
+        &lt;ThemeProvider theme={theme}&gt;
+          {<span class="hljs-comment">/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */</span>}
+          &lt;CssBaseline /&gt;
+          &lt;Header {...pageProps} /&gt;
+          &lt;Component {...pageProps} /&gt;
+        &lt;/ThemeProvider&gt;
+      &lt;/Container&gt;
+    );
+  }
+}
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> MyApp;</code></pre><p>You just created Material-UI's theme and passed it to all pages via layout <code>App</code> HOC.</p>
+<h4 style="color: #FFF;">
+        <a name="inject-styles-and-render-page-on-the-server" href="#inject-styles-and-render-page-on-the-server" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Inject styles and render page on the server
+      </h4><p>In this subsection, our goal is to render a page inside our custom document (<code>pages/_document.js</code>) with the <code>renderPage()</code> function as shown in the <a target="_blank" href="https://github.com/mui-org/material-ui/blob/master/examples/nextjs/pages/_document_.js" rel="noopener noreferrer">Next.js example for custom Document</a>:</p>
+<pre><code>MyDocument.getInitialProps = <span class="hljs-keyword">async</span> (ctx) =&gt; {
+  <span class="hljs-comment">// Render app and page and get the context of the page with collected side effects.</span>
+  <span class="hljs-keyword">const</span> sheets = <span class="hljs-keyword">new</span> ServerStyleSheets();
+  <span class="hljs-keyword">const</span> originalRenderPage = ctx.renderPage;
+
+  ctx.renderPage = () =&gt;
+    originalRenderPage({
+      enhanceApp: (App) =&gt; (props) =&gt; sheets.collect(&lt;App {...props} /&gt;),
+    });
+
+  <span class="hljs-keyword">const</span> initialProps = <span class="hljs-keyword">await</span> Document.getInitialProps(ctx);
+
+  <span class="hljs-keyword">return</span> {
+    ...initialProps,
+    <span class="hljs-comment">// Styles fragment is rendered after the app and page rendering finish.</span>
+    styles: (
+      &lt;React.Fragment&gt;
+        {initialProps.styles}
+        {sheets.getStyleElement()}
+      &lt;/React.Fragment&gt;
+    ),
+  };
+};</code></pre><p>After initial props are populated on the server for page, <code>App</code>, <code>Document</code> components. We render page and <code>App</code> on the server. Then we add Material-UI's styles as props to <code>My Document</code> and render <code>Document</code> component, both are done on the server as well. Thus rendered page that is sent from the server to the client includes proper styles. This will solve the previously problem of the flash of style.</p>
+<p>A short detour. You may have noticed <code>...</code> or <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax" rel="noopener noreferrer">spread operator</a> before <code>initialProps</code>. The spread operator creates a new object with parameters that are cloned from the original object. To better understand it, paste the following code into your browser console. Go to Chrome, open a tab, and access <code>Developer tools &gt; Console</code>:</p>
+<pre><code><span class="hljs-keyword">var</span> foo = { <span class="hljs-attr">a</span>:<span class="hljs-number">1</span>, <span class="hljs-attr">b</span>:<span class="hljs-number">2</span>, <span class="hljs-attr">c</span>:<span class="hljs-number">3</span> }
+
+<span class="hljs-built_in">console</span>.log({ ...foo });
+<span class="hljs-built_in">console</span>.log(<span class="hljs-built_in">Object</span>.assign({}, foo));</code></pre><p>Run the code by pressing <code>Enter</code>.<br><img src="https://user-images.githubusercontent.com/10218864/36225224-d742e8ec-117e-11e8-8c0a-76f8e87db5db.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>The line <code>console.log({ ...foo });</code> outputs a new object with parameters cloned from the <code>foo</code> object:</p>
+<pre>{a: 1, b: 2, c: 3}</pre>
+
+<p>Since the outputs of both <code>console.log()</code> statements are the same, you can see that the statement <code>{ ...foo }</code> is equivalent to <code>Object.assign({}, foo)</code>. <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign" rel="noopener noreferrer">Object.assign</a> with an empty first parameter also creates a new object with cloned parameters from the original object.</p>
+<p>In this book, we strive for shorter and more readable syntax. Thus, we pick the spread operator (<code>...</code>) over <code>Object.assign()</code>.</p>
+<p>Back to our situation. Instead of cloning the parameters of a <code>foo</code> object, we clone parameters of our <code>initialProps</code> object and add one more parameter - <code>styles</code> - to our newly created object:</p>
+<pre><code>{
+  ..<span class="hljs-selector-class">.initialProps</span>,
+  styles
+}</code></pre><p>The code snippet above is equivalent to:</p>
+<pre><code>var foo = { a:<span class="hljs-number">1</span>, b:<span class="hljs-number">2</span>, c:<span class="hljs-number">3</span> }
+console.log({ ...foo, d:<span class="hljs-number">4</span> });</code></pre><p>Run this code snippet in your browser console:<br><img src="https://user-images.githubusercontent.com/10218864/36225880-fe0a8316-1180-11e8-883e-309f7faf7807.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>As expected, the output is:</p>
+<pre>{ a: 1, b: 2, c: 3, d: 4 }</pre>
+
+<p>The final, updated <code>MyDocument</code> component:<br><code>pages/_document.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> React from <span class="hljs-string">'react'</span>;
+<span class="hljs-keyword">import</span> Document, { Head, Main, NextScript } from <span class="hljs-string">'next/document'</span>;
+<span class="hljs-keyword">import</span> { ServerStyleSheets } from <span class="hljs-string">'@material-ui/styles'</span>;
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">MyDocument</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">Document</span> </span>{
+  render() {
+    <span class="hljs-keyword">return</span> (
+      &lt;html lang=<span class="hljs-string">"en"</span>&gt;
+        &lt;Head&gt;
+          &lt;meta charSet=<span class="hljs-string">"utf-8"</span> /&gt;
+          &lt;meta name=<span class="hljs-string">"viewport"</span> content=<span class="hljs-string">"width=device-width, initial-scale=1.0"</span> /&gt;
+          &lt;meta name=<span class="hljs-string">"google"</span> content=<span class="hljs-string">"notranslate"</span> /&gt;
+          &lt;meta name=<span class="hljs-string">"theme-color"</span> content=<span class="hljs-string">"#1976D2"</span> /&gt;
+
+          &lt;link
+            rel=<span class="hljs-string">"shortcut icon"</span>
+            href=<span class="hljs-string">"https://storage.googleapis.com/builderbook/favicon32.png"</span>
+          /&gt;
+          &lt;link
+            rel=<span class="hljs-string">"stylesheet"</span>
+            href=<span class="hljs-string">"https://fonts.googleapis.com/css?family=Muli:300,400:latin"</span>
+          /&gt;
+          &lt;link rel=<span class="hljs-string">"stylesheet"</span> href=<span class="hljs-string">"https://fonts.googleapis.com/icon?family=Material+Icons"</span> /&gt;
+          &lt;link
+            rel=<span class="hljs-string">"stylesheet"</span>
+            href=<span class="hljs-string">"https://storage.googleapis.com/builderbook/nprogress.min.css"</span>
+          /&gt;
+          &lt;link rel=<span class="hljs-string">"stylesheet"</span> href=<span class="hljs-string">"https://storage.googleapis.com/builderbook/vs.min.css"</span> /&gt;
+
+          &lt;style&gt;
+            {`
+              a, a:focus {
+                font-weight: <span class="hljs-number">400</span>;
+                color: #<span class="hljs-number">1565</span>C0;
+                text-decoration: none;
+                outline: none
+              }
+              a:hover, button:hover {
+                opacity: <span class="hljs-number">0.75</span>;
+                cursor: pointer
+              }
+              blockquote {
+                padding: <span class="hljs-number">0</span> <span class="hljs-number">1</span>em;
+                color: #<span class="hljs-number">555</span>;
+                border-left: <span class="hljs-number">0.25</span>em solid #dfe2e5;
+              }
+              pre {
+                display:block;
+                overflow-x:auto;
+                padding:<span class="hljs-number">0.5</span>em;
+                background:#FFF;
+                color: #<span class="hljs-number">000</span>;
+                border: <span class="hljs-number">1</span>px solid #ddd;
+              }
+              code {
+                font-size: <span class="hljs-number">14</span>px;
+              }
+            `}
+          &lt;/style&gt;
+        &lt;/Head&gt;
+        &lt;body
+          style={{
+            font: <span class="hljs-string">'16px Muli'</span>,
+            color: <span class="hljs-string">'#222'</span>,
+            margin: <span class="hljs-string">'0px auto'</span>,
+            fontWeight: <span class="hljs-string">'300'</span>,
+            lineHeight: <span class="hljs-string">'1.5em'</span>,
+            backgroundColor: <span class="hljs-string">'#F7F9FC'</span>,
+          }}
+        &gt;
+          &lt;Main /&gt;
+          &lt;NextScript /&gt;
+        &lt;/body&gt;
+      &lt;/html&gt;
+    );
+  }
+}
+
+MyDocument.getInitialProps = <span class="hljs-keyword">async</span> (ctx) =&gt; {
+  <span class="hljs-comment">// Resolution order</span>
+  <span class="hljs-comment">//</span>
+  <span class="hljs-comment">// On the server:</span>
+  <span class="hljs-comment">// 1. app.getInitialProps</span>
+  <span class="hljs-comment">// 2. page.getInitialProps</span>
+  <span class="hljs-comment">// 3. document.getInitialProps</span>
+  <span class="hljs-comment">// 4. app.render</span>
+  <span class="hljs-comment">// 5. page.render</span>
+  <span class="hljs-comment">// 6. document.render</span>
+  <span class="hljs-comment">//</span>
+  <span class="hljs-comment">// On the server with error:</span>
+  <span class="hljs-comment">// 1. document.getInitialProps</span>
+  <span class="hljs-comment">// 2. app.render</span>
+  <span class="hljs-comment">// 3. page.render</span>
+  <span class="hljs-comment">// 4. document.render</span>
+  <span class="hljs-comment">//</span>
+  <span class="hljs-comment">// On the client</span>
+  <span class="hljs-comment">// 1. app.getInitialProps</span>
+  <span class="hljs-comment">// 2. page.getInitialProps</span>
+  <span class="hljs-comment">// 3. app.render</span>
+  <span class="hljs-comment">// 4. page.render</span>
+
+  <span class="hljs-comment">// Render app and page and get the context of the page with collected side effects.</span>
+  <span class="hljs-keyword">const</span> sheets = <span class="hljs-keyword">new</span> ServerStyleSheets();
+  <span class="hljs-keyword">const</span> originalRenderPage = ctx.renderPage;
+
+  ctx.renderPage = () =&gt;
+    originalRenderPage({
+      enhanceApp: (App) =&gt; (props) =&gt; sheets.collect(&lt;App {...props} /&gt;),
+    });
+
+  <span class="hljs-keyword">const</span> initialProps = <span class="hljs-keyword">await</span> Document.getInitialProps(ctx);
+
+  <span class="hljs-keyword">return</span> {
+    ...initialProps,
+    <span class="hljs-comment">// Styles fragment is rendered after the app and page rendering finish.</span>
+    styles: (
+      &lt;React.Fragment&gt;
+        {initialProps.styles}
+        {sheets.getStyleElement()}
+      &lt;/React.Fragment&gt;
+    ),
+  };
+};
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> MyDocument;</code></pre><h4 style="color: #FFF;">
+        <a name="remove-server-side-styles" href="#remove-server-side-styles" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Remove server-side styles
+      </h4><p>We are almost done. Here, we modify our layout <code>App</code> HOC to remove server-side injected styles after this component is mounted on the browser. We'll closely follow this <a target="_blank" href="https://github.com/mui-org/material-ui/blob/master/examples/nextjs/pages/_app.js" rel="noopener noreferrer">official example</a>.</p>
+<p>After component mounts - means we can use React's <a target="_blank" href="https://reactjs.org/docs/react-component.html#componentdidmount" rel="noopener noreferrer">componentDidMount()</a> method:</p>
+<pre><code>component<span class="hljs-constructor">DidMount()</span> {
+  <span class="hljs-comment">// Remove the server-side injected styles.</span>
+  const jssStyles = document.query<span class="hljs-constructor">Selector('#<span class="hljs-params">jss</span>-<span class="hljs-params">server</span>-<span class="hljs-params">side</span>')</span>;
+  <span class="hljs-keyword">if</span> (jssStyles<span class="hljs-operator"> &amp;&amp; </span>jssStyles.parentNode) {
+    jssStyles.parentNode.remove<span class="hljs-constructor">Child(<span class="hljs-params">jssStyles</span>)</span>;
+  }
+}</code></pre><p>Open <code>pages/_app.js</code>, add <code>componentDidMount()</code> method after <code>getInitialProps()</code> method, like this:</p>
+<pre><code><span class="hljs-keyword">import</span> CssBaseline from <span class="hljs-string">'@material-ui/core/CssBaseline'</span>;
+<span class="hljs-keyword">import</span> { ThemeProvider } from <span class="hljs-string">'@material-ui/styles'</span>;
+<span class="hljs-keyword">import</span> App, { Container } from <span class="hljs-string">'next/app'</span>;
+<span class="hljs-keyword">import</span> React from <span class="hljs-string">'react'</span>;
+
+<span class="hljs-keyword">import</span> { theme } from <span class="hljs-string">'../lib/theme'</span>;
+
+<span class="hljs-keyword">import</span> Header from <span class="hljs-string">'../components/Header'</span>;
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">MyApp</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">App</span> </span>{
+  <span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> getInitialProps({ Component, ctx }) {
+    <span class="hljs-keyword">const</span> pageProps = {};
+
+    <span class="hljs-keyword">if</span> (Component.getInitialProps) {
+      <span class="hljs-built_in">Object</span>.assign(pageProps, <span class="hljs-keyword">await</span> Component.getInitialProps(ctx));
+    }
+
+    <span class="hljs-comment">// console.log(pageProps);</span>
+
+    <span class="hljs-keyword">return</span> { pageProps };
+  }
+
+  componentDidMount() {
+    <span class="hljs-comment">// Remove the server-side injected styles.</span>
+    <span class="hljs-keyword">const</span> jssStyles = <span class="hljs-built_in">document</span>.<span class="hljs-built_in">querySelector</span>(<span class="hljs-string">'#jss-server-side'</span>);
+    <span class="hljs-keyword">if</span> (jssStyles &amp;&amp; jssStyles.parentNode) {
+      jssStyles.parentNode.removeChild(jssStyles);
+    }
+  }
+
+  render() {
+    <span class="hljs-keyword">const</span> { Component, pageProps } = <span class="hljs-keyword">this</span>.props;
+
+    <span class="hljs-comment">// console.log(pageProps);</span>
+
+    <span class="hljs-keyword">return</span> (
+      &lt;Container&gt;
+        {<span class="hljs-comment">/* ThemeProvider makes the theme available down the React
+              tree thanks to React context. */</span>}
+        &lt;ThemeProvider theme={theme}&gt;
+          {<span class="hljs-comment">/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */</span>}
+          &lt;CssBaseline /&gt;
+          &lt;Header {...pageProps} /&gt;
+          &lt;Component {...pageProps} /&gt;
+        &lt;/ThemeProvider&gt;
+      &lt;/Container&gt;
+    );
+  }
+}
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> MyApp;</code></pre><p>Save the file.</p>
+<p>Start your app with <code>yarn dev</code> and navigate to <code>http://localhost:3000</code>:<br><img src="https://user-images.githubusercontent.com/10218864/36134596-9e98a878-103a-11e8-832a-da70dc828b7d.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>The button on the <code>Index</code> page, which originally had a flash of style, now loads <em>without</em> any flash. We successfully integrated Material-UI with Next.js!</p>
+<p>We should run two experiments to confirm our conclusion.</p>
+<ol>
+<li><p>On Chrome, go to <code>Developer tools &gt; Elements</code> and click <code>Ctrl+F</code> to search for <code>jss-server-side</code>. You won't be able to find any element.</p>
+<p>Open <code>pages/_app.js</code> and comment out the following line:</p>
+<pre>// jssStyles.parentNode.removeChild(jssStyles);</pre>
+
+<p>Save the file, reload your tab, and go back to <code>Developer tools &gt; Elements</code>. Click <code>Ctrl+F</code> to search for <code>jss-server-side</code>. Now, you <em>will see</em> <code>&lt;style id="jss-server-side"&gt;</code>, which contains server-side styles:<br><img src="https://user-images.githubusercontent.com/10218864/36134544-46c2af04-103a-11e8-8ee2-7aca6db5f04e.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Remember to uncomment this line.</p>
+</li>
+</ol>
+<p>Good job! You successfully finished Next.js/Material-UI integration.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="custom-styles" href="#custom-styles" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="custom-styles">
+          Custom styles
+        </span>
+      </h2><p>At this point, we've discussed a few ways to add styles to your app. We'll summarize them here and provide examples. As you build your app, feel free to use any of these methods to apply your own styles.</p>
+<p>We recommend the following 4 ways to add styles, though you can certainly think of other methods:</p>
+<ul>
+<li><p>Inline style for a single element.<br>Add an inline style when you want to apply a style to <em>one element</em> on a <em>single page/component</em>. </p>
+<p>For example, on our <code>Index</code> page, we wrote this single inline style:</p>
+<pre><code>&lt;<span class="hljs-selector-tag">div</span> style={{ <span class="hljs-attribute">padding</span>: <span class="hljs-string">'10px 45px'</span> }}&gt;
+  <span class="hljs-comment">// some code</span>
+&lt;/div&gt;</code></pre></li>
+<li><p>Reusable style for multiple elements within single page or component.<br>Create a reusable style when you want to apply the same style to <em>multiple elements</em> on a <em>single page/component</em>.</p>
+<p>For example, in the code snippet above, we could have written a resusable style at the top of the page and then applied that style to the <code>&lt;div&gt;</code> element. In this case, the style is reusable and can be applied to multiple elements on the page.</p>
+<pre><code><span class="hljs-keyword">const</span> styleDiv = {
+  <span class="hljs-attr">padding</span>: <span class="hljs-string">'10px 45px'</span>,
+};
+
+<span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{styleDiv}</span>&gt;</span>
+  // some code
+<span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span></span></code></pre></li>
+<li><p>Reusable/importable style for multiple pages or components.<br>Create a reusable/importable style when you want apply the same style to elements on <em>multiple pages/components</em>.</p>
+<p>For example, as described in the Header component section, we created <code>styleToolbar</code> inside <code>components/SharedStyles.js</code> and exported the style at the bottom of the file:</p>
+<pre><code><span class="hljs-keyword">const</span> styleToolbar = {
+  <span class="hljs-built_in">background</span>: <span class="hljs-string">'#FFF'</span>,
+  <span class="hljs-built_in">height</span>: <span class="hljs-string">'64px'</span>,
+  paddingRight: <span class="hljs-string">'20px'</span>,
+};
+
+<span class="hljs-keyword">module</span>.exports = {
+  styleToolbar,
+};</code></pre><p>We then imported <code>styleToolbar</code> into our <code>Header</code> component, and applied the style to a <code>&lt;Toolbar&gt;</code> element from Material-UI:</p>
+<pre><code><span class="hljs-keyword">import</span> { styleToolbar } <span class="hljs-keyword">from</span> <span class="hljs-string">'./SharedStyles'</span>;
+
+<span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">Toolbar</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{styleToolbar}</span>&gt;</span>
+  // some code
+<span class="hljs-tag">&lt;/<span class="hljs-name">Toolbar</span>&gt;</span></span></code></pre></li>
+<li><p>Global style for all pages in application.<br>Create a global style when you want to apply the same style to elements on <em>all pages</em> of your app. You create your style in <code>pages/_document.js</code>. </p>
+<p>For example, we specified a style for all hyperlinks that use the <code>&lt;a&gt;</code> element:</p>
+<pre><code>&lt;style&gt;
+  {`
+    <span class="hljs-selector-tag">a</span>, <span class="hljs-selector-tag">a</span>:focus {
+      <span class="hljs-attribute">font-weight</span>: <span class="hljs-number">400</span>;
+      <span class="hljs-attribute">color</span>: <span class="hljs-number">#1565C0</span>;
+      <span class="hljs-attribute">text-decoration</span>: none;
+      <span class="hljs-attribute">outline</span>: none
+    }
+  <span class="hljs-comment">// some code</span>
+&lt;/style&gt;</code></pre><p>We also specified styles for all content inside a <code>&lt;body&gt;</code> element:</p>
+<pre><code>&lt;<span class="hljs-selector-tag">body</span>
+  style={{
+    <span class="hljs-attribute">font</span>: <span class="hljs-string">'16px Muli'</span>,
+    <span class="hljs-attribute">color</span>: <span class="hljs-string">'#222'</span>,
+    <span class="hljs-attribute">margin</span>: <span class="hljs-string">'0px auto'</span>,
+    fontWeight: <span class="hljs-string">'300'</span>,
+    lineHeight: <span class="hljs-string">'1.5em'</span>,
+    backgroundColor: <span class="hljs-string">'#F7F9FC'</span>,
+  }}
+&gt;</code></pre></li>
+</ul>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="server-side-rendering" href="#server-side-rendering" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="server-side-rendering">
+          Server-side rendering
+        </span>
+      </h2><p>Let's look at a default behaviour of Next.js: server-side rendering (SSR) on <em>initial load</em>.</p>
+<p>Unlike client-side rendering (CSR), SSR has a few advantages. Two specific advantages are SEO (search engine optimization) and UX (user experience):</p>
+<ul>
+<li><p>server-rendered JavaScript is properly indexed by search engine crawling bots</p>
+</li>
+<li><p>server-side rendered pages have no loading delay, i.e. a user sees no empty page with a loading spinner - pages appear on the browser fully rendered</p>
+</li>
+</ul>
+<p>One more <em>potential</em> advantage of SSR is faster loading speed for initial load. Compare server-side rendering with client-side:</p>
+<ul>
+<li><p>SSR (server-side rendering). For initial page load with SSR, there is only <em>one</em> over-network round trip between client (browser) and server. It takes the server time to render the page with data; however, the client gets both HTML and data for the requested page in <em>one round trip</em>.</p>
+</li>
+<li><p>CSR (client-side rendering). For initial page load with CSR, there are <em>two</em> over-network round trips between client and server. After the first round trip, the client gets a page's HTML. After the second round trip, the client gets that page's data. Typically, after the second round trip, the client gets HTML for all other app pages. Thus, subsequent page loads (after initial load) are faster, since they do not require HTML but smaller JSON data.</p>
+</li>
+</ul>
+<p>Doing SSR on initial load and CSR on subsequent loads will be best for user experience. That's exactly what Next.js does: SSR on initial load and CSR for subsequent loads.</p>
+<p>Here is an <a target="_blank" href="https://medium.com/@adamzerner/client-side-rendering-vs-server-side-rendering-a32d2cf3bfcc" rel="noopener noreferrer">informative blog post</a> that compares SSR with more traditional CSR.</p>
+<p>The best way to see that Next.js renders on the server for initial load is to disable SSR. Let's do an experiment and disable server-side rendering using <a target="_blank" href="https://github.com/zeit/next.js/tree/5e7f990039b2e513fd09bc8078e17207a348a1ee#3-with-no-ssr" rel="noopener noreferrer">dynamic import</a>.</p>
+<p>Start your app with <code>yarn dev</code> and navigate to <code>http://localhost:3000</code>.</p>
+<ul>
+<li><p>With SSR.</p>
+<ol>
+<li><p>Refresh the browser tab a few times.<br>Notice that the <code>Header</code> component and <code>Index</code> page show up on the browser at the same time. There is <em>no empty page</em> with a loading element.</p>
+</li>
+<li><p>Right click anywhere on the page and select <code>View page source</code>.<br>Find the <code>Log in</code> link (inside the <code>Header</code> component).<br>Notice that the <code>&lt;a style="margin:0px 20px 0px auto" href="/login"&gt;Log in&lt;/a&gt;</code> element is wrapped in the server-rendered <code>&lt;div id="__next"&gt;...&lt;/div&gt;</code> element.</p>
+</li>
+</ol>
+</li>
+<li><p>Without SSR. Let's see what happens if we disable server-side rendering for the <code>Header</code> component.</p>
+<p>Open  <code>pages/_app_.js</code> and comment out this line:</p>
+<pre>// import Header from '../components/Header';</pre>
+
+<p>Then, import <code>dynamic</code>:</p>
+<pre>import dynamic from 'next/dynamic';</pre>
+
+<p>Finally, define <code>Header</code> as:</p>
+<pre>const Header = dynamic(import('../components/Header'), { ssr: false });</pre>
+
+<p>Save the file and reload your tab.</p>
+<ol>
+<li><p>Refresh your browser tab. Notice how the <code>Header</code> component now arrives <em>after</em> the <code>Index</code> page, with a slight but noticable delay. For a split second, you see that the <code>Index</code> page arrives empty (without the <code>Header</code> component). And while the page is empty, it shows a loading element <code>&lt;p&gt;loading...&lt;/p&gt;</code>. After the <code>Index</code> page loads, <code>&lt;p&gt;loading...&lt;/p&gt;</code> gets replaced by the <code>Header</code> component.</p>
+</li>
+<li><p>Right click on the page and select <code>View page source</code>. Find the server-rendered <code>&lt;div id="__next"&gt;...&lt;/div&gt;</code> element. Inside it, you won't find <code>&lt;a style="margin:0px 20px 0px auto" href="/login"&gt;Log in&lt;/a&gt;</code>. But you will find a <code>&lt;p&gt;loading...&lt;/p&gt;</code> element instead of the entire <code>Header</code> component. The element <code>&lt;p&gt;loading...&lt;/p&gt;</code> is server-rendered, and the <code>Header</code> component replaces the <code>&lt;p&gt;loading...&lt;/p&gt;</code> element on the client. </p>
+</li>
+</ol>
+</li>
+</ul>
+<p>Besides loading UX and SEO, SSR page may load faster than CSR page when network is slow, since in case of CSR there is one extra trip over network. We did a detailed comparison of SSR and CSR in our <a target="_blank" href="https://hackernoon.com/server-side-vs-client-side-rendering-in-react-apps-443efd6f2e87" rel="noopener noreferrer">tutorial at Hackernoon</a>. We compared performance metrics in addition to loading UX. Here is link to sample app that is used to compare SSR to CSR pages: <a target="_blank" href="https://ssr-csr.builderbook.org" rel="noopener noreferrer">https://ssr-csr.builderbook.org</a>.</p>
+<p>In our app, we will use both SSR and CSR:</p>
+<ul>
+<li><p>if we want SSR on initial load, we will make sure that the page gets data with the <code>getInitialProps()</code> method. This method executes on the server for <em>initial page load</em> and then on the client if a user gets to the page with <code>&lt;Link href="route"&gt;</code> or <code>Router.push('route')</code>.</p>
+</li>
+<li><p>if we want CSR only, we will call an API method inside the <code>componentDidMount()</code> lifecycle hook (see Chapter 5 and 6 for detailed examples) when data loads passively, without any extra action from user. If we want to call an API method <em>after a user takes an action</em>, such as clicking a button (see <a target="_blank" href="https://builderbook.org/books/builder-book/buybutton-component-buy-book-logic-mailchimp-api-readchapter-page-mybooks-page-deploy-app#buybutton-component" rel="noopener noreferrer">Chapter 8, BuyButton</a>), we would place the API method inside an event-handling function (for example, <code>onButtonClick()</code>) <em>instead</em> of <code>componentDidMount()</code>.</p>
+</li>
+</ul>
+<p>In this chapter, you learned integrated Next.js with Material-UI, and learned about server-side rendering. At this point, you have a basic template for static websites. In the next chapter (Chapter 2), we will create an Express server, connect our app to a database, and learn about <code>session</code> and <code>cookie</code>.</p>
+<hr>
+<p>At the end of Chapter 1, your codebase should look like the codebase in <code>1-end</code>. The <a target="_blank" href="https://github.com/builderbook/builderbook/tree/master/book/1-end" rel="noopener noreferrer">1-end</a> folder is located at the root of the <code>book</code> directory inside the <a target="_blank" href="https://github.com/builderbook/builderbook" rel="noopener noreferrer">builderbook repo</a>.</p>
+<p>Compare your codebase and make edits if needed.</p>
+<p>Enjoying the book so far? Please share a quick <a target="_blank" href="https://goo.gl/forms/JdevtnCWsLwZTAio2" rel="noopener noreferrer">review</a>. You can update your review at any time.</p>
+<hr>
+</div></div>

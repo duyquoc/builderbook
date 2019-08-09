@@ -1,0 +1,1284 @@
+<div id="chapter-content" style="padding: 20px 10%; background-color: white; color: black;"><h2 style="font-weight: 400; line-height: 1.5em; background-color: white; color: black;">Chapter 2: Server. Database. Session. Header and MenuDrop components.</h2><div style="background-color: white; color: black;"><hr>
+<ul>
+<li>HTTP <br></li>
+</ul>
+<ul>
+<li>Express server <br><ul>
+<li>Nodemon</li>
+<li>Index page</li>
+<li>Testing</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>Database <br><ul>
+<li>dotenv</li>
+<li>Testing connection</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>Session <br><ul>
+<li>Configure session</li>
+<li>Save session</li>
+<li>Testing</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>Update Header component <br></li>
+</ul>
+<ul>
+<li>MenuDrop component <br></li>
+</ul>
+<hr>
+<p>Before you start working on Chapter 2, get the <code>2-begin</code> codebase. The <a target="_blank" href="https://github.com/builderbook/builderbook/tree/master/book/2-begin" rel="noopener noreferrer">2-begin</a> folder is located at the root of the <code>book</code> directory inside the <a target="_blank" href="https://github.com/builderbook/builderbook" rel="noopener noreferrer">builderbook repo</a>.</p>
+<ul>
+<li>If you haven't cloned the builderbook repo yet, clone it with <code>git clone https://github.com/builderbook/builderbook.git</code>.</li>
+<li>Inside the <code>2-begin</code> folder, run <code>yarn</code> to install all packages.</li>
+</ul>
+<p>These are the packages that we install specifically for Chapter 2:</p>
+<ul>
+<li><code>"connect-mongo"</code></li>
+<li><code>"dotenv"</code></li>
+<li><code>"express"</code></li>
+<li><code>"express-session"</code></li>
+<li><code>"mongoose"</code></li>
+<li><code>"nodemon"</code></li>
+</ul>
+<p>Check out the <a target="_blank" href="https://github.com/builderbook/builderbook/blob/master/book/2-begin/package.json" rel="noopener noreferrer">package.json</a> for Chapter 2.</p>
+<ul>
+<li>Be sure to use these specific packages and ignore any warnings about upgrading. We regularly upgrade all packages and test them in the book. But before testing, we cannot guarantee that a new package version will work properly.</li>
+</ul>
+<p>By the end of Chapter 2, you will create a <code>.env</code> file with a <code>MONGO_URL_TEST</code> environmental variable. </p>
+<hr>
+<br>
+
+<p>In the previous chapter (Chapter 1), we discussed our app structure, as well as Next and server-side rendering. We also integrated our app with Material-UI and added a few global and shared styles.</p>
+<p>At this point, our app is simply a static app - meaning the app does not have a server that receives requests (<code>req</code>) and returns responses (<code>res</code>). In this chapter, our main goals are to:</p>
+<ul>
+<li>create an Express server</li>
+<li>connect our app to a database (MongoDB)</li>
+<li>set up and customize session</li>
+</ul>
+<p>At the end of this chapter, we will create a MenuDrop component and make improvements to our Header component.</p>
+<p>Start your app (<code>yarn dev</code>) and navigate to <code>http://localhost:3000</code>:<br><img src="https://user-images.githubusercontent.com/10218864/35820211-cce12462-0a59-11e8-8755-84ac18dd0f96.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>As you can see, our app is very basic and has no user authentication. The <code>Index</code> page is available to <em>all</em> users, and the Header component looks the same to <em>all</em> users. There is no way for a user to <em>log in</em> and see a unique dashboard page.</p>
+<p>Before we can add user authentication to our app, we have to create a server and connect our app to a database. In a typical app, the <em>server</em> will receive a request from the <em>client</em> (a user's browser) to log in and search for a user inside a <em>database</em>. If a user already exists on the database, then the server will send that user's data to his/her browser. If a user does not exist on the database, then the server will create a new user.</p>
+<p>Typically, the server <em>listens</em> for a request (<code>req</code>) from the client, executes some server-side functions, and then replies with a response (<code>res</code>). To better understand the concept of using a server, we should make a detour to understand the <em>client-server</em> protocol HTTP.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="http" href="#http" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="http">
+          HTTP
+        </span>
+      </h2><p>To properly set up our server, we have to understand how HTTP's request/response, headers, and methods work.</p>
+<p>HTTP (HyperText Transfer Protocol) is a client-server protocol, a system of rules that define how data is exchanged within or between computers. Client is usually the web browser. Server is one or more machines that serve data as a <code>response</code> (<code>res</code>) to a <code>request</code> (<code>req</code>) from a client. <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Overview" rel="noopener noreferrer">HTTP</a> is currently the most popular protocol on the web.</p>
+<ol>
+<li><p>Request is a <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Messages" rel="noopener noreferrer">message</a> that is sent from client to server.<br>A request contains <code>method</code>, <code>path</code>, <code>version of protocol</code>, and optional <code>headers</code> or <code>body</code>:<br><img src="https://user-images.githubusercontent.com/10218864/34074923-1f2d2c84-e26e-11e7-9626-8dd172c13742.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>An HTTP <code>method</code> is an operation that the client wants to perform. Most often, the client gets data (e.g. a list of books) with GET or posts data (e.g creates a new book) with POST. Other <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods" rel="noopener noreferrer">methods</a> are available for more complicated operations. </p>
+<p><code>path</code> is a relative route of the resource. Relative means that it does not include the protocol name (https://), main domain (builderbook.org), or port (443). In the example above, the <code>path</code> is <code>/_next/cb2af84e5f28446e3dd58f1d53357d95/app.js</code>.</p>
+<p><code>version of protocol</code> is the version of the HTTP protocol - either HTTP/1.1 or HTTP/2.0. The latter is designed to have lower latency for the end user. Read more about it <a target="_blank" href="https://http2.github.io" rel="noopener noreferrer">here</a>.</p>
+<p><code>headers</code> provide more descriptions (parameters) to the server. Among the many parameters on the screenshot above, you'll notice <code>dnt: 1</code>. This parameter tells the server <code>do not track</code>. More on <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers" rel="noopener noreferrer">headers</a>.</p>
+<p><code>body</code> contains data. In the context of our app, we will use the POST method to create a new book. The <code>body</code> of this request will contain data such as the book's <code>name</code>, <code>price</code>, and <code>githubRepo</code>.</p>
+</li>
+<li><p>Response is a <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Messages" rel="noopener noreferrer">message</a> sent from server to client.<br>A response contains <code>version of protocol</code>, <code>status code</code>, <code>status message</code>, and optional <code>headers</code> or <code>body</code>.</p>
+<p><img src="https://user-images.githubusercontent.com/10218864/34074915-060841b2-e26e-11e7-9a13-ff9bccfda070.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>We already covered <code>version protocol</code>, <code>headers</code>, and <code>body</code> when discussing request.</p>
+<p><code>status code</code> indicates if a request succeeded or failed. <code>status message</code> is typically a one-word description that accompanies a <code>status code</code>. </p>
+<p>Take a look at our screenshot of a typical response. The response status <code>200 OK</code> says that our request succeeded. Success means that the response's body contains the correct data that we requested with the GET <code>method</code> and <code>path</code>.</p>
+<p><em>If</em> our request used the POST method instead, then <code>200 OK</code> would mean that data inside the request's body was successfuly sent and received by the server.</p>
+<p>A full list of status codes is <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status" rel="noopener noreferrer">here</a>.</p>
+</li>
+</ol>
+<p>A note on <code>credentials</code> - in Chapter 5, we will write code that sends a request to our server. Among other parameters, such as method type, we will specify <code>credentials: same-origin</code>. This option tells the client to include user credentials (e.g. cookie) in the request, providing that the request is sent to the same domain as the location of the script that sends the request (<a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials" rel="noopener noreferrer">read docs</a>).</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="express-server" href="#express-server" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="express-server">
+          Express server
+        </span>
+      </h2><p>In the previous section, you learned the concepts of client and server, request and response, and the HTTP methods GET and POST (we will use only these two methods to write all of our Express middleware and routes).</p>
+<p><a target="_blank" href="http://expressjs.com" rel="noopener noreferrer">Express</a> is the most popular framework built on top of <a target="_blank" href="https://nodejs.org" rel="noopener noreferrer">Node</a>.</p>
+<p>In Chapter 5, when we dive into internal APIs, we will discuss Express middleware and routes in detail. In this section, let's understand how a simple Express route works on a high level.</p>
+<p>Consider the following example of an Express route (we will write this code in Chapter 3):<br><code>server/google.js</code> :</p>
+<pre><code>server.get(<span class="hljs-string">'/logout'</span>, <span class="hljs-function"><span class="hljs-params">(req, res)</span> =&gt;</span> {
+  req.logout();
+  res.redirect(<span class="hljs-string">'/login'</span>);
+});</code></pre><p>Take a careful look, as this code has all features of a basic Express route:</p>
+<ul>
+<li>It has the route <code>/logout</code></li>
+<li>It executes the function: <code>(req, res) =&gt; { ... }</code></li>
+<li>It modifies <code>req</code> and/or <code>res</code>. In this case, both of them: <code>req.logout();</code> and <code>res.redirect('/login');</code></li>
+<li>It uses the HTTP method GET: <code>server.get()</code></li>
+</ul>
+<p>An Express server <em>listens</em> to requests from a client using Express routes. When a user goes to a particular route on his/her browser, a function in an Express route that <em>matches</em> the client route gets executed.</p>
+<p>Typically, in our app, an Express route will call some static method for a particular Model to CRUD (create/read/update/delete) data. For example, on the Admin dashboard, our app calls the <code>/books</code> Express route to get a list of all books. When an Admin clicks the <code>Add book</code> button, our app calls the <code>books/add</code> Express route to create a new book document. You will see more examples in Chapter 5.</p>
+<p>This introduction to Express routes will suffice to create our first Express server. However, if you'd like to learn more, read the official <a target="_blank" href="http://expressjs.com/en/guide/routing.html" rel="noopener noreferrer">docs</a> or check Chapter 5, section <a target="_blank" href="https://builderbook.org/books/builder-book/book-and-chapter-models-internal-api-render-chapter#internal-apis" rel="noopener noreferrer">Internal APIs</a>.</p>
+<p>Time to create our Express server.</p>
+<p>Create a <code>server/app.js</code> file with the following content.<br><code>server/app.js</code> :</p>
+<pre><code>const express = <span class="hljs-built_in">require</span>(<span class="hljs-string">'express'</span>);
+
+const server = express();
+
+server.get(<span class="hljs-string">'/'</span>, <span class="hljs-function"><span class="hljs-params">(req, res)</span> =&gt;</span> {
+  res.send(<span class="hljs-string">'My express server'</span>);
+});
+
+server.listen(<span class="hljs-number">3000</span>, <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+  <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'Ready on port 3000!'</span>);  <span class="hljs-regexp">//</span> eslint-disable-line <span class="hljs-literal">no</span>-<span class="hljs-built_in">console</span>
+});</code></pre><p>Start your express server by running <code>node server/app.js</code>.<br>Navigate to <code>http://localhost:3000</code> in your browser, and you will see a page with <code>My express server!</code>:</p>
+<p><img src="https://user-images.githubusercontent.com/10218864/35827183-d92c6888-0a6f-11e8-92c8-71f6f92d6598.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p><code>res.send()</code> sends an HTTP response. When the argument is a <code>String</code> - this method sets <code>Content-Type</code> to <code>text/html</code>, so the output is a page with the body <code>My express server</code>. Read more about this method in the Express <a target="_blank" href="http://expressjs.com/en/api.html#res.send" rel="noopener noreferrer">docs</a>.</p>
+<p>Notice that we used:</p>
+<pre>const express = require('express');</pre>
+<p>instead of:</p>
+<pre>import express from 'express';</pre>
+
+<p>That's because Node does not support ES6 syntax for import (<a target="_blank" href="https://github.com/nodejs/help/issues/53" rel="noopener noreferrer">Node will support it soon</a>).</p>
+<p>If you use <code>import express from 'express'</code> and then run <code>node server/app.js</code>, you will see a syntax error in your terminal:</p>
+<pre>SyntaxError: Unexpected token import</pre>
+
+<p>You have two options: 1) you can use this new ES6 import syntax, but you have to compile your server code with <code>babel-node</code>; 2) you can use older syntax (<code>require/modules.export</code>). In this book we choose to do later since compiling server code with <code>babel-node</code> brings us one step closer to configuration hell (getting an error related to wrong configuration).</p>
+<p>We will import modules using <code>require</code> instead of <code>import</code>, example:</p>
+<pre>const express = require('express');</pre>
+
+<p>We will export modules using <code>modules.export</code> instead of <code>default export</code> and <code>exports.X = X</code> instead of <code>export</code>. Examples:</p>
+<pre>module.exports = User</pre>
+<pre>exports.setupGithub = setupGithub</pre>
+
+
+<h4 style="color: #FFF;">
+        <a name="nodemon" href="#nodemon" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Nodemon
+      </h4><p>Currently, to see changes in our browser after we <em>edit</em> <code>server/app.js</code>, we have to stop and start our server manually. This is a big time waste. If, for example, we want to change a route inside our Express route from <code>/</code> to <code>/aaa</code>, we'd like to see this change on the browser <em>without</em> restarting our server manually.</p>
+<p>To save time, we should restart the server automatically when a file changes - <code>Nodemon</code> does exactly that.</p>
+<p>If you ran <code>yarn</code> at the beginning of this chapter, then you installed and added <a target="_blank" href="https://github.com/remy/nodemon" rel="noopener noreferrer">nodemon</a> to devDependencies.</p>
+<p>Go to your terminal and run:</p>
+<pre>yarn nodemon server/app.js</pre>
+
+<p>Navigate to <code>http://localhost:3000</code>. Now edit the <code>server/app.js</code> file - for instance, change the text inside the response to <code>My Express server 101</code>. Go back to your browser, refresh the tab, and you will see your changes (without restarting your server manually):<br><img src="https://user-images.githubusercontent.com/10218864/35828238-a9d69a0a-0a73-11e8-8716-fa59ef20c51e.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>By default, <code>nodemon</code> will watch for file changes in the current directory. Let's ask <code>nodemon</code> to watch for changes in our <code>server/*</code> directory. To do so, append the command with <code>--watch server</code>:</p>
+<pre>yarn nodemon server/app.js --watch server</pre>
+
+<p>To save time, add a new command called <code>yarn dev-express</code> to the <code>script</code> section of our <code>package.json</code> file:</p>
+<pre><code><span class="hljs-string">"scripts"</span>: {
+  <span class="hljs-string">"build"</span>: <span class="hljs-string">"next build"</span>,
+  <span class="hljs-string">"start"</span>: <span class="hljs-string">"next start"</span>,
+  <span class="hljs-string">"dev"</span>: <span class="hljs-string">"next"</span>,
+  <span class="hljs-string">"lint"</span>: <span class="hljs-string">"eslint components pages lib server"</span>,
+  <span class="hljs-string">"dev-express"</span>: <span class="hljs-string">"nodemon server/app.js --watch server"</span>
+},</code></pre><p>Let's use a new script command to start the server - <code>yarn dev-express</code> instead of <code>yarn dev</code>.</p>
+<p>To reduce confusion when we start our express server, we will serve our app at port 8000 instead of the Next.js default port 3000. To do so, let's define the <code>port</code> variable:<br><code>server/app.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> express = <span class="hljs-built_in">require</span>(<span class="hljs-string">'express'</span>);
+
+<span class="hljs-keyword">const</span> port = process.env.PORT || <span class="hljs-number">8000</span>;
+<span class="hljs-keyword">const</span> ROOT_URL = <span class="hljs-string">`http://localhost:<span class="hljs-subst">${port}</span>`</span>;
+
+<span class="hljs-keyword">const</span> server = express();
+
+server.get(<span class="hljs-string">'/'</span>, <span class="hljs-function">(<span class="hljs-params">req, res</span>) =&gt;</span> {
+  res.send(<span class="hljs-string">'My express server'</span>);
+});
+
+server.listen(port, <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+  <span class="hljs-built_in">console</span>.log(<span class="hljs-string">`&gt; Ready on <span class="hljs-subst">${ROOT_URL}</span>`</span>);  <span class="hljs-comment">// eslint-disable-line no-console</span>
+});</code></pre><p>If you set up Eslint properly (we did it <a target="_blank" href="https://builderbook.org/books/builder-book/app-structure-next-js-hoc-material-ui-server-side-rendering-styles#eslint" rel="noopener noreferrer">in Chapter 1</a>), then the line with <code>console.log()</code> will be highlighted with an Eslint warning/error:</p>
+<pre>[eslint] Unexpected console statement. (no-console)</pre>
+
+<p>You can <em>disable</em> this Eslint error by adding</p>
+<pre>// eslint-disable-line no-console</pre>
+
+<p>to the line that contains <code>console.log()</code>.</p>
+<p>Read more about <a target="_blank" href="https://eslint.org/docs/rules/no-console" rel="noopener noreferrer">disabling Eslint errors</a>.</p>
+<p>At this point, we've created an Express server. Since we use the Next framework for this app, our actual goal is to configure a Next server. We'll closely follow this official <a target="_blank" href="https://github.com/zeit/next.js#custom-server-and-routing" rel="noopener noreferrer">example</a>.</p>
+<p>In short, we need to import a Next server:</p>
+<pre>const next = require('next');</pre>
+
+<p>Then, we need to pass NODE_ENV to this Next server (production or development). The boolean parameter <code>dev</code> is true when the enviroment is not production and false when the environment is production:</p>
+<pre><code><span class="hljs-attribute">const dev</span> = process.env.NODE_ENV !== <span class="hljs-string">'production'</span>;
+<span class="hljs-attribute">const app</span> = next({ dev });</code></pre><p>The <a target="_blank" href="https://github.com/zeit/next.js#custom-server-and-routing" rel="noopener noreferrer">official example</a> defines a handler function as:</p>
+<pre>const handle = app.getRequestHandler()</pre>
+
+<p>and uses this function for GET requests:</p>
+<pre><code>app.prepare().<span class="hljs-keyword">then</span>(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+  const server = express();
+
+  server.get(<span class="hljs-string">'/'</span>, <span class="hljs-function"><span class="hljs-params">(req, res)</span> =&gt;</span> {
+    res.send(<span class="hljs-string">'My express server'</span>);
+  });
+
+  server.get(<span class="hljs-string">'*'</span>, <span class="hljs-function"><span class="hljs-params">(req, res)</span> =&gt;</span> handle(req, res));
+
+  server.listen(port, <span class="hljs-function"><span class="hljs-params">(err)</span> =&gt;</span> {
+    <span class="hljs-keyword">if</span> (err) <span class="hljs-keyword">throw</span> err;
+    <span class="hljs-built_in">console</span>.log(`<span class="javascript">&gt; Ready on ${ROOT_URL}</span>`); <span class="hljs-regexp">//</span> eslint-disable-line <span class="hljs-literal">no</span>-<span class="hljs-built_in">console</span>
+  });
+}</code></pre><p>In summary, we get:<br><code>./server/app.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> express = <span class="hljs-built_in">require</span>(<span class="hljs-string">'express'</span>);
+<span class="hljs-keyword">const</span> next = <span class="hljs-built_in">require</span>(<span class="hljs-string">'next'</span>);
+
+<span class="hljs-keyword">const</span> port = process.env.PORT || <span class="hljs-number">8000</span>;
+<span class="hljs-keyword">const</span> ROOT_URL = <span class="hljs-string">`http://localhost:<span class="hljs-subst">${port}</span>`</span>;
+
+<span class="hljs-keyword">const</span> dev = process.env.NODE_ENV !== <span class="hljs-string">'production'</span>;
+<span class="hljs-keyword">const</span> app = next({ dev });
+<span class="hljs-keyword">const</span> handle = app.getRequestHandler();
+
+app.prepare().then(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+  <span class="hljs-keyword">const</span> server = express();
+
+  server.get(<span class="hljs-string">'/'</span>, <span class="hljs-function">(<span class="hljs-params">req, res</span>) =&gt;</span> {
+    res.send(<span class="hljs-string">'My express server'</span>);
+  });
+
+  server.get(<span class="hljs-string">'*'</span>, <span class="hljs-function">(<span class="hljs-params">req, res</span>) =&gt;</span> handle(req, res));
+
+  server.listen(port, <span class="hljs-function">(<span class="hljs-params">err</span>) =&gt;</span> {
+    <span class="hljs-keyword">if</span> (err) <span class="hljs-keyword">throw</span> err;
+    <span class="hljs-built_in">console</span>.log(<span class="hljs-string">`&gt; Ready on <span class="hljs-subst">${ROOT_URL}</span>`</span>); <span class="hljs-comment">// eslint-disable-line no-console</span>
+  });
+});</code></pre><h4 style="color: #FFF;">
+        <a name="index-page" href="#index-page" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Index page
+      </h4><p>If you start your app with <code>yarn dev-express</code> and navigate to <code>http://localhost:8000</code>, you will get:<br><img src="https://user-images.githubusercontent.com/10218864/35839121-7e555b8e-0aa3-11e8-9d57-ae2a127c75eb.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>This is a good example of how an Express server works, but our goal is to render our <code>Index</code> page at the <code>/</code> route. To do so, remove the following code snippet from <code>server/app.js</code>:</p>
+<pre><code>server.get(<span class="hljs-string">'/'</span>, <span class="hljs-function"><span class="hljs-params">(req, res)</span> =&gt;</span> {
+  res.send(<span class="hljs-string">'My express server'</span>);
+});</code></pre><p>Go to your browser, and now you can see the content of our <code>Index</code> page at the <code>/</code> route:<br><img src="https://user-images.githubusercontent.com/10218864/35839287-77cbc612-0aa4-11e8-8504-7c43cb924774.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Here is the code for our <code>Index</code> page from Chapter 1:</p>
+<pre><code><span class="hljs-keyword">import</span> Head <span class="hljs-keyword">from</span> <span class="hljs-string">'next/head'</span>;
+
+<span class="hljs-keyword">const</span> Index = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> (
+  <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">padding:</span> '<span class="hljs-attr">10px</span> <span class="hljs-attr">45px</span>' }}&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Head</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">title</span>&gt;</span>Index page<span class="hljs-tag">&lt;/<span class="hljs-name">title</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">meta</span> <span class="hljs-attr">name</span>=<span class="hljs-string">"description"</span> <span class="hljs-attr">content</span>=<span class="hljs-string">"This is the description of the Index page"</span> /&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Head</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">p</span>&gt;</span>Content on Index page<span class="hljs-tag">&lt;/<span class="hljs-name">p</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
+);
+
+export default Index;</span></code></pre><p>We wrote the <code>Index</code> page as a stateless functional component (see <a target="_blank" href="https://builderbook.org/books/builder-book/app-structure-next-js-hoc-material-ui-server-side-rendering-styles#index-page" rel="noopener noreferrer">definition</a> in Chapter 1). We are going to  change that and pass one prop to our <code>Index</code> page - the <code>user</code> prop. Our goal is to display a user's email (<code>user.email</code>) on the <code>Index</code> page.</p>
+<p>Let's pass the <code>user</code> prop to the <code>Index</code> page using <code>Index.getInitialProps()</code>. This is a Next.js method that acts on a page component and populates the page props with data. We discuss this method and its properties in more detail in Chapter 3, section <a target="_blank" href="https://builderbook.org/books/builder-book/authentication-hoc-promise-async-await-static-method-for-user-model-google-oauth#getinitialprops-method" rel="noopener noreferrer">getInitialProps()</a>.</p>
+<p>Open <code>pages/_app.js</code> file (<code>App</code> HOC) and find this code snippet:</p>
+<pre><code>static async get<span class="hljs-constructor">InitialProps({ Component, <span class="hljs-params">ctx</span> })</span> {
+  const pageProps = {};
+
+  <span class="hljs-keyword">if</span> (<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">Component</span>.</span></span>getInitialProps) {
+    <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">Object</span>.</span></span>assign(pageProps, await <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">Component</span>.</span></span>get<span class="hljs-constructor">InitialProps(<span class="hljs-params">ctx</span>)</span>);
+  }
+
+  <span class="hljs-comment">// console.log(pageProps);</span>
+
+  return { pageProps };
+}</code></pre><p>The code above will pass the <code>user</code> prop as a part of <code>pageProps</code> to <code>App</code> component from <code>Index</code> page component, and as a result, the <code>Header</code> component will get the <code>user</code> prop as well because of <code>&lt;Header {...pageProps} /&gt;</code>. Later in this chapter, by using a <code>user.avatarUrl</code> string of <code>user</code> object, we will show a user his/her avatar on the <code>Header</code> component. Displaying avatar on a header is a typical UI for a dashboard.</p>
+<p>Now that we discussed how <code>user</code> data is passed from the <code>Index</code> page to <code>Header</code> component via <code>App</code> HOC, let's go back to our main objective: modifying the <code>Index</code> page so that we pass our <code>user</code> prop to it. In doing so, we will display a user's email (<code>user.email</code>) on the <code>Index</code> page. Here are the 2 additions we should make to <code>index.js</code>:</p>
+<ol>
+<li><p>Validation of props and default props are optional, but we will use them:</p>
+<pre><code><span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">Index</span>.</span></span>propTypes = {
+ user: <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">PropTypes</span>.</span></span>shape({
+   email: <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">PropTypes</span>.</span></span><span class="hljs-built_in">string</span>.isRequired,
+ }),
+};
+
+<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">Index</span>.</span></span>defaultProps = {
+ user: null,
+};</code></pre></li>
+<li><p>Next's <code>getInitialProps()</code> is a method that takes context <code>ctx</code> as an argument and populates page's <code>props</code> with data. In the below example, page's props is object <code>{ user: ... }</code>.</p>
+<p>We will apply this <code>getInitialProps()</code> method to our <code>Index</code> component:</p>
+<pre>Index.getInitialProps = async (ctx) =&gt; ({ user: ctx.query.user });</pre>
+
+
+</li>
+</ol>
+<p>Combine the code from steps 1 and 2, and you get:<br><code>pages/index.js</code> :</p>
+<pre><code>import PropTypes from 'prop-types';
+
+import Head from 'next/head';
+
+const <span class="hljs-keyword">Index</span> = ({ <span class="hljs-keyword">user</span> }) =&gt; (
+  &lt;div style={{ padding: <span class="hljs-string">'10px 45px'</span> }}&gt;
+    &lt;Head&gt;
+      &lt;<span class="hljs-built_in">title</span>&gt;<span class="hljs-keyword">Index</span> page&lt;/<span class="hljs-built_in">title</span>&gt;
+      &lt;<span class="hljs-built_in">meta</span> name=<span class="hljs-string">"description"</span> content=<span class="hljs-string">"This is the description of the Index page"</span> /&gt;
+    &lt;/Head&gt;
+    &lt;p&gt;Content <span class="hljs-keyword">on</span> <span class="hljs-keyword">Index</span> page&lt;/p&gt;
+    &lt;p&gt;
+      Email: 
+      {<span class="hljs-keyword">user</span>.email}
+    &lt;/p&gt;
+  &lt;/div&gt;
+);
+
+<span class="hljs-keyword">Index</span>.getInitialProps = async (ctx) =&gt; ({ <span class="hljs-keyword">user</span>: ctx.query.<span class="hljs-keyword">user</span> });
+
+<span class="hljs-keyword">Index</span>.propTypes = {
+  <span class="hljs-keyword">user</span>: PropTypes.shape({
+    email: PropTypes.<span class="hljs-keyword">string</span>.isRequired,
+  }),
+};
+
+<span class="hljs-keyword">Index</span>.defaultProps = {
+  <span class="hljs-keyword">user</span>: <span class="hljs-literal">null</span>,
+};
+
+export default <span class="hljs-keyword">Index</span>;</code></pre><p>Our <code>Index</code> page gets the <code>user</code> prop populated by the <code>getInitialProps()</code> method. Now we need to make sure that our server populates the <code>user</code> object of <code>query</code> inside <code>ctx</code>. We'll do this in the next section by writing an Express route with the GET method and path <code>/</code>.</p>
+<p>At this point, if you attempt to run your app, you will get an error saying that <code>email</code> is undefined. That's expected, since we did not yet add an Express route that makes <code>user</code> available to <code>getInitialProps()</code>.</p>
+<h4 style="color: #FFF;">
+        <a name="testing" href="#testing" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Testing
+      </h4><p>Consider the following Express route:</p>
+<pre><code>server.get(<span class="hljs-string">'/'</span>, <span class="hljs-function"><span class="hljs-params">(req, res)</span> =&gt;</span> {
+  res.send(<span class="hljs-string">'My express server'</span>);
+});</code></pre><p>With this route, our server <em>does not</em> render any page from our application. The server simply sends an HTTP response, and since the argument is a <code>String</code>, the <a target="_blank" href="http://expressjs.com/en/api.html#res.send" rel="noopener noreferrer">res.send()</a> method sets <code>Content-Type</code> to <code>text/html</code>. The result is a page that contains a body with <code>My express server</code> as its content.</p>
+<p>However, we would like to pass the <code>user</code> prop to our <code>Index</code> page, <em>render that page</em>, and then send the rendered HTML to the client. Next.js uses <a target="_blank" href="https://github.com/zeit/next.js#custom-server-and-routing" rel="noopener noreferrer">app.render(req, res, route, query)</a> to achieve exactly that. In our case in order to populate <code>query</code> with <code>user</code> object - expression <code>app.render(req, res, route, query)</code> becomes <code>app.render(req, res, '/', { user });</code>. Place this line of code in our Express route, and you will get:</p>
+<pre><code><span class="hljs-keyword">server</span>.<span class="hljs-keyword">get</span>(<span class="hljs-string">'/'</span>, (req, res) =&gt; {
+  const <span class="hljs-keyword">user</span> = { email: <span class="hljs-string">'team@builderbook.org'</span> };
+  app.render(req, res, <span class="hljs-string">'/'</span>, { <span class="hljs-keyword">user</span> });
+});</code></pre><p>Notice that the shorthand for <code>{ user: user }</code> is simply <code>{ user }</code>.</p>
+<p>The above code snippet is responsible for:</p>
+<ul>
+<li>passing the <code>user</code> query to our <code>Index</code> page (route <code>/</code>),</li>
+<li>rendering the page on the server, and </li>
+<li>sending the rendered page to the client.</li>
+</ul>
+<p>The <code>Index</code> page accesses the <code>user</code> value as <code>ctx.query.user</code> and sets the initial <code>user</code> prop with the <code>getInitialProps</code> method (Next.js method that populates pages props). Take a look at the <code>Index</code> page code:</p>
+<pre>Index.getInitialProps = async (ctx) =&gt; ({ user: ctx.query.user });</pre>
+
+<p>At this point, our app has <em>no connection</em> to our database. We imitate a database connection by hard-coding the user and user email with:</p>
+<pre>const user = { email: 'team@builderbook.org' };</pre>
+
+<p>Add the Express route above to your <code>app.js</code> file. Paste it above this line:</p>
+<pre>server.get('*', (req, res) =&gt; handle(req, res));</pre>
+
+<p>Start your app with <code>yarn dev-express</code> and go to <code>http://localhost:8000</code>:<br><img src="https://user-images.githubusercontent.com/10218864/35841022-875bd054-0aae-11e8-867e-a1cf88e4964e.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"><br>Great! Our Express server passed the <code>query</code> object (that is <code>{ user }</code>) to the <code>getInitialProps</code> method. This method populated the <code>user</code> prop for the <code>Index</code> page. Finally, the server returned a rendered page with data to the client at the <code>/</code> route.</p>
+<p>In the example above, we hard-coded the email address of our user and essentially imitated a database. In the next section, we'll connect our app to MongoDB.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="database" href="#database" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="database">
+          Database
+        </span>
+      </h2><p>In the previous section, we created a custom server by integrating our Express server with Next. Now we need to connect this server to our database, MongoDB. We will use <code>mongoose</code>, <code>express-session</code>, and <code>connect-mongo</code> to achieve it. We will need the latter two packages to create and save a session (discussed in the next section, <code>Session</code>).</p>
+<ol>
+<li><p>First, let's import the Mongoose dependency to our main server code at <code>server/app.js</code>:</p>
+<pre>const mongoose = require('mongoose');</pre>
+
+<p><a target="_blank" href="http://mongoosejs.com/docs/documents.html" rel="noopener noreferrer">Mongoose</a> simplfies the creation of schema-based Models. A schema defines a collection and the structure of any document within that collection. The schema for a blog post model may look like:</p>
+<pre><code><span class="hljs-keyword">var</span> blogSchema = <span class="hljs-keyword">new</span> Schema({
+ title:  <span class="hljs-built_in">String</span>,
+ author: <span class="hljs-built_in">String</span>,
+ body:   <span class="hljs-built_in">String</span>,
+ comments: [{ body: <span class="hljs-built_in">String</span>, date: <span class="hljs-built_in">Date</span> }],
+ date: { <span class="hljs-keyword">type</span>: <span class="hljs-built_in">Date</span>, <span class="hljs-keyword">default</span>: <span class="hljs-built_in">Date</span>.now },
+ hidden: <span class="hljs-built_in">Boolean</span>,
+ meta: {
+   votes: <span class="hljs-built_in">Number</span>,
+   favs:  <span class="hljs-built_in">Number</span>
+ }
+})</code></pre><p>Another great feature of Mongoose is that all of its methods (such as <code>findOne</code>, <code>create</code>, <code>update</code>, etc.) return a Promise. This simplifies the syntax when we write static methods for particular models. More on this in Chapter 3, section <a target="_blank" href="https://builderbook.org/books/builder-book/authentication-hoc-promise-async-await-static-method-for-user-model-google-oauth#promise-then-" rel="noopener noreferrer">Promise, then()</a>.</p>
+<p>For our app, we will have the following <a target="_blank" href="http://mongoosejs.com/docs/models.html" rel="noopener noreferrer">Mongoose models</a>: <code>User</code>, <code>Book</code>, <code>Chapter</code>, <code>EmailTemplate</code>, and <code>Payment</code>. We will introduce these models gradually throughout this book.</p>
+<p>Model is an object made from a schema. Schema is the structure of the Model's document. A document is one instance of a Model. We apply Mongoose's CRUD methods on a model to create/read/update/delete documents in our database.</p>
+</li>
+<li><p>For now, let's create our first model - the User model. And let's define the <a target="_blank" href="http://mongoosejs.com/docs/guide.html" rel="noopener noreferrer">schema</a> for our User model as <code>const Schema = mongoose.Schema</code>. Create a <code>server/models/User.js</code> file with following content:<br><code>server/models/User.js</code> :</p>
+<pre><code><span class="hljs-string">const</span> <span class="hljs-string">mongoose</span> <span class="hljs-string">=</span> <span class="hljs-string">require('mongoose');</span>
+
+<span class="hljs-string">const</span> <span class="hljs-string">{</span> <span class="hljs-string">Schema</span> <span class="hljs-string">}</span> <span class="hljs-string">=</span> <span class="hljs-string">mongoose;</span>
+
+<span class="hljs-string">const</span> <span class="hljs-string">mongoSchema</span> <span class="hljs-string">=</span> <span class="hljs-string">new</span> <span class="hljs-string">Schema({</span>
+<span class="hljs-attr"> googleId:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">   type:</span> <span class="hljs-string">String,</span>
+<span class="hljs-attr">   required:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+<span class="hljs-attr">   unique:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+ <span class="hljs-string">},</span>
+<span class="hljs-attr"> googleToken:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">   access_token:</span> <span class="hljs-string">String,</span>
+<span class="hljs-attr">   refresh_token:</span> <span class="hljs-string">String,</span>
+<span class="hljs-attr">   token_type:</span> <span class="hljs-string">String,</span>
+<span class="hljs-attr">   expiry_date:</span> <span class="hljs-string">Number,</span>
+ <span class="hljs-string">},</span>
+<span class="hljs-attr"> slug:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">   type:</span> <span class="hljs-string">String,</span>
+<span class="hljs-attr">   required:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+<span class="hljs-attr">   unique:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+ <span class="hljs-string">},</span>
+<span class="hljs-attr"> createdAt:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">   type:</span> <span class="hljs-string">Date,</span>
+<span class="hljs-attr">   required:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+ <span class="hljs-string">},</span>
+<span class="hljs-attr"> email:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">   type:</span> <span class="hljs-string">String,</span>
+<span class="hljs-attr">   required:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+<span class="hljs-attr">   unique:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+ <span class="hljs-string">},</span>
+<span class="hljs-attr"> isAdmin:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">   type:</span> <span class="hljs-string">Boolean,</span>
+<span class="hljs-attr">   default:</span> <span class="hljs-literal">false</span><span class="hljs-string">,</span>
+ <span class="hljs-string">},</span>
+<span class="hljs-attr"> displayName:</span> <span class="hljs-string">String,</span>
+<span class="hljs-attr"> avatarUrl:</span> <span class="hljs-string">String,</span>
+
+<span class="hljs-attr"> isGithubConnected:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">   type:</span> <span class="hljs-string">Boolean,</span>
+<span class="hljs-attr">   default:</span> <span class="hljs-literal">false</span><span class="hljs-string">,</span>
+ <span class="hljs-string">},</span>
+<span class="hljs-attr"> githubAccessToken:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">   type:</span> <span class="hljs-string">String,</span>
+ <span class="hljs-string">},</span>
+<span class="hljs-string">});</span>
+
+<span class="hljs-string">const</span> <span class="hljs-string">User</span> <span class="hljs-string">=</span> <span class="hljs-string">mongoose.model('User',</span> <span class="hljs-string">mongoSchema);</span>
+
+<span class="hljs-string">module.exports</span> <span class="hljs-string">=</span> <span class="hljs-string">User;</span></code></pre><p>Most of the parameters in our User schema are self-explanatory. All parameters have <code>type</code> (<code>String</code>, <code>Date</code>, <code>Boolean</code>, <code>Number</code>) - some are <code>required</code> and some have <code>default</code> values.</p>
+<p>After we integrate Google OAuth in Chapter 3, our app will receive <code>googleId</code>, <code>googleToken</code>, <code>email</code>, <code>displayName</code>, and <code>avatarUrl</code> from the Google profile of an authenticated user.</p>
+<p>Our app generates a <code>slug</code> and saves the <code>createdAt</code> date. Our app adds <code>isGithubConnected</code> when a user authorizes our app to access his/her Github profile, and our app receives <code>githubAccessToken</code> from Github (similar to the <code>googleToken</code> received from Google).</p>
+<p>Note that we used older export syntax <code>module.exports = User</code> instead of newer ES6 syntax <code>export default User</code>. We did so since we are not compiling server code with <code>babel-node</code>.</p>
+</li>
+<li><p>To connect a server to MongoDB with Mongoose, we use:</p>
+<pre>mongoose.connect(MONGO_URL)</pre>
+
+<p>To avoid some <a target="_blank" href="https://mongoosejs.com/docs/deprecations.html" rel="noopener noreferrer">deprecation warnings</a> from Mongoose, we will also define a list of <code>options</code> that include <code>useNewUrlParser</code>, <code>useCreateIndex</code>, and <code>useFindAndModify</code>. We tell Mongoose to use these options by including <code>options</code> in our <code>mongoose.connect</code> function.</p>
+<p>Note that you might still see the following Mongoose deprecation warning, although we have resolved it: <code>collection.update is deprecated. Use updateOne, updateMany, or bulkWrite instead.</code>. You can ignore this warning for now.</p>
+<p>Add the above line of code to our server code:<br><code>server/app.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> express = <span class="hljs-built_in">require</span>(<span class="hljs-string">'express'</span>);
+<span class="hljs-keyword">const</span> next = <span class="hljs-built_in">require</span>(<span class="hljs-string">'next'</span>);
+<span class="hljs-keyword">const</span> mongoose = <span class="hljs-built_in">require</span>(<span class="hljs-string">'mongoose'</span>);
+
+<span class="hljs-keyword">const</span> dev = process.env.NODE_ENV !== <span class="hljs-string">'production'</span>;
+<span class="hljs-keyword">const</span> MONGO_URL = process.env.MONGO_URL_TEST;
+
+<span class="hljs-keyword">const</span> options = {
+ useNewUrlParser: <span class="hljs-literal">true</span>,
+ useCreateIndex: <span class="hljs-literal">true</span>,
+ useFindAndModify: <span class="hljs-literal">false</span>,
+};
+
+mongoose.connect(MONGO_URL, options);
+
+<span class="hljs-keyword">const</span> port = process.env.PORT || <span class="hljs-number">8000</span>;
+<span class="hljs-keyword">const</span> ROOT_URL = <span class="hljs-string">`http://localhost:<span class="hljs-subst">${port}</span>`</span>;
+
+<span class="hljs-keyword">const</span> app = next({ dev });
+<span class="hljs-keyword">const</span> handle = app.getRequestHandler();
+
+app.prepare().then(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+ <span class="hljs-keyword">const</span> server = express();
+
+ server.get(<span class="hljs-string">'/'</span>, <span class="hljs-function">(<span class="hljs-params">req, res</span>) =&gt;</span> {
+   <span class="hljs-keyword">const</span> user = { email: <span class="hljs-string">'team@builderbook.org'</span> };
+   app.render(req, res, <span class="hljs-string">'/'</span>, { user });
+ });
+
+ server.get(<span class="hljs-string">'*'</span>, <span class="hljs-function">(<span class="hljs-params">req, res</span>) =&gt;</span> handle(req, res));
+
+ server.listen(port, <span class="hljs-function">(<span class="hljs-params">err</span>) =&gt;</span> {
+   <span class="hljs-keyword">if</span> (err) <span class="hljs-keyword">throw</span> err;
+   <span class="hljs-built_in">console</span>.log(<span class="hljs-string">`&gt; Ready on <span class="hljs-subst">${ROOT_URL}</span>`</span>); <span class="hljs-comment">// eslint-disable-line no-console</span>
+ });
+});</code></pre></li>
+</ol>
+<p>Make sure to define the <code>MONGO_URL</code> before you use it as an argument in <code>mongoose.connect()</code>. Define it with:</p>
+<pre>const MONGO_URL = process.env.MONGO_URL_TEST;</pre>
+
+<h4 style="color: #FFF;">
+        <a name="dotenv" href="#dotenv" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        dotenv
+      </h4><p>If you attempt to run your app (<code>yarn dev-express</code>), you will get this error:</p>
+<pre>(node:49441) UnhandledPromiseRejectionWarning: Unhandled promise rejection (rejection id: 2): Error: URL malformed, cannot be parsed</pre>
+
+<p>The problem is that we did not define <code>process.env.MONGO_URL_TEST</code>. To manage multiple environmental variables (we will end up using about a <a target="_blank" href="https://github.com/builderbook/builderbook#run-locally" rel="noopener noreferrer">dozen of them</a>), we suggest using the <a target="_blank" href="https://github.com/motdotla/dotenv" rel="noopener noreferrer">dotenv</a> package.</p>
+<p>Important note: we will use <code>dotenv</code> to manage <em>server-side</em> environmental variables. In Chapter 8, we will introduce and discuss so-called <em>universal</em> environmental variables, which are available on both client <em>and</em> server.</p>
+<p>You installed <code>dotenv</code> at the start of this chapter by running <code>yarn</code> inside of the <code>2-begin</code> folder. Create a <code>.env</code> file at the root of your app with the following content:<br><code>.env</code> :</p>
+<pre>MONGO_URL_TEST="XXXXXX"</pre>
+
+<p>If you plan to push your app's code to Github, make sure to add <code>.env</code> to the <code>.gitignore</code> file, so you don't publish sensitive information such as API keys.</p>
+<p>Then import <code>dotenv</code> (<code>require('dotenv')</code>) and initialize it with <code>require('dotenv').config()</code>:<br><code>server/app.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> express = <span class="hljs-built_in">require</span>(<span class="hljs-string">'express'</span>);
+<span class="hljs-keyword">const</span> next = <span class="hljs-built_in">require</span>(<span class="hljs-string">'next'</span>);
+<span class="hljs-keyword">const</span> mongoose = <span class="hljs-built_in">require</span>(<span class="hljs-string">'mongoose'</span>);
+
+<span class="hljs-built_in">require</span>(<span class="hljs-string">'dotenv'</span>).config();
+
+<span class="hljs-keyword">const</span> dev = process.env.NODE_ENV !== <span class="hljs-string">'production'</span>;
+<span class="hljs-keyword">const</span> MONGO_URL = process.env.MONGO_URL_TEST;
+
+<span class="hljs-keyword">const</span> options = {
+  useNewUrlParser: <span class="hljs-literal">true</span>,
+  useCreateIndex: <span class="hljs-literal">true</span>,
+  useFindAndModify: <span class="hljs-literal">false</span>,
+};
+
+mongoose.connect(MONGO_URL, options);
+
+<span class="hljs-keyword">const</span> port = process.env.PORT || <span class="hljs-number">8000</span>;
+<span class="hljs-keyword">const</span> ROOT_URL = <span class="hljs-string">`http://localhost:<span class="hljs-subst">${port}</span>`</span>;
+
+<span class="hljs-keyword">const</span> app = next({ dev });
+<span class="hljs-keyword">const</span> handle = app.getRequestHandler();
+
+app.prepare().then(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+  <span class="hljs-keyword">const</span> server = express();
+
+  server.get(<span class="hljs-string">'/'</span>, <span class="hljs-function">(<span class="hljs-params">req, res</span>) =&gt;</span> {
+    <span class="hljs-keyword">const</span> user = { email: <span class="hljs-string">'team@builderbook.org'</span> };
+    app.render(req, res, <span class="hljs-string">'/'</span>, { user });
+  });
+
+  server.get(<span class="hljs-string">'*'</span>, <span class="hljs-function">(<span class="hljs-params">req, res</span>) =&gt;</span> handle(req, res));
+
+  server.listen(port, <span class="hljs-function">(<span class="hljs-params">err</span>) =&gt;</span> {
+    <span class="hljs-keyword">if</span> (err) <span class="hljs-keyword">throw</span> err;
+    <span class="hljs-built_in">console</span>.log(<span class="hljs-string">`&gt; Ready on <span class="hljs-subst">${ROOT_URL}</span>`</span>); <span class="hljs-comment">// eslint-disable-line no-console</span>
+  });
+});</code></pre><p>To retrieve a variable from our <code>.env</code> file, we prepend the variable's name (specified in <code>.env</code>) with <code>process.env.</code>, for example:</p>
+<pre><code>process<span class="hljs-selector-class">.env</span><span class="hljs-selector-class">.NODE_ENV</span>
+process<span class="hljs-selector-class">.env</span><span class="hljs-selector-class">.MONGO_URL_TEST</span></code></pre><p>The final step before testing is to get an actual <code>MONGO_URL</code>.</p>
+<p>We recommend creating a <em>free</em> tier database cluster at <a target="_blank" href="https://www.mongodb.com/cloud/atlas" rel="noopener noreferrer">MongoDB Atlas</a>. Sign up for MongoDB Atlas and follow <a target="_blank" href="https://docs.atlas.mongodb.com/getting-started/#b-create-an-service-free-tier-cluster" rel="noopener noreferrer">this simple tutorial</a> to create a free cluster.</p>
+<p>Below are screenshots to help you create your free database cluster at MongoDB Atlas.<br>After signup, while at your dashboard, find and click a green <b>Build a New Cluster</b> button on the right:<br><img src="https://user-images.githubusercontent.com/10218864/54494236-4c5cfc00-4895-11e9-96e4-9bc7da77cb94.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>You will see a new form to create a new cluster. The form contains multiple sections but to start quickly you need to modify only one section <b>Cluster Tier</b>:<br><img src="https://user-images.githubusercontent.com/10218864/54494398-d8235800-4896-11e9-9057-b9caa8b54b3d.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Make sure to select free <b>M0 tier</b>.</p>
+<p>At the bottom of the form, click green <b>Create Cluster</b>.</p>
+<p>After clicking the button, you will redirected to main view of the dashboard, while your free cluster is being deployed - you will see a blue progress bar that informs you on the status.<br><img src="https://user-images.githubusercontent.com/10218864/54494438-731c3200-4897-11e9-9785-be74d286d81e.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>After free cluster is successfully deployed, progress bar disappears and free cluster appears on the list of all of your clusters at the main view of your dashboard:<br><img src="https://user-images.githubusercontent.com/10218864/54494565-ea9e9100-4898-11e9-9f43-5bea11fcf07b.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>The free cluster that you just created can contain multiple MongoDB databases. Keep in mind that since cluster is free, it has relatively limited resources (CPU and memory). All databases within cluster share these limited resources.</p>
+<p>You created a free cluster, now let's construct our <code>MONGO_URL</code>. </p>
+<p>To find this URL, click <b>Connect</b> on your free cluster (<b>Cluster0</b>) on the list of clusters:<br><img src="https://user-images.githubusercontent.com/10218864/54495023-787c7b00-489d-11e9-951d-2dff1622dd77.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>On the next screen, select option <b>Connect Your Application</b>:<br><img src="https://user-images.githubusercontent.com/10218864/54495082-f6d91d00-489d-11e9-806f-3a7a0117240b.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>For me, <code>MONGO_URL</code> looks like this:<br><img src="https://user-images.githubusercontent.com/10218864/54495135-5b947780-489e-11e9-9f87-d951cf57d2cf.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>In general, <code>MONGO_URL</code> is:</p>
+<pre>mongodb+srv://<username>:<password>@cluster0-eoobe.mongodb.net/<db>?retryWrites=true</db></password></username></pre>
+
+<p>You may notice a few things about <code>MONGO_URL</code> from the above screenshot:</p>
+<ul>
+<li><code>db</code> is name of ther database and it is <code>test</code>, that's because by default Atlas will create database with name <code>test</code>. You are free to specify a different for your database. Note that Atlas will automatically create a new database on the first connection with the name you specified inside <code>MONGO_URL</code> string. For simplicity, we will go with <code>test</code> for database's name.</li>
+<li>my <code>MONGO_URL</code> has prefilled <code>username</code> - this is because I already created database user and Atlas prefills <code>username</code> automatically</li>
+</ul>
+<p>If you are new to MongoDB Atlas, you should create your first database user.<br>Click on <code>Security</code> tab while you are on the main view of your dashboard (main view displays list of clusters):</p>
+<p>Then click on the green <b>+ ADD NEW USER</b> button on the right:<br><img src="https://user-images.githubusercontent.com/10218864/54495422-bd55e100-48a0-11e9-865a-5514ec4eec4d.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>A form to create new database user will appear, no need to modify any of selected options. Simply fill out <code>username</code> and <code>password</code> and click green <b>Add User</b> button:<br><img src="https://user-images.githubusercontent.com/10218864/54495512-a5cb2800-48a1-11e9-9d0d-c90fd0a9dcea.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Replace <code>&lt;username&gt;</code> and <code>&lt;password&gt;</code> inside <code>mongodb+srv://&lt;username&gt;:&lt;password&gt;@cluster0-eoobe.mongodb.net/test?retryWrites=true</code> with the actual values from the database user you just created. Add the resulting URL (let's call it <code>MONGO_URL_TEST</code>) to your <code>.env</code> file.</p>
+<p>Run your app again (<code>yarn dev-express</code>). Now you won't get any error, since you provided a value for <code>process.env.MONGO_URL_TEST</code> in the <code>.env</code> file.</p>
+<p><em>Important note:</em> make sure to add <code>.env</code> to <code>.gitignore</code>. Storing API keys and secrets on a remote repository is not safe.</p>
+<h4 style="color: #FFF;">
+        <a name="testing-connection" href="#testing-connection" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Testing connection
+      </h4><p>As we mentioned in the previous section, on the very first connection to your web application, Atlas will create database with name <code>test</code>. </p>
+<p>In the previous section, you already started our app, so if we constructed proper <code>MONGO_URL</code> then Atlas created a new database. Go to the list of your clusters at MongoDB Atlas, find your free cluster (<b>Cluster0</b>) and click <b>Collections</b> on it:<br><img src="https://user-images.githubusercontent.com/10218864/54495625-74069100-48a2-11e9-8893-60f43926993d.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>If you see <code>test</code> database in the list of the databases inside the free cluster then you successfully connected it to our custom Next/Express server! You should see:<br><img src="https://user-images.githubusercontent.com/10218864/54495779-3dca1100-48a4-11e9-951a-8c86361e7d4d.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>To further test that your DB is indeed connected, let's create a dummy user. We'll add a sample document into a "users collection" <em>manually</em> and display the data on the <code>Index</code> page (<code>pages/index.js</code>). We create a document manually because writing static methods that employ Mongoose methods (also called Mongoose Queries such as <code>find()</code>) to create a user is not important at this point. Though we do write multiple static methods for our User model in Chapters 3-7.</p>
+<p>Click on <b>users</b> collection inside your <code>test</code> database, then click document by clicking green <code>+ INSERT DOCUMENT</code> button:<br><img src="https://user-images.githubusercontent.com/10218864/54495817-b7fa9580-48a4-11e9-82cd-7e07d11f8cb8.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Add following parameters and value pairs to the new user document:</p>
+<pre><code><span class="hljs-attribute">createdAt</span>: <span class="hljs-number">2017</span><span class="hljs-attribute">-12-17T02</span>:<span class="hljs-number">05</span>:<span class="hljs-number">57.426</span>+<span class="hljs-number">00</span>:<span class="hljs-number">00</span>
+<span class="hljs-attribute">email</span>: team<span class="hljs-variable">@builderbook</span>.org
+<span class="hljs-attribute">displayName</span>: Team Builder Book
+<span class="hljs-attribute">avatarUrl</span>: <span class="hljs-string">"https://lh3.googleusercontent.com/-XdUIqdMkCWA/AAAAAAAAAAI/AAAAAAAAAAA/4252rscbv5M/photo.jpg?sz=128"</span>
+<span class="hljs-attribute">slug</span>: team-builder-book</code></pre><p>Atlas will automatically generate <code>id</code> for new document, so your task is to manually add <code>createdAt</code> (type <code>Date</code>), <code>email</code> (type <code>String</code>), <code>displayName</code> (type <code>String</code>), <code>avatarUrl</code> (type <code>String</code>) and <code>slug</code> (type <code>String</code>) to the document. After you are done, click green <b>Insert</b> button:<br><img src="https://user-images.githubusercontent.com/10218864/54495961-cf3a8280-48a6-11e9-891a-c592d4a61fcb.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>After you create a new user document, you will see it in <code>test.users</code> collection:<br><img src="https://user-images.githubusercontent.com/10218864/54495980-1759a500-48a7-11e9-96f3-f510cf920128.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Our goal is to prove that our database is indeed connected to our server. To do so, we will display the <code>email</code> of our user on our <code>Index</code> page.</p>
+<p>In the previous section, we successfully displayed a user email on our <code>Index</code> page by hard-coding the user inside our Express route. Remember this code snippet in <code>./server/app.js</code>:</p>
+<pre><code><span class="hljs-keyword">server</span>.<span class="hljs-keyword">get</span>(<span class="hljs-string">'/'</span>, (req, res) =&gt; {
+  const <span class="hljs-keyword">user</span> = { email: <span class="hljs-string">'team@builderbook.org'</span> };
+  app.render(req, res, <span class="hljs-string">'/'</span>, { <span class="hljs-keyword">user</span> });
+});</code></pre><p>Now we want to get the user object <em>from the database</em>. If you are familiar with Mongoose, you know that we need to use Mongoose's method <a target="_blank" href="https://devdocs.io/mongoose/api#model_Model.findOne" rel="noopener noreferrer">Model.findOne</a> to find a user on our database, say by using <code>slug</code>.</p>
+<p>If you're not familiar, just follow the first example from Mongoose's docs:</p>
+<pre>Adventure.findOne({ type: 'iphone' })</pre>
+
+<p>In our case, we search for <code>User</code> instead of <code>Adventure</code>, and we search by <code>slug</code> instead of <code>type</code>. Thus:</p>
+<pre>User.findOne({ slug: 'team-builder-book' })</pre>
+
+<p>Though you may not be familiar with <code>Promise</code> and <code>async/await</code> concepts (we explain them in detail in Chapter 3), we will write this Express route using <code>async/await</code>. In short, an <code>async</code> function always returns a Promise, and JavaScript <em>pauses</em> on a line with <code>await</code>.</p>
+<p>In the code snippet below, JavaScript pauses on:</p>
+<pre>const user = await User.findOne({ slug: 'team-builder-book' });</pre>
+<p>and waits until the method returns either the user object or null.</p>
+<p>Our new Express route:</p>
+<pre>server.get('/', async (req, res) =&gt; {
+  const user = await User.findOne({ slug: 'team-builder-book' });
+  app.render(req, res, '/', { user });
+});
+</pre>
+
+<p>Make sure you remove the old Express route that defines the user as:</p>
+<pre>const user = { email: 'team@builderbook.org' };</pre>
+
+<p>Since we use the <code>findOne()</code> method on <code>User</code>, remember to import <code>User</code> with:</p>
+<pre>const User = require('./models/User');</pre>
+
+<p>That's it. We already prepared our <code>Index</code> page in the previous section, and now the page is ready to receive the <code>user</code> prop.</p>
+<p>Start your app with <code>yarn dev-express</code> and navigate to <code>http://localhost:8000</code>:<br><img src="https://user-images.githubusercontent.com/10218864/35887905-c4f7c4da-0b4a-11e8-949a-d26ac1cc4850.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>You've successfully connected MongoDB to the server if you see <code>Email: team@builderbook.org</code> on the <code>Index</code> page. Good job!</p>
+<p>You may remember this line from <code>pages/index.js</code>:</p>
+<pre>Index.getInitialProps = async (ctx}) =&gt; ({ user: ctx.query.user });</pre>
+
+<p>As discussed earlier in this chapter, we added <code>getInitialProps</code> method to our layout <code>App</code> HOC. This method allows us to pass <code>user</code> prop from the <code>Index</code> page component to <code>Header</code> component via <code>App</code> HOC. Find following line in the <code>pages/_app.js</code>:</p>
+<pre><component {...pageprops}=""></component></pre>
+
+<p>Let's run two simple tests to make sure that <code>user</code> is indeed passed the way we think:</p>
+<ol>
+<li><p>Replace line <code>&lt;Component {...pageProps} /&gt;</code> with <code>&lt;Component /&gt;</code> inside <code>pages/_app.js</code>, start app <code>yarn dev-express</code>, go to the browser, you will see error <code>Cannot read property 'email' of null</code>. That's because <code>App</code> HOC does not pass <code>user</code> prop as a part of <code>pageProps</code> to the page component because we removed <code>{...pageProps}</code> from <code>&lt;Component {...pageProps} /&gt;</code>.</p>
+</li>
+<li><p>In another test, let's print <code>pageProps</code> to the terminal. Inside <code>pages/_app.js</code>, uncomment <code>console.log(pageProps);</code> inside the <code>render</code> method:</p>
+<pre><code><span class="xml">render() </span><span class="hljs-template-variable">{
+ const { Component, pageProps }</span><span class="xml"> = this.props;
+
+ console.log(pageProps);
+
+ return (
+   <span class="hljs-tag">&lt;<span class="hljs-name">Container</span>&gt;</span>
+     </span><span class="hljs-template-tag">{/* <span class="hljs-name">ThemeProvider</span> makes the theme available down the React
+           tree thanks to React context. */}</span><span class="xml">
+     <span class="hljs-tag">&lt;<span class="hljs-name">ThemeProvider</span> <span class="hljs-attr">theme</span>=</span></span><span class="hljs-template-variable">{theme}</span><span class="xml"><span class="hljs-tag">&gt;</span>
+       </span><span class="hljs-template-tag">{/* <span class="hljs-name">CssBaseline</span> kickstart an elegant, consistent, and simple baseline to build upon. */}</span><span class="xml">
+       <span class="hljs-tag">&lt;<span class="hljs-name">CssBaseline</span> /&gt;</span>
+       <span class="hljs-tag">&lt;<span class="hljs-name">Header</span> </span></span><span class="hljs-template-variable">{...pageProps}</span><span class="xml"><span class="hljs-tag"> /&gt;</span>
+       <span class="hljs-tag">&lt;<span class="hljs-name">Component</span> </span></span><span class="hljs-template-variable">{...pageProps}</span><span class="xml"><span class="hljs-tag"> /&gt;</span>
+     <span class="hljs-tag">&lt;/<span class="hljs-name">ThemeProvider</span>&gt;</span>
+   <span class="hljs-tag">&lt;/<span class="hljs-name">Container</span>&gt;</span>
+ );
+}</span></code></pre><p>Start app with <code>yarn dev-express</code>, load tab in the browser and look into your terminal shell. You will see output similar to this:</p>
+<pre><code>{
+ <span class="hljs-attribute">user</span>: {
+   <span class="hljs-attribute">isAdmin</span>: true,
+   <span class="hljs-attribute">isGithubConnected</span>: true,
+   <span class="hljs-attribute">_id</span>: <span class="hljs-number">5</span>c8edb6477846b4659f5f736,
+   <span class="hljs-attribute">purchasedBookIds</span>: [],
+   <span class="hljs-attribute">createdAt</span>: <span class="hljs-number">2019</span><span class="hljs-attribute">-03-17T23</span>:<span class="hljs-number">42</span>:<span class="hljs-number">28.753</span>Z,
+   <span class="hljs-attribute">googleId</span>: <span class="hljs-string">'106858617919625529768'</span>,
+   <span class="hljs-attribute">email</span>: <span class="hljs-string">'team@builderbook.org'</span>,
+   <span class="hljs-attribute">displayName</span>: <span class="hljs-string">'Team Builder Book'</span>,
+   <span class="hljs-attribute">avatarUrl</span>: <span class="hljs-string">'https://lh4.googleusercontent.com/-SUqbA7z4jfk/AAAAAAAAAAI/AAAAAAAAAJY/y-XChU6LSs4/photo.jpg'</span>,
+   <span class="hljs-attribute">slug</span>: <span class="hljs-string">'team-builder-book'</span>,
+   <span class="hljs-attribute">__v</span>: <span class="hljs-number">0</span>,
+   <span class="hljs-attribute">githubAccessToken</span>: <span class="hljs-string">'aafc1022c6f4d5d2dcd7b3852d3a3c9880fb920d'</span>
+ }
+}</code></pre><p>That means that <code>pageProps</code> object is simply <code>{ user: { some parameter } }</code>. Printing props to a terminal or to a browser console is a handy way to check if data is passed the way you design it to pass.</p>
+<p>Later in this chapter, we display some of user's data inside <code>Header</code> component, we pass data to <code>Header</code> component via <code>&lt;Header {...pageProps} /&gt;</code>.</p>
+</li>
+</ol>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="session" href="#session" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="session">
+          Session
+        </span>
+      </h2><p>We created a server and connected it to our database. In this section, we discuss session.</p>
+<p>Session is an object that can store unique data about any user who visits your application. In other words, when a user visits your app, the app creates a unique session that contains user-identifying information, such as unique session ID, browser type and version, and geolocation. Many web apps use session to save a unique cookie to a user's browser. The cookie tracks the user so that the app can personalize its content and/or ads.</p>
+<p>As you may guess, session can identify guest users (users who are not logged in to your app).  </p>
+<p>In Chapter 3, when we work on Google OAuth, I'll show you how to create a login session. A login session keeps a user in a logged-in state, so the user doesn't have to re-log in every time he/she visits the app.</p>
+<p>We will create a login session by saving the user id to a session. Briefly summarizing: a request from the client (browser) contains headers, headers contain cookie, cookie has an encoded session id, and session has the user id; the server creates <code>req.user</code> that makes the <code>user</code> object available to the <code>getInitialProps</code> method, which populates the <code>user</code> prop of the Index page; the server then sends the rendered page with data to the client.</p>
+<p>Let's discuss the basics of session. Specifically, we want to see:</p>
+<ul>
+<li>cookie saved to the browser</li>
+<li>session saved to the database</li>
+</ul>
+<p>At the end of this section (after adding session to our app), we will check if our app saves a cookie to the browser and a session document to our database.</p>
+<p>We will use two packages to add session to our app:</p>
+<ol>
+<li>to create session and save a cookie to the browser, we will use <code>express-session</code></li>
+<li>to connect to our database and save a session, we will use <code>connect-mongo</code></li>
+</ol>
+<p>As always, remember to add missing imports to the main server code at <code>server/app.js</code>:</p>
+<pre><code><span class="hljs-attribute">const session</span> = require(<span class="hljs-string">'express-session'</span>);
+<span class="hljs-attribute">const mongoSessionStore</span> = require(<span class="hljs-string">'connect-mongo'</span>);</code></pre><h4 style="color: #FFF;">
+        <a name="configure-session" href="#configure-session" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Configure session
+      </h4><p>Let's create and configure session. We imported <code>session</code> from <code>express-session</code>. We encourage you to check the list of all session parameters in the <a target="_blank" href="https://github.com/expressjs/session" rel="noopener noreferrer">official docs</a>. At this step, we will configure only 5 parameters: <code>name</code>, <code>secret</code>, <code>resave</code>, <code>saveUninitialized</code>, and <code>cookie</code>:</p>
+<pre><code><span class="hljs-string">session({</span>
+<span class="hljs-attr">  name:</span> <span class="hljs-string">'builderbook.sid'</span><span class="hljs-string">,</span>
+<span class="hljs-attr">  secret:</span> <span class="hljs-string">'HD2w.)q*VqRT4/#NK2M/,E^B)}FED5fWU!dKe[wk'</span><span class="hljs-string">,</span>
+<span class="hljs-attr">  resave:</span> <span class="hljs-literal">false</span><span class="hljs-string">,</span>
+<span class="hljs-attr">  saveUninitialized:</span> <span class="hljs-literal">false</span><span class="hljs-string">,</span>
+<span class="hljs-attr">  cookie:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">    httpOnly:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+<span class="hljs-attr">    maxAge:</span> <span class="hljs-number">14</span> <span class="hljs-string">*</span> <span class="hljs-number">24</span> <span class="hljs-string">*</span> <span class="hljs-number">60</span> <span class="hljs-string">*</span> <span class="hljs-number">60</span> <span class="hljs-string">*</span> <span class="hljs-number">1000</span><span class="hljs-string">,</span>
+  <span class="hljs-string">},</span>
+<span class="hljs-string">})</span></code></pre><ul>
+<li><p><a target="_blank" href="https://github.com/expressjs/session#name" rel="noopener noreferrer">name</a> is the cookie name - give it any name you like. It's useful if you have <em>multiple apps on the same domain</em>, because you can give a unique name to each app's cookies. Though this is not our case. </p>
+</li>
+<li><p><a target="_blank" href="https://github.com/expressjs/session#secret" rel="noopener noreferrer">secret</a> is a key used to encode/decode the session's cookie. Specify your own key.</p>
+<p>It's important to note that a cookie does not contain session data but only the session ID (encoded with secret). Read more about <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies" rel="noopener noreferrer">cookie</a>. The server stores session data in memory. More on <code>store</code> below.</p>
+</li>
+<li><p><a target="_blank" href="https://github.com/expressjs/session#resave" rel="noopener noreferrer">resave</a> forces the session to be saved to <code>store</code>, even if the session was not modified.</p>
+</li>
+<li><p><a target="_blank" href="https://github.com/expressjs/session#saveuninitialized" rel="noopener noreferrer">saveUninitialized</a> saves any new, unmodified (uninitialized) session to <code>store</code>.</p>
+</li>
+<li><p><a target="_blank" href="https://github.com/expressjs/session#cookie" rel="noopener noreferrer">cookie</a> is the session's cookie. For development purposes, we set <code>httpOnly</code> to true, since we develop at <code>http://localhsot:8000</code>.</p>
+<p><code>httpOnly: true</code> means that the cookie will not be available to client-side JavaScript and will only be sent with a request to the server. Simply put, the cookie is <em>only</em> available to server via HTTP and <em>not</em> accessible from client-side JavaScript. This is a security measure.</p>
+<p>The browser will remove the cookie after <code>maxAge</code> milliseconds. We chose the <code>maxAge</code> to be 14 days.</p>
+<p>You will see both <code>httpOnly</code> and <code>maxAge</code> parameters in a cookie when looking in <code>Developer tools &gt; Application &gt; Cookies &gt; http://localhost:8000</code> on your browser <em>and</em> inside the saved session in your database.</p>
+</li>
+</ul>
+<p>We configured session! To initialize session on the server, use Express's <a target="_blank" href="http://expressjs.com/en/api.html#app.use" rel="noopener noreferrer">app.use()</a>. In our case, it's <code>server.use()</code> since we defined <code>const server = express();</code>.</p>
+<pre><code><span class="hljs-string">server.use(session({</span>
+<span class="hljs-attr">  name:</span> <span class="hljs-string">'builderbook.sid'</span><span class="hljs-string">,</span>
+<span class="hljs-attr">  secret:</span> <span class="hljs-string">'HD2w.)q*VqRT4/#NK2M/,E^B)}FED5fWU!dKe[wk'</span><span class="hljs-string">,</span>
+<span class="hljs-attr">  resave:</span> <span class="hljs-literal">false</span><span class="hljs-string">,</span>
+<span class="hljs-attr">  saveUninitialized:</span> <span class="hljs-literal">false</span><span class="hljs-string">,</span>
+<span class="hljs-attr">  cookie:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">    httpOnly:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+<span class="hljs-attr">    maxAge:</span> <span class="hljs-number">14</span> <span class="hljs-string">*</span> <span class="hljs-number">24</span> <span class="hljs-string">*</span> <span class="hljs-number">60</span> <span class="hljs-string">*</span> <span class="hljs-number">60</span> <span class="hljs-string">*</span> <span class="hljs-number">1000</span><span class="hljs-string">,</span>
+  <span class="hljs-string">},</span>
+<span class="hljs-string">}));</span></code></pre><p>Note that since we <em>did not specify</em> the path inside <code>server.use()</code>, the default path is <code>/</code>. Thus, the session will be initialized/executed on every request to the server.</p>
+<p>Now we've configured and initialized session on our server. One thing may not be clear though - where does the server store session (and session data)? By default, Express stores session <em>in the server's memory</em>. </p>
+<h4 style="color: #FFF;">
+        <a name="save-session" href="#save-session" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Save session
+      </h4><p>Storing a session in the transient server memory is not a scalable nor reliable way to store. It's more reliable to save sessions to a database. It may be ok for development, but for production, we may choose to store a login session for 2 weeks. Thus, we need a more reliable and persistent way to store sessions.</p>
+<p>Since we connected our server to MongoDB in the previous section, we should save a session to our database. To do so, we need to add a <a target="_blank" href="https://github.com/expressjs/session#store" rel="noopener noreferrer">store</a> parameter to the session configuration.</p>
+<p>We imported <code>MongoStore()</code> from <code>connect-mongo</code>. Check out the <a target="_blank" href="https://github.com/jdesboeufs/connect-mongo#express-or-connect-integration" rel="noopener noreferrer">official example</a>:</p>
+<pre><code><span class="hljs-keyword">const</span> session = <span class="hljs-keyword">require</span>(<span class="hljs-string">'express-session'</span>);
+<span class="hljs-keyword">const</span> MongoStore = <span class="hljs-keyword">require</span>(<span class="hljs-string">'connect-mongo'</span>)(session);
+
+app.<span class="hljs-keyword">use</span>(session({
+    secret: <span class="hljs-string">'foo'</span>,
+    store: <span class="hljs-keyword">new</span> MongoStore(options)
+}));</code></pre><p>We use this method to connect a server to MongoDB and <em>save</em> a session to our database. Add this <code>store</code> parameter to our session configuration:</p>
+<pre><code><span class="hljs-keyword">const</span> session = <span class="hljs-built_in">require</span>(<span class="hljs-string">'express-session'</span>);
+<span class="hljs-keyword">const</span> mongoSessionStore = <span class="hljs-built_in">require</span>(<span class="hljs-string">'connect-mongo'</span>);
+
+<span class="hljs-comment">// some code</span>
+
+<span class="hljs-keyword">const</span> MongoStore = mongoSessionStore(session);
+
+store: <span class="hljs-keyword">new</span> MongoStore({
+  <span class="hljs-attr">mongooseConnection</span>: mongoose.connection,
+  <span class="hljs-attr">ttl</span>: <span class="hljs-number">14</span> * <span class="hljs-number">24</span> * <span class="hljs-number">60</span> * <span class="hljs-number">60</span>, <span class="hljs-comment">// save session 14 days</span>
+}),</code></pre><p>Since we already connected a server to our database in <code>server/app.js</code> via Mongoose, here we specify the <code>mongooseConnection</code> option. <code>ttl</code> is the session expiration time (seconds). We set it to 14 days, the same expiration time as our cookie (see <code>cookie.maxAge</code> above). You will see the <code>ttl</code> parameter as <code>expires</code> inside the session saved to our database.</p>
+<p>In the snippet above, we used <code>const MongoStore = mongoSessionStore(session);</code>, since there is no easy way to achieve <code>const MongoStore = require('connect-mongo')(session);</code> with ES6 import.</p>
+<p>Here is what you get after adding <code>store</code> to our session configuration:</p>
+<pre><code><span class="hljs-string">const</span> <span class="hljs-string">MongoStore</span> <span class="hljs-string">=</span> <span class="hljs-string">mongoSessionStore(session);</span>
+
+<span class="hljs-string">server.use(session({</span>
+<span class="hljs-attr">  name:</span> <span class="hljs-string">'builderbook.sid'</span><span class="hljs-string">,</span>
+<span class="hljs-attr">  secret:</span> <span class="hljs-string">'HD2w.)q*VqRT4/#NK2M/,E^B)}FED5fWU!dKe[wk'</span><span class="hljs-string">,</span>
+<span class="hljs-attr">  store:</span> <span class="hljs-string">new</span> <span class="hljs-string">MongoStore({</span>
+<span class="hljs-attr">    mongooseConnection:</span> <span class="hljs-string">mongoose.connection,</span>
+<span class="hljs-attr">    ttl:</span> <span class="hljs-number">14</span> <span class="hljs-string">*</span> <span class="hljs-number">24</span> <span class="hljs-string">*</span> <span class="hljs-number">60</span> <span class="hljs-string">*</span> <span class="hljs-number">60</span><span class="hljs-string">,</span> <span class="hljs-string">//</span> <span class="hljs-string">save</span> <span class="hljs-string">session</span> <span class="hljs-number">14</span> <span class="hljs-string">days</span>
+  <span class="hljs-string">}),</span>
+<span class="hljs-attr">  resave:</span> <span class="hljs-literal">false</span><span class="hljs-string">,</span>
+<span class="hljs-attr">  saveUninitialized:</span> <span class="hljs-literal">false</span><span class="hljs-string">,</span>
+<span class="hljs-attr">  cookie:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">    httpOnly:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+<span class="hljs-attr">    maxAge:</span> <span class="hljs-number">14</span> <span class="hljs-string">*</span> <span class="hljs-number">24</span> <span class="hljs-string">*</span> <span class="hljs-number">60</span> <span class="hljs-string">*</span> <span class="hljs-number">60</span> <span class="hljs-string">*</span> <span class="hljs-number">1000</span><span class="hljs-string">,</span>
+  <span class="hljs-string">},</span>
+<span class="hljs-string">}));</span></code></pre><p>Let's re-organize this code for more readability. Point the variable <code>sess</code> to the session object, the code snippet with curly braces <code>{}</code>:</p>
+<pre><code><span class="hljs-string">const</span> <span class="hljs-string">sess</span> <span class="hljs-string">=</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">  name:</span> <span class="hljs-string">'builderbook.sid'</span><span class="hljs-string">,</span>
+<span class="hljs-attr">  secret:</span> <span class="hljs-string">'HD2w.)q*VqRT4/#NK2M/,E^B)}FED5fWU!dKe[wk'</span><span class="hljs-string">,</span>
+<span class="hljs-attr">  store:</span> <span class="hljs-string">new</span> <span class="hljs-string">MongoStore({</span>
+<span class="hljs-attr">    mongooseConnection:</span> <span class="hljs-string">mongoose.connection,</span>
+<span class="hljs-attr">    ttl:</span> <span class="hljs-number">14</span> <span class="hljs-string">*</span> <span class="hljs-number">24</span> <span class="hljs-string">*</span> <span class="hljs-number">60</span> <span class="hljs-string">*</span> <span class="hljs-number">60</span><span class="hljs-string">,</span> <span class="hljs-string">//</span> <span class="hljs-string">save</span> <span class="hljs-string">session</span> <span class="hljs-number">14</span> <span class="hljs-string">days</span>
+  <span class="hljs-string">}),</span>
+<span class="hljs-attr">  resave:</span> <span class="hljs-literal">false</span><span class="hljs-string">,</span>
+<span class="hljs-attr">  saveUninitialized:</span> <span class="hljs-literal">false</span><span class="hljs-string">,</span>
+<span class="hljs-attr">  cookie:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">    httpOnly:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+<span class="hljs-attr">    maxAge:</span> <span class="hljs-number">14</span> <span class="hljs-string">*</span> <span class="hljs-number">24</span> <span class="hljs-string">*</span> <span class="hljs-number">60</span> <span class="hljs-string">*</span> <span class="hljs-number">60</span> <span class="hljs-string">*</span> <span class="hljs-number">1000</span><span class="hljs-string">,</span>
+  <span class="hljs-string">},</span>
+<span class="hljs-string">}</span></code></pre><p>Under this definition, we initialize the session on our server with <code>server.use()</code>:</p>
+<pre>server.use(session(sess))</pre>
+
+
+<p>Add the code snippet above, as well as missing imports, to <code>server/app.js</code>. You should get:<br><code>server/app.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> express = <span class="hljs-built_in">require</span>(<span class="hljs-string">'express'</span>);
+<span class="hljs-keyword">const</span> next = <span class="hljs-built_in">require</span>(<span class="hljs-string">'next'</span>);
+
+<span class="hljs-keyword">const</span> mongoose = <span class="hljs-built_in">require</span>(<span class="hljs-string">'mongoose'</span>);
+
+<span class="hljs-keyword">const</span> session = <span class="hljs-built_in">require</span>(<span class="hljs-string">'express-session'</span>);
+<span class="hljs-keyword">const</span> mongoSessionStore = <span class="hljs-built_in">require</span>(<span class="hljs-string">'connect-mongo'</span>);
+
+<span class="hljs-keyword">const</span> User = <span class="hljs-built_in">require</span>(<span class="hljs-string">'./models/User'</span>);
+
+<span class="hljs-built_in">require</span>(<span class="hljs-string">'dotenv'</span>).config();
+
+<span class="hljs-keyword">const</span> dev = process.env.NODE_ENV !== <span class="hljs-string">'production'</span>;
+<span class="hljs-keyword">const</span> MONGO_URL = process.env.MONGO_URL_TEST;
+
+<span class="hljs-keyword">const</span> options = {
+  useNewUrlParser: <span class="hljs-literal">true</span>,
+  useCreateIndex: <span class="hljs-literal">true</span>,
+  useFindAndModify: <span class="hljs-literal">false</span>,
+};
+
+mongoose.connect(MONGO_URL, options);
+
+<span class="hljs-keyword">const</span> port = process.env.PORT || <span class="hljs-number">8000</span>;
+<span class="hljs-keyword">const</span> ROOT_URL = <span class="hljs-string">`http://localhost:<span class="hljs-subst">${port}</span>`</span>;
+
+<span class="hljs-keyword">const</span> app = next({ dev });
+<span class="hljs-keyword">const</span> handle = app.getRequestHandler();
+
+app.prepare().then(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+  <span class="hljs-keyword">const</span> server = express();
+
+  <span class="hljs-keyword">const</span> MongoStore = mongoSessionStore(session);
+
+  <span class="hljs-keyword">const</span> sess = {
+    name: <span class="hljs-string">'builderbook.sid'</span>,
+    secret: <span class="hljs-string">'HD2w.)q*VqRT4/#NK2M/,E^B)}FED5fWU!dKe[wk'</span>,
+    store: <span class="hljs-keyword">new</span> MongoStore({
+      mongooseConnection: mongoose.connection,
+      ttl: <span class="hljs-number">14</span> * <span class="hljs-number">24</span> * <span class="hljs-number">60</span> * <span class="hljs-number">60</span>, <span class="hljs-comment">// save session 14 days</span>
+    }),
+    resave: <span class="hljs-literal">false</span>,
+    saveUninitialized: <span class="hljs-literal">false</span>,
+    cookie: {
+      httpOnly: <span class="hljs-literal">true</span>,
+      maxAge: <span class="hljs-number">14</span> * <span class="hljs-number">24</span> * <span class="hljs-number">60</span> * <span class="hljs-number">60</span> * <span class="hljs-number">1000</span>,
+    },
+  };
+
+  server.use(session(sess));
+
+  server.get(<span class="hljs-string">'/'</span>, <span class="hljs-keyword">async</span> (req, res) =&gt; {
+    <span class="hljs-keyword">const</span> user = <span class="hljs-keyword">await</span> User.findOne({ slug: <span class="hljs-string">'team-builder-book'</span> });
+    app.render(req, res, <span class="hljs-string">'/'</span>, { user });
+  });
+
+  server.get(<span class="hljs-string">'*'</span>, <span class="hljs-function">(<span class="hljs-params">req, res</span>) =&gt;</span> handle(req, res));
+
+  server.listen(port, <span class="hljs-function">(<span class="hljs-params">err</span>) =&gt;</span> {
+    <span class="hljs-keyword">if</span> (err) <span class="hljs-keyword">throw</span> err;
+    <span class="hljs-built_in">console</span>.log(<span class="hljs-string">`&gt; Ready on <span class="hljs-subst">${ROOT_URL}</span>`</span>); <span class="hljs-comment">// eslint-disable-line no-console</span>
+  });
+});</code></pre><h4 style="color: #FFF;">
+        <a name="testing" href="#testing" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Testing
+      </h4><p>We configured and initialized session and made sure that session store gets saved to MongoDB - now we're ready for testing.</p>
+<p>To identify a newly created session, add the <code>foo</code> parameter with the value <code>bar</code> to session with:</p>
+<pre>req.session.foo = 'bar'</pre>
+
+<p>Add this line of code to our Express route from the section <code>Database</code>:</p>
+<pre><code><span class="hljs-keyword">server</span>.<span class="hljs-keyword">get</span>(<span class="hljs-string">'/'</span>, async (req, res) =&gt; {
+  req.<span class="hljs-keyword">session</span>.foo = <span class="hljs-string">'bar'</span>;
+  const <span class="hljs-keyword">user</span> = await <span class="hljs-keyword">User</span>.findOne({ slug: <span class="hljs-string">'team-builder-book'</span> });
+  app.render(req, res, <span class="hljs-string">'/'</span>, { <span class="hljs-keyword">user</span> });
+});</code></pre><p>With this change, when a user opens the <code>Index</code> page (route <code>/</code>), our app will create a cookie on the user's browser and save a session to our database. This new session will have <code>foo: bar</code> on the database.</p>
+<p>Start your app (<code>yarn dev-express</code>) and navigate to <code>http://localhost:8000</code>.<br>Enter <code>Developer tools</code>. Then select <code>Application</code> &gt; <code>Cookies</code> &gt; <code>http://localhost:8000</code>:<br><img src="https://user-images.githubusercontent.com/10218864/35943421-d7517b1c-0c0d-11e8-820f-5fa4a82474d2.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>You see a <code>builderbook.sid</code> cookie! You can see the cookie name, that <code>HTTP</code> (<code>httpOnly</code>) is true (has a check mark), and that the cookie expires exactly 14 days after creation. Indeed, we specified the expiration data with <code>maxAge: 14 * 24 * 60 * 60 * 1000</code> (14 days).</p>
+<p>Go to MongoDB Atlas, navigate to the <code>test.sessions</code> collection, and find the newly created session:<br><img src="https://user-images.githubusercontent.com/10218864/54498852-2ea98a00-48c9-11e9-8ee4-358e90049bb9.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>In our database, the session document has all parameters that we specified earlier in this section. For example, find <code>httpOnly: true</code>, <code>cookie.orginalMaxAge: 1209600000</code> (<code>cookie.maxAge</code>), and <code>foo: bar</code>.</p>
+<p>You are welcome to experiment with creating sessions and cookies. Try renaming the cookie and changing the value of <code>httpOnly</code>.</p>
+<p>Go to <code>server/app.js</code> and change <code>name: 'builderbook.sid'</code> to <code>name: 'book.sid'</code>. Also change <code>httpOnly: true</code> to <code>httpOnly: false</code>. Save your <code>server/app.js</code> file. Go back to your browser and wait for the app to restart:<br><img src="https://user-images.githubusercontent.com/10218864/35955105-33b31012-0c42-11e8-8fe6-0cc6be24001b.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>On your browser, go to  <code>Developer tools &gt; Application</code> &gt; <code>Cookies</code> &gt; <code>http://localhost:8000</code>. As we expect - <code>HTTP</code> is false, and the <code>cookie.name</code> is <code>book.sid</code>.</p>
+<p>In our database, in collection <code>test.sessions</code>, our app created a second session document with <code>httpOnly: false</code>.</p>
+<p>We hope this practical exercise helped you understand the concepts of <code>session/cookie</code> better. We will use session in Chapter 3 when integrating Google OAuth to our app. We are not interested in using session to track a logged-out user <em>but</em> to create a persistent login session for a logged-in user. We will save a user id into a session, which will match a user object on the server with a cookie on the browser (cookie has an encoded session id).</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="update-header-component" href="#update-header-component" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="update-header-component">
+          Update Header component
+        </span>
+      </h2><p>Earlier in this chapter (in the section <code>Database</code>) we passed a <code>user</code> prop to our <code>Index</code> page to display a user's email. Let's now modify our <code>Header</code> component to display a user's photo.</p>
+<p>It's good UX to show logged-in users that they are indeed logged in. One way to do it is to show a user avatar (photo from Google profile) inside the <code>Header</code> component.</p>
+<p>Let's display a user avatar with the <code>user.avatarUrl</code> parameter that our app will receive from Google when we integrate our app with Google OAuth (Chapter 3).</p>
+<p>Currently the <code>Header</code> component has no props:</p>
+<pre><code><span class="hljs-keyword">import</span> Link <span class="hljs-keyword">from</span> <span class="hljs-string">'next/link'</span>;
+
+<span class="hljs-keyword">import</span> Toolbar <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/core/Toolbar'</span>;
+<span class="hljs-keyword">import</span> Grid <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/core/Grid'</span>;
+
+<span class="hljs-keyword">import</span> { styleToolbar } <span class="hljs-keyword">from</span> <span class="hljs-string">'./SharedStyles'</span>;
+
+<span class="hljs-keyword">const</span> Header = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> (
+  <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Toolbar</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{styleToolbar}</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">Grid</span> <span class="hljs-attr">container</span> <span class="hljs-attr">direction</span>=<span class="hljs-string">"row"</span> <span class="hljs-attr">justify</span>=<span class="hljs-string">"space-around"</span> <span class="hljs-attr">align</span>=<span class="hljs-string">"center"</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">Grid</span> <span class="hljs-attr">item</span> <span class="hljs-attr">xs</span>=<span class="hljs-string">{12}</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">textAlign:</span> '<span class="hljs-attr">right</span>' }}&gt;</span>
+          <span class="hljs-tag">&lt;<span class="hljs-name">Link</span> <span class="hljs-attr">prefetch</span> <span class="hljs-attr">href</span>=<span class="hljs-string">"/login"</span>&gt;</span>
+            <span class="hljs-tag">&lt;<span class="hljs-name">a</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">margin:</span> '<span class="hljs-attr">0px</span> <span class="hljs-attr">20px</span> <span class="hljs-attr">0px</span> <span class="hljs-attr">auto</span>' }}&gt;</span>Log in<span class="hljs-tag">&lt;/<span class="hljs-name">a</span>&gt;</span>
+          <span class="hljs-tag">&lt;/<span class="hljs-name">Link</span>&gt;</span>
+        <span class="hljs-tag">&lt;/<span class="hljs-name">Grid</span>&gt;</span>
+      <span class="hljs-tag">&lt;/<span class="hljs-name">Grid</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Toolbar</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span></span>
+);
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> Header;</code></pre><p>Add <code>propTypes</code> and <code>defaultProps</code> to the <code>Header</code> component. If you're not sure how, check how we did it in <code>pages/index.js</code> for the <code>Index</code> page. For the <code>user</code> prop in the <code>Header</code> component, you get:</p>
+<pre><code><span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">Header</span>.</span></span>propTypes = {
+  user: <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">PropTypes</span>.</span></span>shape({
+    avatarUrl: <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">PropTypes</span>.</span></span><span class="hljs-built_in">string</span>,
+    displayName: <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">PropTypes</span>.</span></span><span class="hljs-built_in">string</span>,
+  }),
+};
+
+<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">Header</span>.</span></span>defaultProps = {
+  user: null,
+};</code></pre><p>Alright, so far we have the following for our <code>Header</code> component:<br><code>components/Header.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> PropTypes <span class="hljs-keyword">from</span> <span class="hljs-string">'prop-types'</span>;
+<span class="hljs-keyword">import</span> Link <span class="hljs-keyword">from</span> <span class="hljs-string">'next/link'</span>;
+<span class="hljs-keyword">import</span> Toolbar <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/core/Toolbar'</span>;
+<span class="hljs-keyword">import</span> Grid <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/core/Grid'</span>;
+<span class="hljs-keyword">import</span> Hidden <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/core/Hidden'</span>;
+<span class="hljs-keyword">import</span> Avatar <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/core/Avatar'</span>;
+
+<span class="hljs-keyword">import</span> { styleToolbar } <span class="hljs-keyword">from</span> <span class="hljs-string">'./SharedStyles'</span>;
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">Header</span>(<span class="hljs-params">{ user }</span>) </span>{
+  <span class="hljs-keyword">return</span> (
+    <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">Toolbar</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{styleToolbar}</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">Grid</span> <span class="hljs-attr">container</span> <span class="hljs-attr">direction</span>=<span class="hljs-string">"row"</span> <span class="hljs-attr">justify</span>=<span class="hljs-string">"space-around"</span> <span class="hljs-attr">alignItems</span>=<span class="hljs-string">"center"</span>&gt;</span>
+
+          // some code
+
+        <span class="hljs-tag">&lt;/<span class="hljs-name">Grid</span>&gt;</span>
+      <span class="hljs-tag">&lt;/<span class="hljs-name">Toolbar</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span></span>
+  );
+}
+
+Header.propTypes = {
+  <span class="hljs-attr">user</span>: PropTypes.shape({
+    <span class="hljs-attr">avatarUrl</span>: PropTypes.string,
+    <span class="hljs-attr">displayName</span>: PropTypes.string,
+  }),
+};
+
+Header.defaultProps = {
+  <span class="hljs-attr">user</span>: <span class="hljs-literal">null</span>,
+};
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> Header;</code></pre><p>We want to add a user's avatar and our logo to the <code>Header</code> component. We will use the <code>&lt;Avatar&gt;</code> component from Material-UI for both user avatar and our logo.</p>
+<p>Here is how we want to change the structure of <code>Header</code>. Instead of having one column (<code>&lt;Grid item&gt;</code>) and no props, we will have two columns and the <code>user</code> prop:</p>
+<ul>
+<li>when there is <em>no <code>user</code> prop</em>, we will show the logo (with <code>&lt;Avatar&gt;</code>) in the left column and a <code>Log in</code> link in the right column</li>
+<li>when there is a <code>user</code> prop, we will show a <code>Settings</code> link in the left column and the user's avatar (with <code>&lt;Avatar&gt;</code>) in the right column</li>
+</ul>
+<p>After we translate the description above from English to code:</p>
+<pre><code><span class="hljs-tag">&lt;<span class="hljs-name">Grid</span> <span class="hljs-attr">item</span> <span class="hljs-attr">sm</span>=<span class="hljs-string">{10}</span> <span class="hljs-attr">xs</span>=<span class="hljs-string">{9}</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">textAlign:</span> '<span class="hljs-attr">left</span>' }}&gt;</span>
+  {user ? (
+    <span class="hljs-tag">&lt;<span class="hljs-name">div</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">Hidden</span> <span class="hljs-attr">smDown</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">Link</span> <span class="hljs-attr">prefetch</span> <span class="hljs-attr">href</span>=<span class="hljs-string">"/"</span>&gt;</span>
+          <span class="hljs-tag">&lt;<span class="hljs-name">a</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">marginRight:</span> '<span class="hljs-attr">20px</span>' }}&gt;</span>Settings<span class="hljs-tag">&lt;/<span class="hljs-name">a</span>&gt;</span>
+        <span class="hljs-tag">&lt;/<span class="hljs-name">Link</span>&gt;</span>
+      <span class="hljs-tag">&lt;/<span class="hljs-name">Hidden</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
+  ) : (
+    <span class="hljs-tag">&lt;<span class="hljs-name">Link</span> <span class="hljs-attr">prefetch</span> <span class="hljs-attr">href</span>=<span class="hljs-string">"/"</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">Avatar</span>
+        <span class="hljs-attr">src</span>=<span class="hljs-string">"https://storage.googleapis.com/builderbook/logo.svg"</span>
+        <span class="hljs-attr">alt</span>=<span class="hljs-string">"Builder Book logo"</span>
+        <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">margin:</span> '<span class="hljs-attr">0px</span> <span class="hljs-attr">auto</span> <span class="hljs-attr">0px</span> <span class="hljs-attr">20px</span>' }}
+      /&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Link</span>&gt;</span>
+  )}
+<span class="hljs-tag">&lt;/<span class="hljs-name">Grid</span>&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">Grid</span> <span class="hljs-attr">item</span> <span class="hljs-attr">sm</span>=<span class="hljs-string">{1}</span> <span class="hljs-attr">xs</span>=<span class="hljs-string">{3}</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">textAlign:</span> '<span class="hljs-attr">right</span>' }}&gt;</span>
+  {user ? (
+    <span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">whiteSpace:</span> ' <span class="hljs-attr">nowrap</span>' }}&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">Avatar</span>
+        <span class="hljs-attr">src</span>=<span class="hljs-string">{user.avatarUrl}</span>
+        <span class="hljs-attr">alt</span>=<span class="hljs-string">{user.displayName}</span>
+        <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">margin:</span> '<span class="hljs-attr">0px</span> <span class="hljs-attr">auto</span> <span class="hljs-attr">0px</span> <span class="hljs-attr">20px</span>' }}
+      /&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
+  ) : (
+    <span class="hljs-tag">&lt;<span class="hljs-name">Link</span> <span class="hljs-attr">prefetch</span> <span class="hljs-attr">href</span>=<span class="hljs-string">"/login"</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">a</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">margin:</span> '<span class="hljs-attr">0px</span> <span class="hljs-attr">20px</span> <span class="hljs-attr">0px</span> <span class="hljs-attr">auto</span>' }}&gt;</span>Log in<span class="hljs-tag">&lt;/<span class="hljs-name">a</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">Link</span>&gt;</span>
+  )}
+<span class="hljs-tag">&lt;/<span class="hljs-name">Grid</span>&gt;</span></code></pre><p>Replace <code>// some code</code> (in <code>components/Header.js</code>) with the code snippet above.</p>
+<p>The component <code>&lt;Hidden&gt;</code> hides elements on small screens. The component <code>&lt;Avatar&gt;</code> renders images to be circular. Read more about these components in the <a target="_blank" href="https://material-ui-next.com/demos/avatars" rel="noopener noreferrer">Material-UI docs</a>.</p>
+<p>We are ready to test. In the <code>Database</code> section, we manually created a user document in our users collection. This document has all necessary parameters: <code>avatarUrl</code> and <code>displayName</code>, as well as <code>slug</code> to find a user by slug.</p>
+<p>Start your app (<code>yarn dev-express</code>) and navigate to <code>http://localhost:8000</code>. With the <code>user</code> prop, you see:<br><img src="https://user-images.githubusercontent.com/10218864/35936203-6b543d8e-0bf7-11e8-8ddf-872acc10929c.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Open <code>page/_app.js</code> and find the line that contains: <code>&lt;Header {...pageProps} /&gt;</code></p>
+<p>Change this code to prevent props from being passed to the <code>Header</code> component. Delete the <code>{...pageProps}</code> part: <code>&lt;Header /&gt;</code></p>
+<p>Save the file. Go to <code>http://localhost:8000</code>. Now you see:<br><img src="https://user-images.githubusercontent.com/10218864/35936290-a92d2f58-0bf7-11e8-87d3-2415f0400aaa.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>In the next and last section of this chapter, we will make some UX improvements to our <code>Header</code> component with the help of a new component: <code>MenuDrop</code>.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="menudrop-component" href="#menudrop-component" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="menudrop-component">
+          MenuDrop component
+        </span>
+      </h2><p>In this last section of Chapter 2, let's make one more improvement to our <code>Header</code> component. When a user clicks on his/her avatar, we want the app to show a menu dropdown with options.</p>
+<p>We may re-use the menu dropdown somewhere else inside our app, so let's make it a component (and thus reusable).</p>
+<p>We will use the <code>&lt;Menu&gt;</code> component from Material-UI to create our own <code>MenuDrop</code> component. We will closely follow Material-UI's <a target="_blank" href="https://material-ui-next.com/demos/menus/#simple-menus" rel="noopener noreferrer">example of a simple menu</a>:<br><img src="https://user-images.githubusercontent.com/10218864/35938193-3ce69ee6-0bfd-11e8-8522-e2ed5ffba9c2.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Here is the code for this example:</p>
+<pre><code><span class="hljs-keyword">import</span> React <span class="hljs-keyword">from</span> <span class="hljs-string">'react'</span>;
+<span class="hljs-keyword">import</span> Button <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/core/Button'</span>;
+<span class="hljs-keyword">import</span> Menu <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/core/Menu'</span>;
+<span class="hljs-keyword">import</span> MenuItem <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/core/MenuItem'</span>;
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">SimpleMenu</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">React</span>.<span class="hljs-title">Component</span> </span>{
+  state = {
+    <span class="hljs-attr">anchorEl</span>: <span class="hljs-literal">null</span>,
+  }
+
+  handleClick = <span class="hljs-function">(<span class="hljs-params">event</span>) =&gt;</span> {
+    <span class="hljs-keyword">this</span>.setState({ <span class="hljs-attr">anchorEl</span>: event.currentTarget });
+  }
+
+  handleClose = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+    <span class="hljs-keyword">this</span>.setState({ <span class="hljs-attr">anchorEl</span>: <span class="hljs-literal">null</span> });
+  }
+
+  render() {
+    <span class="hljs-keyword">const</span> { anchorEl } = <span class="hljs-keyword">this</span>.state;
+
+    <span class="hljs-keyword">return</span> (
+      <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">Button</span>
+          <span class="hljs-attr">aria-owns</span>=<span class="hljs-string">{anchorEl</span> ? '<span class="hljs-attr">simple-menu</span>' <span class="hljs-attr">:</span> <span class="hljs-attr">null</span>}
+          <span class="hljs-attr">aria-haspopup</span>=<span class="hljs-string">"true"</span>
+          <span class="hljs-attr">onClick</span>=<span class="hljs-string">{this.handleClick}</span>
+        &gt;</span>
+          Open Menu
+        <span class="hljs-tag">&lt;/<span class="hljs-name">Button</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">Menu</span>
+          <span class="hljs-attr">id</span>=<span class="hljs-string">"simple-menu"</span>
+          <span class="hljs-attr">anchorEl</span>=<span class="hljs-string">{anchorEl}</span>
+          <span class="hljs-attr">open</span>=<span class="hljs-string">{Boolean(anchorEl)}</span>
+          <span class="hljs-attr">onClose</span>=<span class="hljs-string">{this.handleClose}</span>
+        &gt;</span>
+          <span class="hljs-tag">&lt;<span class="hljs-name">MenuItem</span> <span class="hljs-attr">onClick</span>=<span class="hljs-string">{this.handleClose}</span>&gt;</span>Profile<span class="hljs-tag">&lt;/<span class="hljs-name">MenuItem</span>&gt;</span>
+          <span class="hljs-tag">&lt;<span class="hljs-name">MenuItem</span> <span class="hljs-attr">onClick</span>=<span class="hljs-string">{this.handleClose}</span>&gt;</span>My account<span class="hljs-tag">&lt;/<span class="hljs-name">MenuItem</span>&gt;</span>
+          <span class="hljs-tag">&lt;<span class="hljs-name">MenuItem</span> <span class="hljs-attr">onClick</span>=<span class="hljs-string">{this.handleClose}</span>&gt;</span>Logout<span class="hljs-tag">&lt;/<span class="hljs-name">MenuItem</span>&gt;</span>
+        <span class="hljs-tag">&lt;/<span class="hljs-name">Menu</span>&gt;</span>
+      <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span></span>
+    );
+  }
+}
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> SimpleMenu;</code></pre><p>Notice that this component has a state, meaning it cannot be written as a stateless function. See <a target="_blank" href="https://builderbook.org/books/builder-book/app-structure-next-js-hoc-material-ui-server-side-rendering-styles#index-page" rel="noopener noreferrer">Chapter 1</a> to learn about stateless functional component. We defined this component as a child of <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/class" rel="noopener noreferrer">ES6 class</a> using <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes/extends" rel="noopener noreferrer">extends</a>:</p>
+<pre>class MenuDrop extends React.Component</pre>
+
+<p>Another interesting point - notice that we did not use <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes/constructor" rel="noopener noreferrer">constructor</a> syntax to initialize state for our <code>MenuDrop</code> component. We used <code>state = { ... }</code> instead. </p>
+<p>It's a matter of personal preference whether you like to use <code>state = { ... }</code> or <code>constructor</code>. Both of constructs <a target="_blank" href="https://stackoverflow.com/questions/37788342/is-it-better-to-define-state-in-constructor-or-using-property-initializers" rel="noopener noreferrer">compile to the same output</a>. However, if you want to set initial state with props (i.e. you want to access props) then you should use <code>constructor(props)</code> with <code>super(props)</code>, like this:</p>
+<pre><code><span class="hljs-function"><span class="hljs-keyword">constructor</span><span class="hljs-params">(props)</span> <span class="hljs-comment">{
+  super(props);
+  this.state = {
+    color: props.initialColor
+  }</span>;</span>
+}</code></pre><p>We will change 3 things in the example above:</p>
+<ol>
+<li>replace the <code>Open Menu</code> button with a user avatar image</li>
+<li>replace the <code>&lt;MenuItem&gt;</code> component with <code>&lt;Link&gt;</code> and <code>&lt;a&gt;</code> elements</li>
+<li>instead of hard-coding the text for menu items, we will pass <code>text</code> and <code>href</code> as props</li>
+</ol>
+<p>Make these 3 changes and you should get:<br><code>components/MenuDrop.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> React <span class="hljs-keyword">from</span> <span class="hljs-string">'react'</span>;
+<span class="hljs-keyword">import</span> PropTypes <span class="hljs-keyword">from</span> <span class="hljs-string">'prop-types'</span>;
+<span class="hljs-keyword">import</span> Link <span class="hljs-keyword">from</span> <span class="hljs-string">'next/link'</span>;
+<span class="hljs-keyword">import</span> Menu <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/core/Menu'</span>;
+<span class="hljs-keyword">import</span> Avatar <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/core/Avatar'</span>;
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">MenuDrop</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">React</span>.<span class="hljs-title">Component</span> </span>{
+  <span class="hljs-keyword">static</span> propTypes = {
+    <span class="hljs-attr">src</span>: PropTypes.string.isRequired,
+    <span class="hljs-attr">alt</span>: PropTypes.string.isRequired,
+    <span class="hljs-attr">options</span>: PropTypes.arrayOf(<span class="hljs-built_in">String</span>).isRequired,
+  };
+
+  state = {
+    <span class="hljs-attr">open</span>: <span class="hljs-literal">false</span>,
+    <span class="hljs-attr">anchorEl</span>: <span class="hljs-literal">undefined</span>,
+  };
+
+  button = <span class="hljs-literal">undefined</span>;
+
+  handleClick = <span class="hljs-function">(<span class="hljs-params">event</span>) =&gt;</span> {
+    <span class="hljs-keyword">this</span>.setState({ <span class="hljs-attr">open</span>: <span class="hljs-literal">true</span>, <span class="hljs-attr">anchorEl</span>: event.currentTarget });
+  };
+
+  handleClose = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+    <span class="hljs-keyword">this</span>.setState({ <span class="hljs-attr">open</span>: <span class="hljs-literal">false</span> });
+  };
+
+  render() {
+    <span class="hljs-keyword">const</span> { options, src, alt } = <span class="hljs-keyword">this</span>.props;
+
+    <span class="hljs-keyword">return</span> (
+      <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">Avatar</span>
+          <span class="hljs-attr">role</span>=<span class="hljs-string">"presentation"</span>
+          <span class="hljs-attr">aria-owns</span>=<span class="hljs-string">"simple-menu"</span>
+          <span class="hljs-attr">aria-haspopup</span>=<span class="hljs-string">"true"</span>
+          <span class="hljs-attr">onClick</span>=<span class="hljs-string">{this.handleClick}</span>
+          <span class="hljs-attr">onKeyPress</span>=<span class="hljs-string">{this.handleClick}</span>
+          <span class="hljs-attr">src</span>=<span class="hljs-string">{src}</span>
+          <span class="hljs-attr">alt</span>=<span class="hljs-string">{alt}</span>
+          <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">margin:</span> '<span class="hljs-attr">0px</span> <span class="hljs-attr">20px</span> <span class="hljs-attr">0px</span> <span class="hljs-attr">auto</span>', <span class="hljs-attr">cursor:</span> '<span class="hljs-attr">pointer</span>' }}
+        /&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">Menu</span>
+          <span class="hljs-attr">id</span>=<span class="hljs-string">"simple-menu"</span>
+          <span class="hljs-attr">anchorEl</span>=<span class="hljs-string">{this.state.anchorEl}</span>
+          <span class="hljs-attr">open</span>=<span class="hljs-string">{this.state.open}</span>
+          <span class="hljs-attr">onClose</span>=<span class="hljs-string">{this.handleClose}</span>
+        &gt;</span>
+          <span class="hljs-tag">&lt;<span class="hljs-name">p</span> /&gt;</span>
+          {options.map(option =&gt; (
+            <span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">id</span>=<span class="hljs-string">"wrappingLink"</span> <span class="hljs-attr">key</span>=<span class="hljs-string">{option.text}</span>&gt;</span>
+              <span class="hljs-tag">&lt;<span class="hljs-name">Link</span> <span class="hljs-attr">prefetch</span> <span class="hljs-attr">href</span>=<span class="hljs-string">{option.href}</span> <span class="hljs-attr">as</span>=<span class="hljs-string">{option.as</span> || <span class="hljs-attr">option.href</span>}&gt;</span>
+                <span class="hljs-tag">&lt;<span class="hljs-name">a</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">padding:</span> '<span class="hljs-attr">0px</span> <span class="hljs-attr">20px</span>' }}&gt;</span>{option.text}<span class="hljs-tag">&lt;/<span class="hljs-name">a</span>&gt;</span>
+              <span class="hljs-tag">&lt;/<span class="hljs-name">Link</span>&gt;</span>
+              <span class="hljs-tag">&lt;<span class="hljs-name">p</span> /&gt;</span>
+            <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
+          ))}
+        <span class="hljs-tag">&lt;/<span class="hljs-name">Menu</span>&gt;</span>
+      <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
+    );
+  }
+}
+
+export default MenuDrop;</span></code></pre><p>Open <code>components/Header.js</code>, and import the <code>MenuDrop</code> component with:<br><code>import MenuDrop from './MenuDrop'</code></p>
+<p>Inside <code>components/Header.js</code>, replace:</p>
+<pre><code>&lt;Avatar
+  src={user.avatarUrl}
+  alt={user.displayName}
+  style={{ margin: <span class="hljs-string">'0px auto 0px 20px'</span> }}
+/&gt;</code></pre><p>with:</p>
+<pre><code>{user.avatarUrl ? (
+  &lt;MenuDrop options={optionsMenu} src={user.avatarUrl} alt={user.displayName} /&gt;
+) : null}</code></pre><p>Specify data for the <code>MenuDrop</code> props:</p>
+<pre><code><span class="hljs-keyword">const</span> optionsMenu = [
+  {
+    <span class="hljs-built_in">text</span>: <span class="hljs-string">'Got question?'</span>,
+    href: <span class="hljs-string">'https://github.com/builderbook/builderbook/issues'</span>,
+  },
+  {
+    <span class="hljs-built_in">text</span>: <span class="hljs-string">'Log out'</span>,
+    href: <span class="hljs-string">'/logout'</span>,
+  },
+];</code></pre><p>Our updated <code>Header</code> component with the <code>MenuDrop</code> component will be:<br><code>components/Header.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> PropTypes from <span class="hljs-string">'prop-types'</span>;
+<span class="hljs-keyword">import</span> Link from <span class="hljs-string">'next/link'</span>;
+<span class="hljs-keyword">import</span> Toolbar from <span class="hljs-string">'@material-ui/core/Toolbar'</span>;
+<span class="hljs-keyword">import</span> Grid from <span class="hljs-string">'@material-ui/core/Grid'</span>;
+<span class="hljs-keyword">import</span> Hidden from <span class="hljs-string">'@material-ui/core/Hidden'</span>;
+<span class="hljs-keyword">import</span> Avatar from <span class="hljs-string">'@material-ui/core/Avatar'</span>;
+
+<span class="hljs-keyword">import</span> MenuDrop from <span class="hljs-string">'./MenuDrop'</span>;
+
+<span class="hljs-keyword">import</span> { styleToolbar } from <span class="hljs-string">'./SharedStyles'</span>;
+
+const optionsMenu = [
+  {
+    text: <span class="hljs-string">'Got question?'</span>,
+    href: <span class="hljs-string">'https://github.com/builderbook/builderbook/issues'</span>,
+  },
+  {
+    text: <span class="hljs-string">'Log out'</span>,
+    href: <span class="hljs-string">'/logout'</span>,
+  },
+];
+
+<span class="hljs-keyword">function</span> Header({ user }) {
+  return (
+    &lt;div&gt;
+      &lt;Toolbar style={styleToolbar}&gt;
+        &lt;Grid container direction=<span class="hljs-string">"row"</span> justify=<span class="hljs-string">"space-around"</span> alignItems=<span class="hljs-string">"center"</span>&gt;
+          &lt;Grid item sm={<span class="hljs-number">10</span>} xs={<span class="hljs-number">9</span>} style={{ textAlign: <span class="hljs-string">'left'</span> }}&gt;
+            {user ? (
+              &lt;div&gt;
+                &lt;Hidden smDown&gt;
+                  &lt;Link prefetch href=<span class="hljs-string">"/"</span>&gt;
+                    &lt;a style={{ marginRight: <span class="hljs-string">'20px'</span> }}&gt;Settings&lt;/a&gt;
+                  &lt;/Link&gt;
+                &lt;/Hidden&gt;
+              &lt;/div&gt;
+            ) : (
+              &lt;Link prefetch href=<span class="hljs-string">"/"</span>&gt;
+                &lt;Avatar
+                  src=<span class="hljs-string">"https://storage.googleapis.com/builderbook/logo.svg"</span>
+                  alt=<span class="hljs-string">"Builder Book logo"</span>
+                  style={{ margin: <span class="hljs-string">'0px auto 0px 20px'</span> }}
+                /&gt;
+              &lt;/Link&gt;
+            )}
+          &lt;/Grid&gt;
+          &lt;Grid item sm={<span class="hljs-number">1</span>} xs={<span class="hljs-number">3</span>} style={{ textAlign: <span class="hljs-string">'right'</span> }}&gt;
+            {user ? (
+              &lt;div style={{ whiteSpace: <span class="hljs-string">' nowrap'</span> }}&gt;
+                {user.avatarUrl ? (
+                  &lt;MenuDrop options={optionsMenu} src={user.avatarUrl} alt={user.displayName} /&gt;
+                ) : null}
+              &lt;/div&gt;
+            ) : (
+              &lt;Link prefetch href=<span class="hljs-string">"/login"</span>&gt;
+                &lt;a style={{ margin: <span class="hljs-string">'0px 20px 0px auto'</span> }}&gt;Log in&lt;/a&gt;
+              &lt;/Link&gt;
+            )}
+          &lt;/Grid&gt;
+        &lt;/Grid&gt;
+      &lt;/Toolbar&gt;
+    &lt;/div&gt;
+  );
+}
+
+Header.propTypes = {
+  user: PropTypes.shape({
+    avatarUrl: PropTypes.string,
+    displayName: PropTypes.string,
+  }),
+};
+
+Header.defaultProps = {
+  user: null,
+};
+
+export <span class="hljs-keyword">default</span> Header;</code></pre><p>Let's test it out.</p>
+<p>Start your app (<code>yarn dev-express</code>) and go to<code>http://localhost:8000</code>:<br><img src="https://user-images.githubusercontent.com/10218864/35939361-bc09bd5e-0c00-11e8-9cf3-44313c039a8f.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Click the user avatar icon and you should see a menu dropdown with two links:<br><img src="https://user-images.githubusercontent.com/10218864/35939240-67e90b9e-0c00-11e8-89c9-b4a115e6f971.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>That's the end of Chapter 2!</p>
+<p>In this chapter, you successfully created an Express server and connected our app to a database. You learned about <code>session</code> and <code>cookie</code>, as well as how to save a <code>session</code> to the database. At the end of this Chapter, we made some UX/UI improvements to prepare our app for user authentication.</p>
+<p>In Chapter 3, we will add user authentication. We will save a user id to the session that you added in this chapter in order to create a <em>persistent</em> login session. Among other things, you will learn key JavaScript concepts, such as <code>Promise/then()</code> and  <code>async/await</code>. By the end of Chapter 3, our app will have user authentication with Google OAuth 2.0.</p>
+<hr>
+<p>At the end of Chapter 2, your codebase should look like the codebase in <code>2-end</code>. The <a target="_blank" href="https://github.com/builderbook/builderbook/tree/master/book/2-end" rel="noopener noreferrer">2-end</a> folder is located at the root of the <code>book</code> directory inside the <a target="_blank" href="https://github.com/builderbook/builderbook" rel="noopener noreferrer">builderbook repo</a>.</p>
+<p>Compare your codebase and make edits if needed.</p>
+<p>Enjoying the book so far? Please share a quick <a target="_blank" href="https://goo.gl/forms/JdevtnCWsLwZTAio2" rel="noopener noreferrer">review</a>. You can update your review at any time.</p>
+<hr>
+</div></div>

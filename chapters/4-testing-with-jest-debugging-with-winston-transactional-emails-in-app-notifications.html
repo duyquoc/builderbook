@@ -1,0 +1,1309 @@
+<div id="chapter-content" style="padding: 20px 10%; background-color: white; color: black;"><h2 style="font-weight: 400; line-height: 1.5em; background-color: white; color: black;">Chapter 4: Testing with Jest. Debugging with Winston. Transactional emails. In-app notifications.</h2><div style="background-color: white; color: black;"><hr>
+<ul>
+<li>Testing with Jest <br></li>
+</ul>
+<ul>
+<li>Debugging with Winston <br></li>
+</ul>
+<ul>
+<li>Transactional emails <br><ul>
+<li>Set up, keys, env variables</li>
+<li>sendEmail() method</li>
+<li>Export and import in server code</li>
+<li>insertTemplates() method</li>
+<li>getEmailTemplate() method</li>
+<li>Update User model</li>
+<li>Testing</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>In-app notifications <br><ul>
+<li>Notifier component</li>
+<li>notify() function</li>
+<li>Example of usage </li>
+</ul>
+</li>
+</ul>
+<hr>
+<p>Before you start working on Chapter 4, get the <code>4-begin</code> codebase. The <a target="_blank" href="https://github.com/builderbook/builderbook/tree/master/book/4-begin" rel="noopener noreferrer">4-begin</a> folder is located at the root of the <code>book</code> directory inside the <a target="_blank" href="https://github.com/builderbook/builderbook" rel="noopener noreferrer">builderbook repo</a>.</p>
+<ul>
+<li>If you haven't cloned the builderbook repo yet, clone it to your local machine with <code>git clone https://github.com/builderbook/builderbook.git</code>.</li>
+<li>Inside the <code>4-begin</code> folder, run <code>yarn</code> to install all packages. </li>
+</ul>
+<p>These are the packages that we install specifically for Chapter 4:</p>
+<ul>
+<li><code>"aws-sdk"</code></li>
+<li><code>"email-addresses"</code></li>
+<li><code>"jest"</code></li>
+<li><code>"winston"</code></li>
+</ul>
+<p>Check out the <a target="_blank" href="https://github.com/builderbook/builderbook/blob/master/book/4-begin/package.json" rel="noopener noreferrer">package.json</a> for Chapter 4.</p>
+<ul>
+<li>Be sure to use these specific packages and ignore any warnings about upgrading. We regularly upgrade all packages and test them in the book. But before testing, we cannot guarantee that a new package version will work properly.</li>
+</ul>
+<p>Remember to include your <code>.env</code> at the root of your app. By the end of Chapter 4, you will add <code>Amazon_accessKeyId</code>, <code>Amazon_secretAccessKey</code>, <code>Amazon_region</code>, and <code>EMAIL_SUPPORT_FROM_ADDRESS</code> environmental variables to your <code>.env</code> file. </p>
+<hr>
+<br>
+
+<p>In the previous chapters, we:</p>
+<ul>
+<li>set up and integrated our Next.js app with Material-UI (Chapter 1)</li>
+<li>created our custom server, session, and User model (Chapter 2)</li>
+<li>added user athentication with Google OAuth 2.0 (Chapter 3)</li>
+</ul>
+<p>In this chapter (Chapter 4), our main goals are:</p>
+<ul>
+<li>to get familiar with unit testing and error logging</li>
+<li>set up transactional emails in our app with AWS SES</li>
+<li>add in-app notifications and tooltips</li>
+</ul>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="testing-with-jest" href="#testing-with-jest" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="testing-with-jest">
+          Testing with Jest
+        </span>
+      </h2><p>As our app grows, it takes more time to test our code. When the app's codebase gets large and interconnected, manual testing becomes more time-consuming. To stay productive as a developer, we can create automated tests. You can write a test as small as checking one single object/function (unit test) or as complex as checking multiple interconnected objects (integration test). More on <a target="_blank" href="http://www.continuousagile.com/unblock/test_types.html" rel="noopener noreferrer">test types</a>.</p>
+<p>In this subsection, we get familiar with automated code testing. As an example, we want to test if our code generates the proper <code>slug</code> in different scenarios. We placed our slug-generating code at <code>server/utils/slugify.js</code>. You may remember from Chapter 3 that we used the <code>generateSlug()</code> function to generate a <code>slug</code> for the User model. We will also use this function to generate a slug for the Book and Chapter models (Chapter 6). However, for testing, we will focus only on the User model.</p>
+<p>We will use <a target="_blank" href="https://facebook.github.io/jest" rel="noopener noreferrer">Jest</a>, a popular JavaScript testing library by Facebook. We will write a simple unit test that checks if the <code>generateSlug()</code> function generates the proper <code>slug</code>. </p>
+<p>First, we need to decide where to store our unit test. Jest automatically finds files containing test code. We have to either place our files in a <code>__tests__</code> folder or create a file with a <code>.test.js</code> extension. We use the second option - for no particular reason. </p>
+<p>Below, we will create a <code>slugify.test.js</code> file to test our code in <code>slugify.js</code>. We place the former file into <code>test/server/utils/slugify.test.js</code>. Go ahead and create the new folder and file.</p>
+<p>To design our unit test, we should look at the <code>generateSlug(Model, name)</code> function inside <code>server/utils/slugify.js</code> and see what this function does:</p>
+<pre><code><span class="hljs-keyword">const</span> _ = <span class="hljs-built_in">require</span>(<span class="hljs-string">'lodash'</span>);
+
+<span class="hljs-comment">// https://devdocs.io/lodash~4/index#kebabCase</span>
+
+<span class="hljs-keyword">const</span> slugify = <span class="hljs-function">(<span class="hljs-params">text</span>) =&gt;</span> _.kebabCase(text);
+
+<span class="hljs-keyword">async</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">createUniqueSlug</span>(<span class="hljs-params">Model, slug, count</span>) </span>{
+  <span class="hljs-keyword">const</span> user = <span class="hljs-keyword">await</span> Model.findOne({ <span class="hljs-attr">slug</span>: <span class="hljs-string">`<span class="hljs-subst">${slug}</span>-<span class="hljs-subst">${count}</span>`</span> }, <span class="hljs-string">'id'</span>);
+
+  <span class="hljs-keyword">if</span> (!user) {
+    <span class="hljs-keyword">return</span> <span class="hljs-string">`<span class="hljs-subst">${slug}</span>-<span class="hljs-subst">${count}</span>`</span>;
+  }
+
+  <span class="hljs-keyword">return</span> createUniqueSlug(Model, slug, count + <span class="hljs-number">1</span>);
+}
+
+<span class="hljs-keyword">async</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">generateSlug</span>(<span class="hljs-params">Model, name, filter = {}</span>) </span>{
+  <span class="hljs-keyword">const</span> origSlug = slugify(name);
+
+  <span class="hljs-keyword">const</span> user = <span class="hljs-keyword">await</span> Model.findOne(<span class="hljs-built_in">Object</span>.assign({ <span class="hljs-attr">slug</span>: origSlug }, filter), <span class="hljs-string">'id'</span>);
+
+  <span class="hljs-keyword">if</span> (!user) {
+    <span class="hljs-keyword">return</span> origSlug;
+  }
+
+  <span class="hljs-keyword">return</span> createUniqueSlug(Model, origSlug, <span class="hljs-number">1</span>);
+}
+
+<span class="hljs-built_in">module</span>.exports = generateSlug;</code></pre><p>The <code>generateSlug()</code> function does a few things. </p>
+<ul>
+<li>First, the function converts <code>name</code> into <code>slug</code> using <code>slugify()</code> defined at the top of the file.</li>
+<li>Then the function checks if a user with the same slug already exists: <code>Model.findOne({ slug: origSlug })</code></li>
+<li>If a user with the same <code>slug</code> does <em>not</em> exist, the function returns the <code>if (!user) {return origSlug;}</code> </li>
+<li>If a user with the same slug does exist, the function adds a number at the end of the <code>slug</code> and returns this new slug: <code>createUniqueSlug(Model, origSlug, 1</code>.</li>
+</ul>
+<p>Ok, we understand what the function does. Now what are the scenarios in which we need to test for proper <code>slug</code> creation?</p>
+<ol>
+<li><p>Scenario 1. We should test if the function generates the proper slug when <em>no user</em> exists with the same <code>slug</code>. In this scenario, we basically test if <code>slugify()</code> converts <code>name</code> into <code>slug</code> using <code>_.kebabCase(text)</code> (<a target="_blank" href="https://devdocs.io/lodash~4/index#kebabCase" rel="noopener noreferrer">see Lodash docs</a>). Let's call this test <code>no duplication</code>.</p>
+</li>
+<li><p>Scenario 2. We should test if the function generates the proper <code>slug</code> when a user with the same <code>slug</code> already exists. Let's call this test <code>one duplication</code>.</p>
+</li>
+<li><p>Scenario 3. Optionally, we should test if the function generates the proper <code>slug</code> when a user with same <code>slug</code> already exists and <em>another</em> user with that <code>slug</code> appended with <code>-1</code> exists as well. We'll call this test <code>multiple duplications</code>.</p>
+</li>
+</ol>
+<p>Let's follow the example in Jest's docs on how to write a unit test for a simple function. Here is the function:</p>
+<pre><code>function sum(a, b) {
+  return a + b;
+}
+
+<span class="hljs-builtin-name">export</span><span class="hljs-built_in"> default </span>sum</code></pre><p>For this function, the <code>sum checker</code> test is:</p>
+<pre><code><span class="hljs-keyword">import</span> sum <span class="hljs-keyword">from</span> <span class="hljs-string">'./sum'</span>;
+
+test(<span class="hljs-string">'sum checker'</span>, <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+  expect(sum(<span class="hljs-number">1</span>, <span class="hljs-number">2</span>)).toBe(<span class="hljs-number">3</span>);
+});</code></pre><p>Following the example above, for the test <code>no duplication</code> and function <code>generateSlug()</code>, you get:</p>
+<pre><code>test('no duplication', () =&gt; {
+  expect.assertions(<span class="hljs-number">1</span>)<span class="hljs-comment">;</span>
+
+  return generateSlug(<span class="hljs-name">MockUser</span>, 'John Jonhson').then((<span class="hljs-name">slug</span>) =&gt; {
+    expect(<span class="hljs-name">slug</span>).toBe('john-jonhson')<span class="hljs-comment">;</span>
+  })<span class="hljs-comment">;</span>
+})<span class="hljs-comment">;</span></code></pre><p>This test says that for a user with <code>name</code> <code>John Jonhson</code>, <em>expect</em> the <code>slug</code> <em>to be</em> <code>john-jonhson</code>.</p>
+<p>The only unknown code in the block above might be <code>expect.assertions(1)</code>. The number of assertions is the number of <code>expect().toBe()</code> assertions that you expect inside the test.</p>
+<p>In our case, the number of assertions is one. By specifying <code>expect.assertions(1);</code> - we tell Jest to call that one assertion that we have in the code <code>expect(slug).toBe('john-jonhson-jr-');</code>. <em>Without</em> specifying <code>expect.assertions(1);</code> - our assertion may or may not be called. If we specify the wrong number of assertions - our test will fail.</p>
+<p>When the number of assertions is 2 or more, use <code>expect.assertions(number)</code> to make sure that all assertions are called. You can read more about <code>expect.assertions(number)</code> in the <a target="_blank" href="https://facebook.github.io/jest/docs/en/expect.html#expectassertionsnumber" rel="noopener noreferrer">Jest docs</a>.</p>
+<p>You just wrote one test - <code>no duplication</code>. Now write our two other tests (<code>one duplication</code> and <code>multiple duplications</code>) and put all three of them into the so called <a target="_blank" href="https://facebook.github.io/jest/docs/en/api.html#describename-fn" rel="noopener noreferrer">test suite</a> by using Jest's <code>describe(name, fn)</code> syntax:<br><code>test/server/utils/slugify.test.js</code> :</p>
+<pre><code>const generateSlug = <span class="hljs-built_in">require</span>(<span class="hljs-string">'../../../server/utils/slugify'</span>);
+
+const MockUser = {
+  slugs: [<span class="hljs-string">'john-jonhson-jr'</span>, <span class="hljs-string">'john-jonhson-jr-1'</span>, <span class="hljs-string">'john'</span>],
+  findOne({ slug }) {
+    <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.slugs.includes(slug)) {
+      <span class="hljs-keyword">return</span> Promise.resolve({ id: <span class="hljs-string">'id'</span> });
+    }
+
+    <span class="hljs-keyword">return</span> Promise.resolve(<span class="hljs-literal">null</span>);
+  },
+};
+
+describe(<span class="hljs-string">'slugify'</span>, <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+  test(<span class="hljs-string">'no duplication'</span>, <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+    expect.assertions(<span class="hljs-number">1</span>);
+
+    <span class="hljs-keyword">return</span> generateSlug(MockUser, <span class="hljs-string">'John Jonhson.'</span>).<span class="hljs-keyword">then</span>(<span class="hljs-function"><span class="hljs-params">(slug)</span> =&gt;</span> {
+      expect(slug).toBe(<span class="hljs-string">'john-jonhson'</span>);
+    });
+  });
+
+  test(<span class="hljs-string">'one duplication'</span>, <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+    expect.assertions(<span class="hljs-number">1</span>);
+
+    <span class="hljs-keyword">return</span> generateSlug(MockUser, <span class="hljs-string">'John.'</span>).<span class="hljs-keyword">then</span>(<span class="hljs-function"><span class="hljs-params">(slug)</span> =&gt;</span> {
+      expect(slug).toBe(<span class="hljs-string">'john-1'</span>);
+    });
+  });
+
+  test(<span class="hljs-string">'multiple duplications'</span>, <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+    expect.assertions(<span class="hljs-number">1</span>);
+
+    <span class="hljs-keyword">return</span> generateSlug(MockUser, <span class="hljs-string">'John Jonhson Jr.'</span>).<span class="hljs-keyword">then</span>(<span class="hljs-function"><span class="hljs-params">(slug)</span> =&gt;</span> {
+      expect(slug).toBe(<span class="hljs-string">'john-jonhson-jr-2'</span>);
+    });
+  });
+});</code></pre><p><code>MockUser</code> returns a user if the generated <code>slug</code> <em>does match</em> a value from the <code>slugs: ['john-jonhson-jr', 'john-jonhson-jr-1', 'john']</code> array.</p>
+<p><code>MockUser</code> returns <code>null</code> if the generated <code>slug</code> <em>does not match</em> any value from the <code>slugs: ['john-jonhson-jr', 'john-jonhson-jr-1', 'john']</code> array.</p>
+<p>Think of this <code>slugs</code> array as an imitation of MongoDB - our "database" has 3 users with the slugs <code>john-jonhson-jr</code>, <code>john-jonhson-jr-1</code>, and <code>john</code>.</p>
+<p>This setup for a "database" may look confusing, and it is. Let's discuss 2 examples to better understand the setup.</p>
+<ol>
+<li><p>Take a look at the <code>no duplication</code> test. Remember that <code>generateSlug(Model, name)</code> generated the <code>slug</code> <code>john-johnson</code> for a <code>MockUser</code> with the <code>name</code> <code>John Johnson</code>. Since <code>john-johnson</code> <em>does not match</em> any value from the <code>slugs: ['john-jonhson-jr', 'john-jonhson-jr-1', 'john']</code> array, <code>MockUser</code> returns <code>Promise.resolve(null)</code>. This means that in our "database", there is no user with the <code>john-johnson</code> slug. Thus, the following code gets executed inside <code>generateSlug()</code>:</p>
+<pre><code><span class="hljs-keyword">if</span> (!user) {
+ <span class="hljs-keyword">return</span> origSlug;
+}</code></pre><p>If user does not exist, <code>origSlug</code> is indeed original and becomes our user's <code>slug</code>.</p>
+</li>
+<li><p>Take a look at the <code>one duplication</code> test. Again, this method generates the slug <code>john</code>. Since <code>john</code> <em>does match</em> a value in the <code>slugs: ['john-jonhson-jr', 'john-jonhson-jr-1', 'john']</code> array, instead of <code>Promise.resolve(null)</code>, <code>MockUser</code> returns <code>Promise.resolve({ id: 'id' })</code>. Thus, the following code inside <code>generateSlug()</code> gets executed:</p>
+<pre>return createUniqueSlug(Model, origSlug, 1);</pre>
+
+<p><code>origSlug</code> is <em>not</em> original, so the <code>createUniqueSlug()</code> function adds <code>-1</code> to the <code>john</code> slug, thereby outputting <code>john-1</code>.</p>
+</li>
+</ol>
+<p>Alright, now that you know how tests work - it's time for testing.</p>
+<p>To run Jest, add this extra command to our <code>scripts</code> in <code>package.json</code>:</p>
+<pre>"test": "jest"</pre>
+
+<p>Go to terminal and run <code>yarn test</code>. Jest will generate the following report:<br><img src="https://user-images.githubusercontent.com/10218864/33283001-4b65c298-d35f-11e7-9924-b4965f819f1e.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>From this jest report, we see that our test suite called <code>slugify</code> passed. This suite consists of three tests: <code>no duplication</code>, <code>one duplication</code>, and <code>multiple duplications</code>.</p>
+<p>To see how the report looks when the test fails, go to <code>server/utils/slugify.js</code>. Find line 24:</p>
+<pre>return createUniqueSlug(Model, slug, count + 1);</pre>
+
+<p>Modify this line to be:</p>
+<pre>return createUniqueSlug(Model, slug, count + 2);</pre>
+
+<p>Go to terminal and run <code>yarn test</code>. Jest will generate a new report:</p>
+<p><img src="https://user-images.githubusercontent.com/10218864/33344757-e5934ed2-d43e-11e7-94d1-e56d8ee22210.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>This report shows that the third test called <code>multiple duplications</code> failed. As a result, the entire test suite failed. Jest specifies the reason for failure:</p>
+<pre><code>Expected <span class="hljs-built_in">value</span> <span class="hljs-built_in">to</span> be (<span class="hljs-keyword">using</span> ===):
+  <span class="hljs-string">"john-jonhson-jr-2"</span>
+Received:
+  <span class="hljs-string">"john-jonhson-jr-3"</span></code></pre><p>In this case, our <code>generateSlug()</code> function failed the test because it generated <code>john-jonhson-jr-3</code> instead of <code>john-jonhson-jr-2</code>. Don't forget to go back to <code>server/utils/slugify.js</code> and fix the code to pass all tests.</p>
+<p>One final note on Jest - <a target="_blank" href="https://facebook.github.io/jest/docs/en/cli.html#coverage" rel="noopener noreferrer">saving reports</a> is easy. We simply modify  <code>package.json</code> as follows.</p>
+<p>Edit the <code>test</code> command in <code>scripts</code>:</p>
+<pre>"test": "jest --coverage"</pre>
+
+<p>Under the <code>scripts</code> section, add a new section:</p>
+<pre><code>  <span class="hljs-string">"jest"</span>: {
+    <span class="hljs-string">"coverageDirectory"</span>: <span class="hljs-string">"./.coverage"</span>
+  }</code></pre><p>Go to terminal and run <code>yarn test</code>. Jest will save the generated report to <code>.coverage/lcov-report/index.html</code>. Open the <code>index.html</code> file in your browser to see a summary of the report:<br><img src="https://user-images.githubusercontent.com/10218864/35076735-b1fbf9ec-fbae-11e7-962f-c91cf6f30d14.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>You should add the <code>.coverage</code> directory to your <code>.gitignore</code> file to exclude it from your remote repository on Github.</p>
+<p>In some situations, integration tests are more appropriate than a group of unit tests. In our app, we theoretically can write an integration test that simultaneously tests static CRUD methods in our Book or User model.</p>
+<p>One of our book readers (<a target="_blank" href="https://github.com/YuriGor" rel="noopener noreferrer">@YuriGor</a>) suggested test that tests entire static method <code>User.signInOrSignUp()</code>. You can find <a target="_blank" href="https://gist.github.com/YuriGor/92ea4c21e92e84a15a7e8925c2ec6bcf" rel="noopener noreferrer">this test</a> hosted on GithubGist. Here is test:</p>
+<pre><code>const mongoose = require('mongoose')<span class="hljs-comment">;</span>
+const User = require('../../../server/models/User')<span class="hljs-comment">;</span>
+
+describe('slugify', () =&gt; {
+  beforeAll(<span class="hljs-name">async</span> () =&gt; {
+    await mongoose.connect(<span class="hljs-name">global</span>.__MONGO_URI__)<span class="hljs-comment">;</span>
+    console.log('connected')<span class="hljs-comment">;</span>
+  })<span class="hljs-comment">;</span>
+  afterAll(<span class="hljs-name">async</span> () =&gt; {
+    await mongoose.disconnect()<span class="hljs-comment">;</span>
+    console.log('disconnected')<span class="hljs-comment">;</span>
+  })<span class="hljs-comment">;</span>
+  test('no duplication', async () =&gt; {
+    expect.assertions(<span class="hljs-number">1</span>)<span class="hljs-comment">;</span>
+    await User.remove()<span class="hljs-comment">;</span>
+    const user = await User.signInOrSignUp({
+      googleId: 'test1',
+      email: 'test1@test.ts',
+      googleToken: { accessToken: 'test1', refreshToken: 'test1' },
+      displayName: 'Test Name',
+      avatarUrl: 'test1',
+    })<span class="hljs-comment">;</span>
+    expect(<span class="hljs-name">user</span>.slug).toBe('test-name')<span class="hljs-comment">;</span>
+  })<span class="hljs-comment">;</span>
+})<span class="hljs-comment">;</span></code></pre><p>This test </p>
+<ul>
+<li>connects server to DB via Mongoose, </li>
+<li>creates user in DB using static method <code>User.signInOrSignUp()</code>,</li>
+<li>then checks if created <code>user</code> object has proper value for parameter <code>slug</code>,</li>
+<li>finally, server disconnects from DB.</li>
+</ul>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="debugging-with-winston" href="#debugging-with-winston" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="debugging-with-winston">
+          Debugging with Winston
+        </span>
+      </h2><p>In this subsection, we will set up simple logging with <a target="_blank" href="https://github.com/winstonjs/winston" rel="noopener noreferrer">Winston</a>.</p>
+<p>Winston logging allows us categorize server logs by priority. Why is this useful? With a logger such as Winston, we can output a particular level of messages in development mode but not in production mode. </p>
+<p>For example, we may want to see error and warning messages in our local app (locally, or in development mode, you see server logs in your terminal) but only see error messages <em>in the logs</em> of our deployed app (in production mode, you log in into your remote server). Winston helps us achieve exactly that.</p>
+<p>Once we set up Winston logger, instead of using <code>console.log()</code> for all server logs, we can make some messages more important. For example, errors messages (<code>logger.error()</code>) are more important than non-critical info messages (<code>logger.info()</code>).</p>
+<p>You may use some of your info messages for debugging. In that case, you should not log these messages on your production server, but you also don't want to delete them manually before each deploy. You can achive that by configuring Winston to output messages with certain level of importance.</p>
+<p>Before we use Winston logger, we should configure it using the <code>winston.createLogger()</code> method. We put this custom configuration into our <code>server/logs.js</code> file. In this book, for the sake of keeping things simple, we specify only 3 options. See the <a target="_blank" href="https://github.com/winstonjs/winston" rel="noopener noreferrer">official docs</a> for the entire list of options. Our custom logger looks like:<br><code>server/logs.js</code> :</p>
+<pre><code>const winston = require('winston');
+
+const logger = winston.createLogger({
+  <span class="hljs-attribute">level</span>: process<span class="hljs-variable">.env</span><span class="hljs-variable">.NODE_ENV</span> === 'production' ? 'info' : 'debug',
+  format: winston<span class="hljs-variable">.format</span><span class="hljs-variable">.combine</span>(winston<span class="hljs-variable">.format</span><span class="hljs-variable">.splat</span>(), winston<span class="hljs-variable">.format</span><span class="hljs-variable">.simple</span>()),
+  transports: [new winston<span class="hljs-variable">.transports</span><span class="hljs-variable">.Console</span>()],
+});
+
+<span class="hljs-attribute">module.exports = logger;</span></code></pre><p>In our custom logger, we specified 3 options:</p>
+<ol>
+<li><p><code>level</code> option. This option allows you to specify the message level. The logger will only output messages of a specified level and higher. Here, we simply said the following: in production mode, only log messages with the level <code>info</code> or higher; in development mode, only log messages with the level <code>debug</code> or higher. There are <a target="_blank" href="https://github.com/winstonjs/winston#using-logging-levels" rel="noopener noreferrer">6 levels of messages</a>. Here is a list ordered from highest (0) to lowest priority (5):</p>
+<pre><code>{ 
+ error: <span class="hljs-number">0</span>, 
+ warn: <span class="hljs-number">1</span>, 
+ info: <span class="hljs-number">2</span>, 
+ verbose: <span class="hljs-number">3</span>, 
+ debug: <span class="hljs-number">4</span>, 
+ silly: <span class="hljs-number">5</span> 
+}</code></pre><p>It's clear now that in production mode, we want to see <code>error</code>, <code>warn</code>, and <code>info</code> messages, but we don't want to see <code>verbose</code>, <code>debug</code>, and <code>silly</code> ones. In development mode, we will also see <code>debug</code> and <code>verbose</code> messages. The <code>debug</code> messages are handy if you debug often and occasionaly forget to delete a debug code when preparing your app for production.</p>
+</li>
+<li><p><code>format</code> option. This option allows you to choose the format of your output. By default, you should choose a simple format <code>winston.format.simple()</code>, which will output <code>${info.level}: ${info.message} JSON.stringify({ ...rest })</code>. However, in addition to simple format, we add <code>splat</code> format to account for following exception. In Winston logger, if object that you like to print has properties <code>level</code> or <code>message</code> - these properties won't be printed since <code>level</code> and <code>message</code> are reserved (<a target="_blank" href="https://github.com/winstonjs/winston#streams-objectmode-and-info-objects" rel="noopener noreferrer">read more here</a>). To be able to print <code>level</code> and <code>message</code> properties of an object, we have to use so called <code>splat</code> format in addition to simple format.</p>
+</li>
+<li><p><code>transports</code> option. This option allows you to send and save logs to a particular file. However, we won't save logs to a file. We will only output messages to our terminal with the <code>[new winston.transports.Console()]</code> option.</p>
+</li>
+</ol>
+<p>We are almost ready to test. Open the <code>server/app.js</code> file and find this line:</p>
+<pre>console.log(`&gt; Ready on ${ROOT_URL}`); // eslint-disable-line no-console</pre>
+
+<p>Replace the line with:</p>
+<pre>logger.info(`&gt; Ready on ${ROOT_URL}`);</pre>
+
+<p>Remember to import our custom logger by adding <code>import logger from './logs';</code> to the import section of the <code>server/app.js</code> file.</p>
+<p>Start your app with <code>yarn dev</code> and look at the terminal's output:</p>
+<p><img src="https://user-images.githubusercontent.com/10218864/33351343-272f6bb4-d458-11e7-8873-9eaef7b40e41.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>If you see a similar output, good job - you configured your custom logger! Now the debugging process will be more productive.</p>
+<p>For debugging, use <code>logger.debug()</code>. For errors, use <code>logger.error()</code>. Later in this chapter, we will have an opportunity to use our logger for messages of different levels.</p>
+<p>In the next section, we will add transactional emails to our app, and we will use our custom logger to output errors in some methods (for example, inside our <code>insertTemplates()</code> method).</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="transactional-emails-with-aws-ses" href="#transactional-emails-with-aws-ses" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="transactional-emails-with-aws-ses">
+          Transactional emails with AWS SES
+        </span>
+      </h2><p>In this section, we'll add transactional emails to our app by using <a target="_blank" href="https://aws.amazon.com/ses/" rel="noopener noreferrer">AWS SES</a>.</p>
+<p>Our <a target="_blank" href="https://github.com/builderbook/builderbook" rel="noopener noreferrer">open source project</a> for our Builder Book app has multiple transactional emails. However, in this book, we will show you how to send only one transactional email - the welcome email to users after they sign up. You can follow this welcome email example to create any other transactional email your app needs.</p>
+<p>Your <code>package.json</code> file should have two dependencies that we need. The first one is <code>aws-sdk</code>, which we'll use to access AWS SES API. The second one is <code>lodash</code> (introduced in Chapter 3), which we'll use to add variables to our email. For example, we will add a user name variable to address a user by his/her name in our welcome email. If you ran <code>yarn</code> on the <code>4-begin</code> codebase, then you already installed these dependencies and are ready to go. If not, run <code>yarn</code> now.</p>
+<h4 style="color: #FFF;">
+        <a name="set-up-keys-env-variables" href="#set-up-keys-env-variables" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Set up, keys, env variables
+      </h4><p>Sign up for <a target="_blank" href="https://aws.amazon.com" rel="noopener noreferrer">AWS</a> and navigate to <a target="_blank" href="https://console.aws.amazon.com/ses/home" rel="noopener noreferrer">AWS SES</a>.</p>
+<p>In this subsection, we want to achieve the following:</p>
+<ol>
+<li>verify your email address (SES will email users on behalf of this email address)</li>
+<li>generate an AWS access key and secret access key</li>
+<li>add keys to our list of environmental variables at <code>.env</code></li>
+</ol>
+<p>Below, we walk you through each step.</p>
+<ol>
+<li><p>Go to <code>Email Addresses</code> in your SES dashboard. Check the snapshot below to find the link on your dashboard:<br><img src="https://user-images.githubusercontent.com/10218864/33444436-296755ce-d5af-11e7-92db-fb8b5780d30c.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Click the dark blue button <code>Verify a New Email Address</code>. Follow the instructions. Once your email address is verified, you can use it to send emails. You will be able to send test emails from the SES dashboard, as well as from your app using SES API.</p>
+<p><em>Important note</em>: it may take some time for AWS SES to verify your email. Our app will use this verified email as <code>from</code> email address for transactional emails.</p>
+<p>Also note that all new AWS SES accounts are placed in the Amazon SES <em>sandbox</em>, which has limits on which addresses you can send mail from and send mail to. These limits, and instructions on how to remove your account from the sandbox, are described <a target="_blank" href="https://docs.aws.amazon.com/ses/latest/DeveloperGuide/request-production-access.html" rel="noopener noreferrer">here</a> in the official AWS SES docs.</p>
+<p>You may see warnings about these limits in your SES control panel, but for going through this book, you do not need to upgrade from a sandbox account.</p>
+</li>
+<li><p>To access AWS API from our app, we need to generate an access key and secret access key at <a target="_blank" href="https://console.aws.amazon.com/iam/home#/security_credential" rel="noopener noreferrer">Security Credentials</a>. Follow the snapshot below to access your Security Credentials:<br><img src="https://user-images.githubusercontent.com/10218864/33445054-bf476196-d5b0-11e7-973b-3f53ad3d8ad1.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Open the section "Access keys (access key ID and secret access key)" and click the dark blue button <code>Create New Access Key</code>. Copy your access key and secret access key. Keep them in a safe place! After you create your keys, you <em>won't be able</em> to find or edit your secret access key. If you lose your secret access key, you'll have to create a new pair of keys.</p>
+</li>
+<li><p>Take your newly generated <code>Amazon_accessKeyId</code>, <code>Amazon_secretAccessKey</code>, and verified email address <code>EMAIL_SUPPORT_FROM_ADDRESS</code>. Also select an <code>Amazon_region</code> for your account (for example, <code>us-east-1</code>, <code>us-west-2</code>, or <code>eu-west-1</code>). Open your <code>.env</code> file and paste your values:</p>
+<pre><code><span class="hljs-attr">MONGO_URL_TEST</span>=<span class="hljs-string">"XXXXXXXXXX"</span>
+
+<span class="hljs-attr">Google_clientID</span>=<span class="hljs-string">"XXXXXXXXXX"</span>
+<span class="hljs-attr">Google_clientSecret</span>=<span class="hljs-string">"XXXXXXXXXX"</span>
+
+<span class="hljs-attr">Amazon_accessKeyId</span>=<span class="hljs-string">"XXXXXXXXXX"</span>
+<span class="hljs-attr">Amazon_secretAccessKey</span>=<span class="hljs-string">"XXXXXXXXXX"</span>
+<span class="hljs-attr">Amazon_region</span>=<span class="hljs-string">"XXXXXXXXXX"</span>
+
+<span class="hljs-attr">EMAIL_SUPPORT_FROM_ADDRESS</span>=<span class="hljs-string">"XXXXXXXXXX@XXXXXXXX.com"</span></code></pre></li>
+</ol>
+<p>Done!</p>
+<p>Note that we <code>us-east-1</code> is our particular region for AWS SES, but you can configure AWS SES with the specific region for your account.</p>
+<p>Also note that you can pass global configurations to AWS as well as unique configurations to a particular AWS service. The latter can be done by following the <a target="_blank" href="https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/Config.html#ses-property" rel="noopener noreferrer">AWS docs</a>.</p>
+<p>In the next sections, we'll write a <code>sendEmail()</code> function, create a welcome email, and update our User model to send a welcome email to every signed-up user.</p>
+<h4 style="color: #FFF;">
+        <a name="sendemail-method" href="#sendemail-method" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        sendEmail() method
+      </h4><p>We will use the <code>ses.sendEmail()</code> API method to send emails. Before we jump to it, let's configure our <code>aws.SES()</code> service. Take a look at the proper syntax in the official <a target="_blank" href="https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SES.html" rel="noopener noreferrer">docs</a> for AWS SES API. We specify <code>region</code>, <code>accessKeyId</code>, and <code>secretAccessKey</code>. We use the <code>dotenv</code> package to manage environmental variables and retrieve our keys from <code>.env</code> using <code>process.env</code>. Let's place code that configures AWS to <code>server/aws.js</code> file:<br><code>server/aws.js</code> :</p>
+<pre><code>aws.config.update({
+  <span class="hljs-attribute">region</span>: process<span class="hljs-variable">.env</span><span class="hljs-variable">.Amazon_region</span>,
+  accessKeyId: process<span class="hljs-variable">.env</span><span class="hljs-variable">.Amazon_accessKeyId</span>,
+  secretAccessKey: process<span class="hljs-variable">.env</span><span class="hljs-variable">.Amazon_secretAccessKey</span>,
+});</code></pre><p>Next, we initialize SES service with the latest <code>apiVersion</code>:</p>
+<pre>const ses = new aws.SES({ apiVersion: 'latest' });</pre>
+
+<p>AWS SES offers multiple options for <code>ses.sendEmail()</code> API method. For example, <code>ToAddresses</code>, <code>CcAddresses</code>, <code>BccAddresses</code>, <code>ReplyToAddresses</code>, <code>Source</code>, <code>Subject</code>, <code>Body</code> and <a target="_blank" href="https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SES.html#sendEmail-property" rel="noopener noreferrer">more</a>. </p>
+<p>Let's pass 6 parameters to <code>ses.sendEmail</code> method. However, if we choose to, when we actually pass parameters to <code>sendEmail</code> method (<code>sendEmail</code> calls <code>ses.sendEmail</code>) we may choose to pass only a subset of parameters.</p>
+<p>We will use: <code>Source</code> (let's call it <code>options.from</code>), <code>ToAddresses</code> (<code>options.to</code>, nested in the <code>Destination</code> array), <code>CcAddresses</code> (<code>options.cc</code>, nested in the <code>Destination</code> array), <code>Data</code> (<code>options.subject</code>, nested in the <code>Message&gt;Subject</code> array), another <code>Data</code> (<code>options.body</code>, nested in the <code>Message&gt;Body&gt;Html</code> array), and <code>ReplyToAddresses</code> (<code>options.replyTo</code>). The names of the options are self-explanatory. We get:<br><code>server/aws.js</code> :</p>
+<pre><code>ses.sendEmail(
+  {
+    Source: <span class="hljs-keyword">options</span>.from,
+    Destination: {
+      CcAddresse<span class="hljs-variable">s:</span> <span class="hljs-keyword">options</span>.<span class="hljs-keyword">cc</span>,
+      ToAddresse<span class="hljs-variable">s:</span> <span class="hljs-keyword">options</span>.<span class="hljs-keyword">to</span>,
+    },
+    Message: {
+      Subjec<span class="hljs-variable">t:</span> {
+        Dat<span class="hljs-variable">a:</span> <span class="hljs-keyword">options</span>.subject,
+      },
+      Body: {
+        Htm<span class="hljs-variable">l:</span> {
+          Dat<span class="hljs-variable">a:</span> <span class="hljs-keyword">options</span>.body,
+        },
+      },
+    },
+    ReplyToAddresse<span class="hljs-variable">s:</span> <span class="hljs-keyword">options</span>.replyTo,
+  },
+)</code></pre><p>Time to put it all these code snippets together: configuration, initialization of a new service with the latest version of AWS SES API, and the <code>ses.sendEmail()</code> API method with 6 options.</p>
+<p>Make the <code>sendEmail()</code> function return a Promise. If <code>err</code> is returned after <code>ses.sendEmail()</code> is called - the Promise returns <code>reject(err)</code>. If <code>info</code> is returned without <code>err</code> - the Promise returns <code>resolve(info)</code>:<br><code>server/aws.js</code> :</p>
+<pre><code>const aws = require(<span class="hljs-string">'aws-sdk'</span>);
+
+<span class="hljs-keyword">function</span> sendEmail(<span class="hljs-keyword">options</span>) {
+  aws.config.<span class="hljs-keyword">update</span>({
+    region: process.env.Amazon_region,
+    accessKeyId: process.env.Amazon_accessKeyId,
+    secretAccessKey: process.env.Amazon_secretAccessKey,
+  });
+
+  const ses = <span class="hljs-built_in">new</span> aws.SES({ apiVersion: <span class="hljs-string">'latest'</span> });
+
+  <span class="hljs-keyword">return</span> <span class="hljs-built_in">new</span> Promise((resolve, reject) =&gt; {
+    ses.sendEmail(
+      {
+        Source: <span class="hljs-keyword">options</span>.<span class="hljs-keyword">from</span>,
+        Destination: {
+          CcAddresses: <span class="hljs-keyword">options</span>.cc,
+          ToAddresses: <span class="hljs-keyword">options</span>.<span class="hljs-keyword">to</span>,
+        },
+        Message: {
+          Subject: {
+            Data: <span class="hljs-keyword">options</span>.subject,
+          },
+          Body: {
+            Html: {
+              Data: <span class="hljs-keyword">options</span>.body,
+            },
+          },
+        },
+        ReplyToAddresses: <span class="hljs-keyword">options</span>.replyTo,
+      },
+      (err, <span class="hljs-keyword">info</span>) =&gt; {
+        <span class="hljs-keyword">if</span> (err) {
+          reject(err);
+        } <span class="hljs-keyword">else</span> {
+          resolve(<span class="hljs-keyword">info</span>);
+        }
+      },
+    );
+  });
+}
+
+module.exports = sendEmail;</code></pre><p>The full list of options and rules for the <code>ses.sendEmail()</code> API method is in the official AWS SES <a target="_blank" href="https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SES.html#sendEmail-property" rel="noopener noreferrer">docs</a>.</p>
+<p>You may noticed that we did not write any code that sends a request from our server to AWS SES server. Package <code>aws-sdk</code> does it for us, the same way <code>passport</code> package sends request from our server to Google OAuth servers. In Chapters 6 and 8, we will add Github and Mailchimp integrations to our app respectively. For Github and Mailchimp integrations, unlike for Google OAuth and AWS SES, we will explicitly write code that sends server-to-server POST request.</p>
+<p>If you like to practice more on how to integrate app with AWS SES, check out <a target="_blank" href="https://codeburst.io/add-transactional-emails-to-a-javascript-web-app-react-express-9fa1ff2e40e0" rel="noopener noreferrer">our tutorial</a> at codeburst.io.</p>
+<h4 style="color: #FFF;">
+        <a name="export-and-import-in-server-code" href="#export-and-import-in-server-code" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Export and import in server code
+      </h4><p>This subsection is a detour from transactional emails. In this book, we make a detour from time to time. We do so only when we think the detour is important to learn and its location is logical.</p>
+<p><em>This detour subsection will not require you to modify any of your app's code.</em></p>
+<p>Let's talk about exporting and importing modules.</p>
+<p>Consider <code>function sendEmail()</code>.</p>
+<p>If our file <code>server/aws.js</code> had multiple functions to export, we would export <code>sendEmail()</code> like this:</p>
+<pre><code><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">sendEmail</span>(<span class="hljs-params">options</span>) </span>{
+  <span class="hljs-comment">// some code</span>
+};
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">createTemplate</span>(<span class="hljs-params">options</span>) </span>{
+  <span class="hljs-comment">// some code</span>
+};
+
+<span class="hljs-keyword">export</span>.sendEmail = sendEmail;</code></pre><p>The import code may look like:</p>
+<pre>const { sendEmail } = require('../aws.js');</pre>
+
+<p>However, in our case, <code>sendEmail()</code> is the only function that we export from <code>server/aws.js</code>, so we specify it by using default export syntax, <code>module.exports</code>, in our export command:</p>
+<pre><code><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">sendEmail</span><span class="hljs-params">(options)</span> {</span>
+  <span class="hljs-comment">// some code</span>
+};
+
+<span class="hljs-function"><span class="hljs-keyword">module</span>.<span class="hljs-title">exports</span> =</span> sendEmail;</code></pre><p>A side note. If we had used <code>babel-node</code> to compile server code, we could've used newer ES6 syntax and replaced <code>module.exports</code> with <code>export default</code>. All client code is automatically compiled by Next.js that uses <code>babel</code> internally. That means that inside client code you may and do use <code>export</code> instead of <code>export.X = X</code>; <code>export default</code> instead of <code>module.exports</code>; <code>import</code> instead of <code>require</code>.</p>
+<p>The import code in the case of default export will be:</p>
+<pre>const sendEmail = require('../aws');</pre>
+
+<p>If you'd like to give this imported function a different name (say you want to give it a more informative name in the new context), you can simply do:</p>
+<pre>const differentName = require('../aws');</pre>
+
+<p>In this book, we build a relatively simple app and aim to keep one function per file, give that function an informative name. We will use default export/import (<code>module.exports = sendEmail;</code> and <code>const { sendEmail } = require('../aws.js');</code>) more frequently than standard export/import (<code>export.sendEmail = sendEmail;</code> and <code>const { sendEmail } = require('../aws.js')</code>).</p>
+<p>In situations where you need to use multiple API methods and maintain good modularity and readibility in your code, we recommend creating a new directory.</p>
+<p>Let's say you have 2 AWS SES methods: <code>sendEmail()</code> and <code>createTemplate()</code>. We would create a <code>server/aws</code> folder and place 3 files in it: <code>sendEmail.js</code> (with default export of <code>sendEmail</code>), <code>createTemplate.js</code> (with default export of <code>createTemplate</code>) and <code>index.js</code>. The latter file would contain:<br><code>server/aws/index.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> sendEmail = <span class="hljs-built_in">require</span>(<span class="hljs-string">'../aws/sendEmail'</span>);
+<span class="hljs-keyword">const</span> userApi = <span class="hljs-built_in">require</span>(<span class="hljs-string">'../aws/createTemplate'</span>);
+
+<span class="hljs-keyword">export</span>.sendEmail = sendEmail;
+<span class="hljs-keyword">export</span>.createTemplate = createTemplate;</code></pre><p>Now you can import sendEmail() with:</p>
+<pre>const { sendEmail } = require('../aws')</pre>
+
+<p>You can import <em>all</em> functions with:</p>
+<pre>const aws = require('../aws');</pre>
+<p>and access functions as <code>aws.sendEmail</code> and <code>aws.createTemplate</code>.</p>
+<p>Or you could import all functions like this:</p>
+<pre>const { sendEmail, createTemplate } = require('../aws');</pre>
+
+<p>Note that we import function(s) from <code>../aws</code> instead of <code>../aws/index.js</code>.</p>
+<h4 style="color: #FFF;">
+        <a name="inserttemplates-method" href="#inserttemplates-method" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        insertTemplates() method
+      </h4><p>Back to transactional emails. In this subsection, we'll write an email template for our welcome email.</p>
+<p>AWS SES has an API method to create templates (i.e. pre-written emails, such as a personalized welcome email). The method is called <code>ses.createTemplate()</code> and is similar to <code>ses.sendEmail()</code>. Read more about it <a target="_blank" href="https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SES.html#createTemplate-property" rel="noopener noreferrer">here</a>.</p>
+<p>But in this book, we will not use <code>ses.createTemplate()</code>. We will write and add email templates to our code (hardcode it). After our app starts, it will save hardcoded email templates to our database, where we can edit the templates manually (if needed).</p>
+<p>Saving templates to our database will ultimately save us time. If we don't save email templates to our database and decide to modify these templates, we would have to edit code and redeploy our app. Editing templates in our database does not require editing code and redeploying our app.</p>
+<p>We will create a new Mongoose model called EmailTemplate, and we'll insert a document in our EmailTemplate collection when our app's server starts. Later, when a user signs up in our app, we will send that user a welcome email. The welcome email will be stored in our database as a document in the EmailTemplate collection.</p>
+<p>Recall how we created our User model <a target="_blank" href="https://builderbook.org/books/builder-book/server-database-session-header-and-menudrop-components#database" rel="noopener noreferrer">using Mongoose in Chapter 2</a>.<br><code>server/models/User.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> mongoose = <span class="hljs-built_in">require</span>(<span class="hljs-string">'mongoose'</span>);
+
+<span class="hljs-keyword">const</span> { Schema } = mongoose;
+
+<span class="hljs-keyword">const</span> mongoSchema = <span class="hljs-keyword">new</span> Schema({
+  googleId: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    required: <span class="hljs-literal">true</span>,
+    unique: <span class="hljs-literal">true</span>,
+  },
+  googleToken: {
+    access_token: <span class="hljs-built_in">String</span>,
+    refresh_token: <span class="hljs-built_in">String</span>,
+    token_type: <span class="hljs-built_in">String</span>,
+    expiry_date: <span class="hljs-built_in">Number</span>,
+  },
+  slug: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    required: <span class="hljs-literal">true</span>,
+    unique: <span class="hljs-literal">true</span>,
+  },
+  <span class="hljs-comment">// more parameters</span>
+
+});
+
+<span class="hljs-comment">//some code</span>
+
+<span class="hljs-keyword">const</span> User = mongoose.model(<span class="hljs-string">'User'</span>, mongoSchema);
+
+<span class="hljs-built_in">module</span>.exports = User;</code></pre><p>Similar to the User model, the basic EmailTemplate model will be:<br><code>server/models/EmailTemplate.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> mongoose = <span class="hljs-built_in">require</span>(<span class="hljs-string">'mongoose'</span>);
+
+<span class="hljs-keyword">const</span> { Schema } = mongoose;
+
+<span class="hljs-keyword">const</span> mongoSchema = <span class="hljs-keyword">new</span> Schema({
+  name: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    required: <span class="hljs-literal">true</span>,
+    unique: <span class="hljs-literal">true</span>,
+  },
+  subject: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    required: <span class="hljs-literal">true</span>,
+  },
+  message: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    required: <span class="hljs-literal">true</span>,
+  },
+});
+
+<span class="hljs-keyword">const</span> EmailTemplate = mongoose.model(<span class="hljs-string">'EmailTemplate'</span>, mongoSchema);
+
+<span class="hljs-built_in">module</span>.exports = EmailTemplate;</code></pre><p>Go ahead and create a <code>server/models/EmailTemplate.js</code> file.</p>
+<p>As we mentioned above, when the app's server starts, we want the server to insert a new document in the <code>emailtemplates</code> collection of our database. Let's call this function <code>insertTemplates()</code>. For now, it's main purpose is to check if a template with a specific name already exists in our database and if not, insert that template as a new document in the <code>emailtemplate</code> collection.</p>
+<p>An example of the <code>insertTemplates()</code> function looks like:</p>
+<pre><code><span class="hljs-keyword">function</span> insertTemplates() {
+  const templates = [
+    {
+      <span class="hljs-type">name</span>: <span class="hljs-string">'welcome'</span>,
+      subject: <span class="hljs-string">'Welcome to builderbook.org'</span>,
+      message: <span class="hljs-string">'some text goes here'</span>,
+    },
+  ];
+
+  templates.<span class="hljs-keyword">forEach</span>(async (<span class="hljs-keyword">template</span>) =&gt; {
+    // <span class="hljs-number">1.</span> <span class="hljs-keyword">if</span> <span class="hljs-keyword">template</span> <span class="hljs-keyword">with</span> the same <span class="hljs-type">name</span> <span class="hljs-keyword">exists</span> <span class="hljs-keyword">in</span> <span class="hljs-keyword">database</span> - <span class="hljs-keyword">return</span> undefined
+
+    // <span class="hljs-number">2.</span> otherwise <span class="hljs-keyword">create</span> EmailTemplate document
+  });
+}</code></pre><ol>
+<li><p>For each template (<code>templates.forEach()</code>) that we want to insert - we search our database asynchronously (with the <code>async/await</code> construct) for template(s) with the same name (<code>EmailTemplate.find({ name: template.name })</code>):</p>
+<pre><code><span class="hljs-keyword">if</span> ((await EmailTemplate.find({ <span class="hljs-type">name</span>: <span class="hljs-keyword">template</span>.name }).count()) &gt; <span class="hljs-number">0</span>) {
+ <span class="hljs-keyword">return</span>;
+}</code></pre><p>We discussed <code>async/await</code> <a target="_blank" href="https://builderbook.org/books/builder-book/authentication-hoc-promise-async-await-static-method-for-user-model-google-oauth#async-await" rel="noopener noreferrer">in Chapter 3</a>, and I'll cover it more in Chapter 5, where we will use this construct several times. Here, the code <em>pauses</em> on the line with <code>await</code> until <code>count</code> is returned. If our method finds a template with the same name, then the count is 1 or more, and the method returns <code>undefined</code>.</p>
+</li>
+<li><p>If we don't find a template with the same name (count is 0), we create a document with Mongoose's method <code>create()</code>: <code>EmailTemplate.create()</code>.<br>This document will be created with data inside the <code>const templates = []</code> array by using the <code>.create(template)</code> method. This method copies the name, subject, and message of a template in our code to an newly created empty document in our database:</p>
+<pre><code>EmailTemplate
+ .create(template)
+ .catch(<span class="hljs-function"><span class="hljs-params">(<span class="hljs-built_in">error</span>)</span> =&gt;</span> {
+   logger.<span class="hljs-built_in">error</span>(<span class="hljs-string">'EmailTemplate insertion error:'</span>, <span class="hljs-built_in">error</span>);
+ });</code></pre></li>
+</ol>
+<p>If <code>EmailTemplate.create()</code> returns an error, we want to catch it and log it to terminal with <code>logger.error()</code>. Thanks, Winston!</p>
+<p>After putting all parts of the <code>insertTemplates()</code> function together:</p>
+<pre><code><span class="hljs-keyword">function</span> insertTemplates() {
+  const templates = [
+    {
+      <span class="hljs-type">name</span>: <span class="hljs-string">'welcome'</span>,
+      subject: <span class="hljs-string">'Welcome to builderbook.org'</span>,
+      message: <span class="hljs-string">'some text goes here'</span>,
+    },
+  ];
+
+  templates.<span class="hljs-keyword">forEach</span>(async (<span class="hljs-keyword">template</span>) =&gt; {
+    <span class="hljs-keyword">if</span> ((await EmailTemplate.find({ <span class="hljs-type">name</span>: <span class="hljs-keyword">template</span>.name }).count()) &gt; <span class="hljs-number">0</span>) {
+      <span class="hljs-keyword">return</span>;
+    }
+
+    EmailTemplate
+      .<span class="hljs-keyword">create</span>(<span class="hljs-keyword">template</span>)
+      .catch((error) =&gt; {
+        logger.error(<span class="hljs-string">'EmailTemplate insertion error:'</span>, error);
+      });
+  });
+}</code></pre><p>Let's modify some text in our welcome email, then add and call the <code>insertTemplates()</code> method inside our EmailTemplate model:<br><code>server/models/EmailTemplate.js</code> :</p>
+<pre><code>const EmailTemplate = mongoose.model(<span class="hljs-string">'EmailTemplate'</span>, mongoSchema);
+
+<span class="hljs-keyword">function</span> insertTemplates() {
+  const templates = [
+    {
+      <span class="hljs-type">name</span>: <span class="hljs-string">'welcome'</span>,
+      subject: <span class="hljs-string">'Welcome to builderbook.org'</span>,
+      message: `&lt;%= userName %&gt;,
+        &lt;p&gt;
+          Thanks <span class="hljs-keyword">for</span> signing up <span class="hljs-keyword">for</span> Builder Book!
+        &lt;/p&gt;
+        &lt;p&gt;
+          <span class="hljs-keyword">In</span> our books, we teach you how <span class="hljs-keyword">to</span> build complete, production-ready web apps <span class="hljs-keyword">from</span> scratch.
+        &lt;/p&gt;
+
+        Kelly &amp; Timur, Team Builder Book
+      `,
+    },
+  ];
+
+  templates.<span class="hljs-keyword">forEach</span>(async (<span class="hljs-keyword">template</span>) =&gt; {
+    <span class="hljs-keyword">if</span> ((await EmailTemplate.find({ <span class="hljs-type">name</span>: <span class="hljs-keyword">template</span>.name }).count()) &gt; <span class="hljs-number">0</span>) {
+      <span class="hljs-keyword">return</span>;
+    }
+
+    EmailTemplate
+      .<span class="hljs-keyword">create</span>(<span class="hljs-keyword">template</span>)
+      .catch((error) =&gt; {
+        logger.error(<span class="hljs-string">'EmailTemplate insertion error:'</span>, error);
+      });
+  });
+}
+
+insertTemplates();</code></pre><h4 style="color: #FFF;">
+        <a name="getemailtemplate-method" href="#getemailtemplate-method" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        getEmailTemplate() method
+      </h4><p>We are almost done.</p>
+<p>We wrote a function that <em>inserts</em> an email template to our database. To send the welcome email, we need another function that <em>retrieves</em> the EmailTemplate document from our database and replaces variables, such user name, with the document's values.</p>
+<p>We name this function <code>getEmailTemplate()</code>. Inside this function, we want to achieve a few things:</p>
+<ul>
+<li>finds a template by its name</li>
+<li>if unable to find a template, return an error</li>
+<li>else, apply the <code>_.template()</code> method to the found template</li>
+</ul>
+<p><a target="_blank" href="https://lodash.com/docs/4.17.5#template" rel="noopener noreferrer">_.template()</a> is a method that replaces any lodash variable (variable enclosed like this: <code>&lt;%= variable %&gt;</code>) with actual values. This allows us to personalize our emails by including the variable <code>&lt;%= userName %&gt;</code> in our email template and replacing it with a user <code>displayName</code> before sending (we define <code>userName: displayName</code>). Thus, personalization.</p>
+<p>Let's convert what we just said in English into JavaScript:</p>
+<pre><code>export <span class="hljs-keyword">default</span> async <span class="hljs-keyword">function</span> getEmailTemplate(<span class="hljs-type">name</span>, params) {
+  // <span class="hljs-number">1.</span> await till <span class="hljs-keyword">method</span> finds <span class="hljs-keyword">template</span> <span class="hljs-keyword">by</span> <span class="hljs-type">name</span>, 
+
+  // <span class="hljs-number">2.</span> <span class="hljs-keyword">if</span> <span class="hljs-keyword">method</span> finds <span class="hljs-keyword">no</span> <span class="hljs-keyword">template</span> - <span class="hljs-keyword">return</span> error
+
+  // <span class="hljs-number">3.</span> <span class="hljs-keyword">else</span>, apply `_.<span class="hljs-keyword">template</span>()` <span class="hljs-keyword">to</span> subject <span class="hljs-keyword">and</span> message parameters <span class="hljs-keyword">of</span> <span class="hljs-keyword">template</span> 
+}</code></pre><p>Here's how we'll achieve 1-3:</p>
+<ol>
+<li><p>We'll use Mongoose's <code>EmailTemplate.findOne()</code> method to find a template by name. We use the <code>async/await</code> construct that we briefly mentioned when discussing the <code>insertTemplates()</code> method:</p>
+<pre>const source = await EmailTemplate.findOne({ name });</pre>
+
+<p>Our code <em>pauses</em> on the line with <code>await</code> until the result is returned (either template or null). We describe <code>async/await</code> with detailed examples in Chapter 5.</p>
+</li>
+<li><p>If null is returned instead of template <code>!source</code>, then let's throw an informative error with the format <code>throw new Error('error description')</code>:</p>
+<pre><code><span class="hljs-keyword">if</span> (!source) {
+ throw <span class="hljs-keyword">new</span> <span class="hljs-constructor">Error('No EmailTemplates <span class="hljs-params">found</span>. Please <span class="hljs-params">check</span> <span class="hljs-params">that</span> <span class="hljs-params">at</span> <span class="hljs-params">least</span> <span class="hljs-params">one</span> <span class="hljs-params">is</span> <span class="hljs-params">generated</span> <span class="hljs-params">at</span> <span class="hljs-params">server</span> <span class="hljs-params">startup</span>, <span class="hljs-params">restart</span> <span class="hljs-params">your</span> <span class="hljs-params">server</span> <span class="hljs-params">and</span> <span class="hljs-params">try</span> <span class="hljs-params">again</span>.')</span>;
+}</code></pre><p>According to the <code>throw</code> behaviour (<a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/throw" rel="noopener noreferrer">read offical docs</a>), the thrown error will be caught by the first <code>.catch</code> method. Later in this section, we will catch this error when modifying the <code>this.create()</code> method inside our User model (<code>server/models/User.js</code>).</p>
+</li>
+<li><p>When the <code>EmailTemplate.findOne()</code> method returns a template, apply the <code>_.template()</code> method to the subject and message of template:</p>
+<pre><code><span class="hljs-selector-tag">return</span> {
+ <span class="hljs-attribute">message</span>: _.<span class="hljs-built_in">template</span>(source.message)(params),
+ subject: _.<span class="hljs-built_in">template</span>(source.subject)(params),
+};</code></pre></li>
+</ol>
+<p>After combining these three parts of <code>getEmailTemplate()</code>, we finally get:</p>
+<pre><code>async <span class="hljs-keyword">function</span> get<span class="hljs-constructor">EmailTemplate(<span class="hljs-params">name</span>, <span class="hljs-params">params</span>)</span> {
+  const source = await <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">EmailTemplate</span>.</span></span>find<span class="hljs-constructor">One({ <span class="hljs-params">name</span> })</span>;
+
+  <span class="hljs-keyword">if</span> (!source) {
+    throw <span class="hljs-keyword">new</span> <span class="hljs-constructor">Error('No EmailTemplates <span class="hljs-params">found</span>. Please <span class="hljs-params">check</span> <span class="hljs-params">that</span> <span class="hljs-params">at</span> <span class="hljs-params">least</span> <span class="hljs-params">one</span> <span class="hljs-params">is</span> <span class="hljs-params">generated</span> <span class="hljs-params">at</span> <span class="hljs-params">server</span> <span class="hljs-params">startup</span>, <span class="hljs-params">restart</span> <span class="hljs-params">your</span> <span class="hljs-params">server</span> <span class="hljs-params">and</span> <span class="hljs-params">try</span> <span class="hljs-params">again</span>.')</span>;
+  }
+
+  return {
+    message: <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">_</span>.</span></span>template(source.message)(params),
+    subject: <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">_</span>.</span></span>template(source.subject)(params),
+  };
+}</code></pre><p>Now that we've discussed and built both <code>insertTemplates()</code> and <code>getEmailTemplate()</code> functions, it's time to add them to our basic EmailTemplate model:</p>
+<p>Add the <code>insertTemplates()</code> and <code>getEmailTemplate()</code> functions to our EmailTemplate model:<br><code>server/models/EmailTemplate.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> mongoose = <span class="hljs-built_in">require</span>(<span class="hljs-string">'mongoose'</span>);
+<span class="hljs-keyword">const</span> _ = <span class="hljs-built_in">require</span>(<span class="hljs-string">'lodash'</span>);
+<span class="hljs-keyword">const</span> logger = <span class="hljs-built_in">require</span>(<span class="hljs-string">'../logs'</span>);
+
+<span class="hljs-keyword">const</span> { Schema } = mongoose;
+
+<span class="hljs-keyword">const</span> mongoSchema = <span class="hljs-keyword">new</span> Schema({
+  name: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    required: <span class="hljs-literal">true</span>,
+    unique: <span class="hljs-literal">true</span>,
+  },
+  subject: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    required: <span class="hljs-literal">true</span>,
+  },
+  message: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    required: <span class="hljs-literal">true</span>,
+  },
+});
+
+<span class="hljs-keyword">const</span> EmailTemplate = mongoose.model(<span class="hljs-string">'EmailTemplate'</span>, mongoSchema);
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">insertTemplates</span>(<span class="hljs-params"></span>) </span>{
+  <span class="hljs-keyword">const</span> templates = [
+    {
+      name: <span class="hljs-string">'welcome'</span>,
+      subject: <span class="hljs-string">'Welcome to builderbook.org'</span>,
+      message: <span class="hljs-string">`&lt;%= userName %&gt;,
+        &lt;p&gt;
+          Thanks for signing up for Builder Book!
+        &lt;/p&gt;
+        &lt;p&gt;
+          In our books, we teach you how to build complete, production-ready web apps from scratch.
+        &lt;/p&gt;
+        Kelly &amp; Timur, Team Builder Book
+      `</span>,
+    },
+  ];
+
+  templates.forEach(<span class="hljs-keyword">async</span> (template) =&gt; {
+    <span class="hljs-keyword">if</span> ((<span class="hljs-keyword">await</span> EmailTemplate.find({ name: template.name }).count()) &gt; <span class="hljs-number">0</span>) {
+      <span class="hljs-keyword">return</span>;
+    }
+
+    EmailTemplate
+      .create(template)
+      .catch(<span class="hljs-function">(<span class="hljs-params">error</span>) =&gt;</span> {
+        logger.error(<span class="hljs-string">'EmailTemplate insertion error:'</span>, error);
+      });
+  });
+}
+
+insertTemplates();
+
+<span class="hljs-keyword">async</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">getEmailTemplate</span>(<span class="hljs-params">name, params</span>) </span>{
+  <span class="hljs-keyword">const</span> source = <span class="hljs-keyword">await</span> EmailTemplate.findOne({ name });
+  <span class="hljs-keyword">if</span> (!source) {
+    <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(<span class="hljs-string">'No EmailTemplates found. Please check that at least one is generated at server startup, restart your server and try again.'</span>);
+  }
+
+  <span class="hljs-keyword">return</span> {
+    message: _.template(source.message)(params),
+    subject: _.template(source.subject)(params),
+  };
+}
+
+exports.insertTemplates = insertTemplates;
+exports.getEmailTemplate = getEmailTemplate;</code></pre><p>As always, we remember to add the missing imports ( in this case for <code>lodash</code> and <code>logger</code>):</p>
+<pre><code><span class="hljs-keyword">const</span> _ = <span class="hljs-built_in">require</span>(<span class="hljs-string">'lodash'</span>);
+<span class="hljs-keyword">const</span> logger = <span class="hljs-built_in">require</span>(<span class="hljs-string">'../logs'</span>);</code></pre><p>You may have noticed that we did not export <code>EmailTemplate</code>. That's because we do not plan to use the EmailTemplate model in any of our code. But we did export the <code>getEmailTemplate()</code> function, which we will use inside the User model (welcome email) and Book model (purchase email, Chapter 7) to find a corresponding email template.</p>
+<p>If start app, we won't see welcome email template inserted to DB. This is because for <code>insertTemplates</code> to run it needs to referenced explicitly. We can achieve it by requiring <code>insertTemplates</code> in <code>server/app.js</code>.</p>
+<p>Before we test, open <code>server/app.js</code> and import <code>insertTemplates</code>:</p>
+<pre>const { insertTemplates } = require('./models/EmailTemplate');</pre>
+
+<p>Above line <code>auth({ server, ROOT_URL });</code>, add the following line:</p>
+<pre>await insertTemplates();</pre>
+
+<p>Finally, make the function that starts server asynchronous.<br>Replace:</p>
+<pre>app.prepare().then(() =&gt; { </pre>
+
+<p>With:</p>
+<pre>app.prepare().then(async () =&gt; { </pre>
+
+<p>When app starts, <code>insertTemplates</code> will be called and app won't start till insertion is complete.</p>
+<p>We added the above import because Node will execute code inside <code>insertTemplates</code> only when this function is referenced explicitly. For more information, you read this <a target="_blank" href="https://github.com/builderbook/builderbook/issues/111" rel="noopener noreferrer">issue</a>.</p>
+<p>Time to test - start your app with <code>yarn dev</code> and go to the list of collections on your Atlas dashboard. Go to <b>Cluster0</b> cluster, click on <b>Collections</b>. Click on the <code>test.emailtemplates</code> collection of <code>test</code> database. You should see that our welcome email template was added to DB:<br><img src="https://user-images.githubusercontent.com/10218864/54499017-ae842400-48ca-11e9-9814-f38c39cad96c.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Hooray! Upon server start, the app successfully inserts our welcome email template to the database.</p>
+<p>In the next subsection, we will update our User model to ensure that every newly created user gets a welcome email.</p>
+<h4 style="color: #FFF;">
+        <a name="update-user-model" href="#update-user-model" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Update User model
+      </h4><p>So far, we've created:</p>
+<ul>
+<li><code>sendEmail()</code> function that sends an email via AWS SES API</li>
+<li><code>insertTemplates()</code> that saves a welcome email template to our database</li>
+<li><code>getEmailTemplate()</code> that retrieves the welcome email from our database and passes a value to the <code>&lt;%= userName %&gt;</code> variable</li>
+</ul>
+<p>The last step is to modify the <code>signInOrSignUp()</code> static method of our User model (see <code>server/models/User.js</code>). This method either finds an existing user and updates the Google OAuth tokens of that user <em>or</em> creates a new user. We would like to update the part of <code>signInOrSignUp()</code> that creates a new user, since our app will send a welcome email to newly created users.</p>
+<ul>
+<li>First, make the <code>async signInOrSignUp()</code> static method <code>await</code> for the <code>template</code> that is returned by our <code>getEmailTemplate()</code> method:<pre><code><span class="hljs-keyword">const</span> <span class="hljs-keyword">template</span> = await getEmailTemplate(<span class="hljs-string">'welcome'</span>, {
+  userName: displayName,
+});</code></pre>We pass <code>userName</code> to our <code>getEmailTemplate</code> method so that <code>&lt;%= userName %&gt;</code> gets an actual value.</li>
+</ul>
+<ul>
+<li>Second, <code>await</code> for the <code>sendEmail()</code> method to send an email. Pass the <code>template</code> that you got from <code>getEmailTemplate()</code> to <code>sendEmail()</code>. To send an email, pass values to the <code>from</code> and <code>to</code> parameters.</li>
+</ul>
+<p>To catch potential errors from <code>sendEmail()</code>, we use the <code>try/catch</code> construct in combination with <code>async/await</code>:</p>
+<pre><code>  <span class="hljs-selector-tag">try</span> {
+    <span class="hljs-selector-tag">await</span> <span class="hljs-selector-tag">sendEmail</span>({
+      <span class="hljs-attribute">from</span>: <span class="hljs-built_in">`Kelly from Builder Book &lt;${process.env.EMAIL_SUPPORT_FROM_ADDRESS}&gt;`</span>,
+      <span class="hljs-attribute">to</span>: [email],
+      <span class="hljs-attribute">subject</span>: template.subject,
+      <span class="hljs-attribute">body</span>: template.message,
+    });
+  } catch (err) {
+    <span class="hljs-selector-tag">logger</span><span class="hljs-selector-class">.error</span>(<span class="hljs-string">'Email sending error:'</span>, err);
+  }</code></pre><p>A note about errors - <code>logger.error('Email sending error:', err);</code> outputs errors from <code>sendEmail()</code>. We catch and output <em>all other</em> errors from our <code>signInOrSignUp()</code> method in <code>server/google.js</code> at:</p>
+<pre><code>  <span class="hljs-keyword">try</span> {
+    <span class="hljs-keyword">const</span> user = <span class="hljs-keyword">await</span> User.signInOrSignUp({
+      <span class="hljs-attr">googleId</span>: profile.id,
+      email,
+      <span class="hljs-attr">googleToken</span>: { accessToken, refreshToken },
+      <span class="hljs-attr">displayName</span>: profile.displayName,
+      avatarUrl,
+    });
+    verified(<span class="hljs-literal">null</span>, user);
+  } <span class="hljs-keyword">catch</span> (err) {
+    verified(err);
+    <span class="hljs-built_in">console</span>.log(err); <span class="hljs-comment">// eslint-disable-line</span>
+  }</code></pre><p>A note on <code>to: [email]</code> - though the email is saved in our database as a string, we pass the email as an array with a single string to satisfy an AWS SES API requirement.</p>
+<p>Alright, we are done updating the <code>signInOrSignUp()</code> method!</p>
+<p>Modify this method inside the User model at <code>server/models/User.js</code>. This part of <code>signInOrSignUp()</code>:</p>
+<pre><code>  <span class="hljs-keyword">const</span> slug = <span class="hljs-keyword">await</span> generateSlug(<span class="hljs-keyword">this</span>, displayName);
+  <span class="hljs-keyword">const</span> userCount = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.find().countDocuments();
+
+  <span class="hljs-keyword">const</span> newUser = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.create({
+    <span class="hljs-attr">createdAt</span>: <span class="hljs-keyword">new</span> <span class="hljs-built_in">Date</span>(),
+    googleId,
+    email,
+    googleToken,
+    displayName,
+    avatarUrl,
+    slug,
+    <span class="hljs-attr">isAdmin</span>: userCount === <span class="hljs-number">0</span>,
+  });
+
+  <span class="hljs-keyword">return</span> _.pick(newUser, UserClass.publicFields());</code></pre><p>becomes:</p>
+<pre><code>  <span class="hljs-keyword">const</span> slug = <span class="hljs-keyword">await</span> generateSlug(<span class="hljs-keyword">this</span>, displayName);
+  <span class="hljs-keyword">const</span> userCount = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.find().countDocuments();
+
+  <span class="hljs-keyword">const</span> newUser = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.create({
+    createdAt: <span class="hljs-keyword">new</span> <span class="hljs-built_in">Date</span>(),
+    googleId,
+    email,
+    googleToken,
+    displayName,
+    avatarUrl,
+    slug,
+    isAdmin: userCount === <span class="hljs-number">0</span>,
+  });
+
+  <span class="hljs-keyword">const</span> template = <span class="hljs-keyword">await</span> getEmailTemplate(<span class="hljs-string">'welcome'</span>, {
+    userName: displayName,
+  });
+
+  <span class="hljs-keyword">try</span> {
+    <span class="hljs-keyword">await</span> sendEmail({
+      <span class="hljs-keyword">from</span>: <span class="hljs-string">`Kelly from Builder Book &lt;<span class="hljs-subst">${process.env.EMAIL_SUPPORT_FROM_ADDRESS}</span>&gt;`</span>,
+      to: [email],
+      subject: template.subject,
+      body: template.message,
+    });
+  } <span class="hljs-keyword">catch</span> (err) {
+    logger.error(<span class="hljs-string">'Email sending error:'</span>, err);
+  }
+
+  <span class="hljs-keyword">return</span> _.pick(newUser, UserClass.publicFields());</code></pre><p>Remember to add all missing imports to <code>server/models/User.js</code>:</p>
+<pre><code><span class="hljs-keyword">const</span> sendEmail = <span class="hljs-built_in">require</span>(<span class="hljs-string">'../aws'</span>);
+<span class="hljs-keyword">const</span> { getEmailTemplate } = <span class="hljs-built_in">require</span>(<span class="hljs-string">'./EmailTemplate'</span>);
+<span class="hljs-keyword">const</span> logger = <span class="hljs-built_in">require</span>(<span class="hljs-string">'../logs'</span>);</code></pre><p>Our User model with updated <code>signInOrSignUp()</code> method:<br><code>server/model/User.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> mongoose = <span class="hljs-built_in">require</span>(<span class="hljs-string">'mongoose'</span>);
+<span class="hljs-keyword">const</span> _ = <span class="hljs-built_in">require</span>(<span class="hljs-string">'lodash'</span>);
+
+<span class="hljs-keyword">const</span> generateSlug = <span class="hljs-built_in">require</span>(<span class="hljs-string">'../utils/slugify'</span>);
+<span class="hljs-keyword">const</span> sendEmail = <span class="hljs-built_in">require</span>(<span class="hljs-string">'../aws'</span>);
+<span class="hljs-keyword">const</span> { getEmailTemplate } = <span class="hljs-built_in">require</span>(<span class="hljs-string">'./EmailTemplate'</span>);
+<span class="hljs-keyword">const</span> logger = <span class="hljs-built_in">require</span>(<span class="hljs-string">'../logs'</span>);
+
+<span class="hljs-keyword">const</span> { Schema } = mongoose;
+
+<span class="hljs-keyword">const</span> mongoSchema = <span class="hljs-keyword">new</span> Schema({
+  googleId: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    required: <span class="hljs-literal">true</span>,
+    unique: <span class="hljs-literal">true</span>,
+  },
+  googleToken: {
+    access_token: <span class="hljs-built_in">String</span>,
+    refresh_token: <span class="hljs-built_in">String</span>,
+    token_type: <span class="hljs-built_in">String</span>,
+    expiry_date: <span class="hljs-built_in">Number</span>,
+  },
+  slug: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    required: <span class="hljs-literal">true</span>,
+    unique: <span class="hljs-literal">true</span>,
+  },
+  createdAt: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">Date</span>,
+    required: <span class="hljs-literal">true</span>,
+  },
+  email: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    required: <span class="hljs-literal">true</span>,
+    unique: <span class="hljs-literal">true</span>,
+  },
+  isAdmin: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">Boolean</span>,
+    <span class="hljs-keyword">default</span>: <span class="hljs-literal">false</span>,
+  },
+  displayName: <span class="hljs-built_in">String</span>,
+  avatarUrl: <span class="hljs-built_in">String</span>,
+
+  isGithubConnected: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">Boolean</span>,
+    <span class="hljs-keyword">default</span>: <span class="hljs-literal">false</span>,
+  },
+  githubAccessToken: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+  },
+});
+
+<span class="hljs-keyword">class</span> UserClass {
+  <span class="hljs-keyword">static</span> publicFields() {
+    <span class="hljs-keyword">return</span> [<span class="hljs-string">'id'</span>, <span class="hljs-string">'displayName'</span>, <span class="hljs-string">'email'</span>, <span class="hljs-string">'avatarUrl'</span>, <span class="hljs-string">'slug'</span>, <span class="hljs-string">'isAdmin'</span>, <span class="hljs-string">'isGithubConnected'</span>];
+  }
+
+  <span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> signInOrSignUp({
+    googleId, email, googleToken, displayName, avatarUrl,
+  }) {
+    <span class="hljs-keyword">const</span> user = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.findOne({ googleId }).select(UserClass.publicFields().join(<span class="hljs-string">' '</span>));
+
+    <span class="hljs-keyword">if</span> (user) {
+      <span class="hljs-keyword">const</span> modifier = {};
+
+      <span class="hljs-keyword">if</span> (googleToken.accessToken) {
+        modifier.access_token = googleToken.accessToken;
+      }
+
+      <span class="hljs-keyword">if</span> (googleToken.refreshToken) {
+        modifier.refresh_token = googleToken.refreshToken;
+      }
+
+      <span class="hljs-keyword">if</span> (_.isEmpty(modifier)) {
+        <span class="hljs-keyword">return</span> user;
+      }
+
+      <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.updateOne({ googleId }, { $<span class="hljs-keyword">set</span>: modifier });
+
+      <span class="hljs-keyword">return</span> user;
+    }
+
+    <span class="hljs-keyword">const</span> slug = <span class="hljs-keyword">await</span> generateSlug(<span class="hljs-keyword">this</span>, displayName);
+    <span class="hljs-keyword">const</span> userCount = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.find().countDocuments();
+
+    <span class="hljs-keyword">const</span> newUser = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.create({
+      createdAt: <span class="hljs-keyword">new</span> <span class="hljs-built_in">Date</span>(),
+      googleId,
+      email,
+      googleToken,
+      displayName,
+      avatarUrl,
+      slug,
+      isAdmin: userCount === <span class="hljs-number">0</span>,
+    });
+
+    <span class="hljs-keyword">const</span> template = <span class="hljs-keyword">await</span> getEmailTemplate(<span class="hljs-string">'welcome'</span>, {
+      userName: displayName,
+    });
+
+    <span class="hljs-keyword">try</span> {
+      <span class="hljs-keyword">await</span> sendEmail({
+        <span class="hljs-keyword">from</span>: <span class="hljs-string">`Kelly from Builder Book &lt;<span class="hljs-subst">${process.env.EMAIL_SUPPORT_FROM_ADDRESS}</span>&gt;`</span>,
+        to: [email],
+        subject: template.subject,
+        body: template.message,
+      });
+    } <span class="hljs-keyword">catch</span> (err) {
+      logger.error(<span class="hljs-string">'Email sending error:'</span>, err);
+    }
+
+    <span class="hljs-keyword">return</span> _.pick(newUser, UserClass.publicFields());
+  }
+}
+
+mongoSchema.loadClass(UserClass);
+
+<span class="hljs-keyword">const</span> User = mongoose.model(<span class="hljs-string">'User'</span>, mongoSchema);
+
+<span class="hljs-built_in">module</span>.exports = User;</code></pre><h4 style="color: #FFF;">
+        <a name="testing" href="#testing" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Testing
+      </h4><p>Time to test!</p>
+<p>Let's test whether our app sends a welcome email to a new user via AWS SES API. </p>
+<p>Run your app with <code>yarn dev</code> and go to the <code>/login</code> page. Make sure that the Google account you are about to sign up with has never been used to sign up on the app. If your Google account has already been used, and you still want to use it - go to your Atlas dashboard, click on the <code>test.users</code> collection, and delete the document corresponding to the Google account you want to use.</p>
+<p>After sign up, you will be redirected to the app's dashboard at <code>/</code> route:<br><img src="https://user-images.githubusercontent.com/26158226/36654113-22f56564-1a6f-11e8-8c2c-5de186afb02a.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Open your Gmail inbox and find the welcome email. In our example, the email is sent from <code>team@builderbook.org</code>:<br><img src="https://user-images.githubusercontent.com/10218864/33458816-99b42866-d5dc-11e7-88a6-bac76cae063a.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Here is our welcome email (the one we composed inside our server code and inserted into our database as a document in the <code>emailtemplates</code> collection):<br><img src="https://user-images.githubusercontent.com/10218864/33458853-b6b52c94-d5dc-11e7-92a2-bce00cc5dd45.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>If you received an email, then good job on setting up transactional emails!</p>
+<p>In the next section, we will build in-app notifications - messages that our app shows a user to communicate success or failure of the user's action. For example, when the Admin user edits a book, we would like our app to show a <code>Saved</code> success message.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="in-app-notifications" href="#in-app-notifications" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="in-app-notifications">
+          In-app notifications
+        </span>
+      </h2><p>So far in this chapter, we learned how to test with Jest, debug with Winston, and send a transactional welcome email to a new user. In this last section, we will discuss and build a component that shows success or failure messages to our app's user.</p>
+<p>In Material Design and Material-UI, an in-app notification is called a snackbar. The top-right version of the simplest snackbar <code>I love snacks</code> looks like this:<br><img src="https://user-images.githubusercontent.com/10218864/33502315-73caca84-d694-11e7-9eba-d586e070d0c6.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>We will build in-app notifications in three steps:</p>
+<ul>
+<li>Notifier component</li>
+<li><code>notify()</code> function</li>
+<li>update pages where we want to show in-app notifications.</li>
+</ul>
+<h4 style="color: #FFF;">
+        <a name="notifier-component" href="#notifier-component" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Notifier component
+      </h4><p>To create a Notifier component, we'll closely follow Material-UI's example for a <a target="_blank" href="https://material-ui-next.com/demos/snackbars/#simple" rel="noopener noreferrer">simple snackbar</a>.</p>
+<p>Before constructing our Notifier component out of Material-UI's Snackbar component, check out the <a target="_blank" href="https://material-ui-next.com/api/snackbar/#props" rel="noopener noreferrer">full list</a> of Snackbar component props.</p>
+<p>We will use the <code>open</code> and <code>message</code> props for the state of our Notifier component. Initially, we want the Snackbar to be closed and message to be an empty string:</p>
+<pre><code>  <span class="hljs-keyword">state</span> = {
+    open: false,
+    message: '',
+  };</code></pre><p>We want the Snackbar to close (set <code>open</code> to <code>false</code>) when a user clicks away. We'll do this with the <code>handleSnackbarRequestClose</code> function:</p>
+<pre><code><span class="hljs-function"><span class="hljs-title">handleSnackbarRequestClose</span> = <span class="hljs-params">()</span> =&gt;</span> {
+  <span class="hljs-keyword">this</span>.setState({
+    open: <span class="hljs-literal">false</span>,
+    message: <span class="hljs-string">''</span>,
+  });
+};</code></pre><p>We set the <code>message</code> to an empty string, so any new in-app notification does not inherit a message from the previous in-app notification.</p>
+<p>We will point the <code>onClose</code> prop to the <code>handleSnackbarRequestClose</code> function:</p>
+<pre>onClose={this.handleSnackbarRequestClose}</pre>
+
+<p>Finally, let's render our Notifier component. </p>
+<p>In addition to <code>open</code>, <code>message</code>, and <code>onClose</code> props, we will use 3 more props from this <a target="_blank" href="https://material-ui-next.com/api/snackbar/#props" rel="noopener noreferrer">list of options</a>):</p>
+<ul>
+<li><code>anchorOrigin</code> (specifies location of the Snackbar)</li>
+<li><code>autoHideDuration</code> (specifies duration of the Snackbar in milliseconds)</li>
+<li><code>ContentProps</code> (binds the Snackbar to an element that contains its <code>message</code>)</li>
+</ul>
+<p>Notifier's <code>render()</code>:</p>
+<pre><code>render() {
+  <span class="hljs-keyword">const</span> message = (
+    &lt;span id=<span class="hljs-string">"snackbar-message-id"</span> dangerouslySetInnerHTML={{ __html: <span class="hljs-keyword">this</span>.state.message }} /&gt;
+  );
+
+  <span class="hljs-keyword">return</span> (
+    &lt;Snackbar
+      anchorOrigin={{ vertical: <span class="hljs-string">'top'</span>, horizontal: <span class="hljs-string">'right'</span> }}
+      message={message}
+      autoHideDuration={<span class="hljs-number">5000</span>}
+      onClose={<span class="hljs-keyword">this</span>.handleSnackbarRequestClose}
+      <span class="hljs-keyword">open</span>={<span class="hljs-keyword">this</span>.state.<span class="hljs-keyword">open</span>}
+      ContentProps={{
+        <span class="hljs-string">'aria-describedby'</span>: <span class="hljs-string">'snackbar-message-id'</span>,
+      }}
+    /&gt;
+  );
+}</code></pre><p>You may wonder why we use <code>dangerouslySetInnerHTML={{ __html: this.state.message }}</code>. The <code>dangerouslySetInnerHTML</code> option allows you, as the developer of this app, to use HTML code inside the Snackbar's <code>message</code> prop. This is handy if you want to add a hyperlink to the Notifier's <code>message</code>.</p>
+<p>Create a <code>components/Notifier.js</code> file and put the Notifier component together using the bits code above:<br><code>components/Notifier.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> React from <span class="hljs-string">'react'</span>;
+<span class="hljs-keyword">import</span> Snackbar from <span class="hljs-string">'@material-ui/core/Snackbar'</span>;
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Notifier</span> <span class="hljs-title">extends</span> <span class="hljs-title">React</span>.<span class="hljs-title">Component</span> </span>{
+  state = {
+    <span class="hljs-keyword">open</span>: <span class="hljs-literal">false</span>,
+    message: <span class="hljs-string">''</span>,
+  };
+
+  handleSnackbarRequestClose = () =&gt; {
+    <span class="hljs-keyword">this</span>.setState({
+      <span class="hljs-keyword">open</span>: <span class="hljs-literal">false</span>,
+      message: <span class="hljs-string">''</span>,
+    });
+  };
+
+  render() {
+    <span class="hljs-keyword">const</span> message = (
+      &lt;span id=<span class="hljs-string">"snackbar-message-id"</span> dangerouslySetInnerHTML={{ __html: <span class="hljs-keyword">this</span>.state.message }} /&gt;
+    );
+
+    <span class="hljs-keyword">return</span> (
+      &lt;Snackbar
+        anchorOrigin={{ vertical: <span class="hljs-string">'top'</span>, horizontal: <span class="hljs-string">'right'</span> }}
+        message={message}
+        autoHideDuration={<span class="hljs-number">5000</span>}
+        onClose={<span class="hljs-keyword">this</span>.handleSnackbarRequestClose}
+        <span class="hljs-keyword">open</span>={<span class="hljs-keyword">this</span>.state.<span class="hljs-keyword">open</span>}
+        ContentProps={{
+          <span class="hljs-string">'aria-describedby'</span>: <span class="hljs-string">'snackbar-message-id'</span>,
+      }}
+      /&gt;
+    );
+  }
+}
+
+export <span class="hljs-keyword">default</span> Notifier;</code></pre><p>If you carefully look at our Notifier component's code, you'll see that the Snackbar always stays in a closed state. The initial state has <code>open</code> set to <code>false</code>, and there is no event that triggers <code>open</code> to become <code>true</code>.</p>
+<p>Material-UI's <a target="_blank" href="https://material-ui-next.com/demos/snackbars/#simple" rel="noopener noreferrer">example</a> for a simple Snackbar at least contains a button. Clicking the button sets <code>open</code> to <code>true</code> via the <code>handleClick</code> function:</p>
+<pre><code><span class="hljs-function"><span class="hljs-title">handleClick</span> = <span class="hljs-params">()</span> =&gt;</span> {
+  <span class="hljs-keyword">this</span>.setState({ open: <span class="hljs-literal">true</span> });
+};</code></pre><p>In other words, the user triggers Notifier with an action.</p>
+<p>Most of our in-app messages will be triggered by successful or failed events. For example, we'll show a success notification when our Admin user successfully changes a book's price or when our Customer user successfully creates a bookmark inside a chapter.</p>
+<p>We import our Notifier component into our higher-order component <code>App</code> at <code>pages/_app.js</code>, and trigger the <code>Notifier</code> component to show up with <code>notify()</code>. We import and use the <code>notify()</code> function inside any page that shows users an in-app message.</p>
+<p>In the following section, we'll introduce the <code>openSnackbar</code> function that opens (sets <code>open</code> to <code>true</code>) the Snackbar and passes a <code>message</code> to it. We will use the <code>openSnackbar</code> function to construct a <code>notify()</code> function - we will then use this <code>notify()</code> function inside different pages to open our Notifier component.</p>
+<h4 style="color: #FFF;">
+        <a name="notify-function" href="#notify-function" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        notify() function
+      </h4><p>The <code>openSnackbar</code> function does two things, both via <code>state</code>:</p>
+<ol>
+<li>it opens the Snackbar by setting the <code>open</code> prop of the Snackbar component to <code>true</code></li>
+<li>it passes a message prop to the Snackbar component<pre><code><span class="hljs-function"><span class="hljs-title">openSnackbar</span> = <span class="hljs-params">({ message })</span> =&gt;</span> {
+<span class="hljs-keyword">this</span>.setState({ open: <span class="hljs-literal">true</span>, message });
+};</code></pre></li>
+</ol>
+<p>In order to access the <code>openSnackbar()</code> function from anywhere in the app, we need to set its value to another function (<code>openSnackbarFn</code>) that is available <em>outside</em> of the Notifier component. Thus:</p>
+<pre><code>...
+<span class="hljs-keyword">let</span> openSnackbarFn;<span class="hljs-operator">
+
+...
+</span>export <span class="hljs-keyword">function</span> <span class="hljs-keyword">open</span><span class="hljs-constructor">Snackbar({ <span class="hljs-params">message</span> })</span> {
+  <span class="hljs-keyword">open</span><span class="hljs-constructor">SnackbarFn({ <span class="hljs-params">message</span> })</span>;
+}<span class="hljs-operator">
+...
+</span></code></pre><p>Then, <em>inside</em> the Notifier component, after the component is mounted:</p>
+<pre><code>componentDidMount() {
+  openSnackbarFn = <span class="hljs-keyword">this</span>.openSnackbar;
+}</code></pre><p>Take the 3 code snippets above and add them to <code>components/Notifier.js</code>:<br><code>components/Notifier.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> React from <span class="hljs-string">'react'</span>;
+<span class="hljs-keyword">import</span> Snackbar from <span class="hljs-string">'@material-ui/core/Snackbar'</span>;
+
+let openSnackbarFn;
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Notifier</span> <span class="hljs-title">extends</span> <span class="hljs-title">React</span>.<span class="hljs-title">Component</span> </span>{
+  state = {
+    <span class="hljs-keyword">open</span>: <span class="hljs-literal">false</span>,
+    message: <span class="hljs-string">''</span>,
+  };
+
+  componentDidMount() {
+    openSnackbarFn = <span class="hljs-keyword">this</span>.openSnackbar;
+  }
+
+  handleSnackbarRequestClose = () =&gt; {
+    <span class="hljs-keyword">this</span>.setState({
+      <span class="hljs-keyword">open</span>: <span class="hljs-literal">false</span>,
+      message: <span class="hljs-string">''</span>,
+    });
+  };
+
+  openSnackbar = ({ message }) =&gt; {
+    <span class="hljs-keyword">this</span>.setState({ <span class="hljs-keyword">open</span>: <span class="hljs-literal">true</span>, message });
+  };
+
+  render() {
+    <span class="hljs-keyword">const</span> message = (
+      &lt;span id=<span class="hljs-string">"snackbar-message-id"</span> dangerouslySetInnerHTML={{ __html: <span class="hljs-keyword">this</span>.state.message }} /&gt;
+    );
+
+    <span class="hljs-keyword">return</span> (
+      &lt;Snackbar
+        anchorOrigin={{ vertical: <span class="hljs-string">'top'</span>, horizontal: <span class="hljs-string">'right'</span> }}
+        message={message}
+        autoHideDuration={<span class="hljs-number">5000</span>}
+        onClose={<span class="hljs-keyword">this</span>.handleSnackbarRequestClose}
+        <span class="hljs-keyword">open</span>={<span class="hljs-keyword">this</span>.state.<span class="hljs-keyword">open</span>}
+        ContentProps={{
+          <span class="hljs-string">'aria-describedby'</span>: <span class="hljs-string">'snackbar-message-id'</span>,
+        }}
+      /&gt;
+    );
+  }
+}
+
+export function openSnackbar({ message }) {
+  openSnackbarFn({ message });
+}
+
+export <span class="hljs-keyword">default</span> Notifier;</code></pre><p>We use our exported <code>openSnackbar()</code> function to define a <code>notify()</code> function at <code>lib/notifier.js</code>. Create this file:<br><code>lib/notifier.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> { openSnackbar } <span class="hljs-keyword">from</span> <span class="hljs-string">'../components/Notifier'</span>;
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">notify</span>(<span class="hljs-params">obj</span>) </span>{
+  openSnackbar({ <span class="hljs-attr">message</span>: obj.message || obj.toString() });
+}</code></pre><p>Most messages that we will pass to our <code>openSnackbar</code> function are plain text strings. However, we will use <code>openSnackbar</code> to display errors, and some of the error objects do not have a message property (there is no <code>obj.message</code> property inside object). To solve this, we define a <code>notify(obj)</code> function that takes <code>obj</code> and passes <em>either</em> <code>obj.message</code> <em>or</em> stringified <code>obj.toString()</code> as a <code>message</code> to the <code>openSnackbar</code> function.</p>
+<p>Throughout our app, we'll use the <code>notify()</code> function to show success, error, or occasionaly some informational notifications to users.</p>
+<p>It's time to see our Notifier component and <code>notify()</code> function in action.</p>
+<h4 style="color: #FFF;">
+        <a name="example-of-usage" href="#example-of-usage" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Example of usage
+      </h4><p>As a test, let's set up a tooltip on our Index page. </p>
+<ul>
+<li><p>First, import the Notifier component to our <code>App</code> HOC at <code>pages/_app.js</code>:</p>
+<pre>import Notifier from '../components/Notifier';</pre>
+
+<p>Then add <code>&lt;Notifier /&gt;</code> to <code>pages/_app.js</code> like this:</p>
+<pre><code><span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">Container</span>&gt;</span>
+  </span><span class="hljs-template-tag">{/* <span class="hljs-name">ThemeProvider</span> makes the theme available down the React
+        tree thanks to React context. */}</span><span class="xml">
+  <span class="hljs-tag">&lt;<span class="hljs-name">ThemeProvider</span> <span class="hljs-attr">theme</span>=</span></span><span class="hljs-template-variable">{theme}</span><span class="xml"><span class="hljs-tag">&gt;</span>
+    </span><span class="hljs-template-tag">{/* <span class="hljs-name">CssBaseline</span> kickstart an elegant, consistent, and simple baseline to build upon. */}</span><span class="xml">
+    <span class="hljs-tag">&lt;<span class="hljs-name">CssBaseline</span> /&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Header</span> </span></span><span class="hljs-template-variable">{...pageProps}</span><span class="xml"><span class="hljs-tag"> /&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Component</span> </span></span><span class="hljs-template-variable">{...pageProps}</span><span class="xml"><span class="hljs-tag"> /&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Notifier</span> /&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">ThemeProvider</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">Container</span>&gt;</span></span></code></pre></li>
+<li><p>Second, import the <code>notify()</code> function and <code>Button</code> component from Material-UI to the <code>Index page</code> (<code>pages/index.js</code>). And add the following code snippet right after <code>&lt;p&gt;Email: {user.email}&lt;/p&gt;</code> line:</p>
+<pre><code>&lt;<span class="hljs-keyword">Button</span> variant=<span class="hljs-string">"contained"</span> <span class="hljs-keyword">onClick</span>={() =&gt; notify(<span class="hljs-string">'success message'</span>)}&gt;
+  Click me to test notify()
+&lt;/<span class="hljs-keyword">Button</span>&gt;</code></pre></li>
+</ul>
+<p>You should get:<br><code>pages/index.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> React <span class="hljs-keyword">from</span> <span class="hljs-string">'react'</span>;
+<span class="hljs-keyword">import</span> PropTypes <span class="hljs-keyword">from</span> <span class="hljs-string">'prop-types'</span>;
+<span class="hljs-keyword">import</span> Head <span class="hljs-keyword">from</span> <span class="hljs-string">'next/head'</span>;
+
+<span class="hljs-keyword">import</span> Button <span class="hljs-keyword">from</span> <span class="hljs-string">'@material-ui/core/Button'</span>;
+
+<span class="hljs-keyword">import</span> withAuth <span class="hljs-keyword">from</span> <span class="hljs-string">'../lib/withAuth'</span>;
+<span class="hljs-keyword">import</span> notify <span class="hljs-keyword">from</span> <span class="hljs-string">'../lib/notifier'</span>;
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Index</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">React</span>.<span class="hljs-title">Component</span> </span>{
+  <span class="hljs-keyword">static</span> propTypes = {
+    <span class="hljs-attr">user</span>: PropTypes.shape({
+      <span class="hljs-attr">displayName</span>: PropTypes.string,
+      <span class="hljs-attr">email</span>: PropTypes.string.isRequired,
+    }),
+  }
+
+  <span class="hljs-keyword">static</span> defaultProps = {
+    <span class="hljs-attr">user</span>: <span class="hljs-literal">null</span>,
+  }
+
+  render() {
+    <span class="hljs-keyword">const</span> { user } = <span class="hljs-keyword">this</span>.props;
+    <span class="hljs-keyword">return</span> (
+      <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">padding:</span> '<span class="hljs-attr">10px</span> <span class="hljs-attr">45px</span>' }}&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">Head</span>&gt;</span>
+          <span class="hljs-tag">&lt;<span class="hljs-name">title</span>&gt;</span>Dashboard<span class="hljs-tag">&lt;/<span class="hljs-name">title</span>&gt;</span>
+          <span class="hljs-tag">&lt;<span class="hljs-name">meta</span>
+            <span class="hljs-attr">name</span>=<span class="hljs-string">"description"</span>
+            <span class="hljs-attr">content</span>=<span class="hljs-string">"List of purchased books."</span>
+          /&gt;</span>
+        <span class="hljs-tag">&lt;/<span class="hljs-name">Head</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">p</span>&gt;</span>List of purchased books<span class="hljs-tag">&lt;/<span class="hljs-name">p</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-name">p</span>&gt;</span>
+          Email: 
+          {user.email}
+        <span class="hljs-tag">&lt;/<span class="hljs-name">p</span>&gt;</span>
+
+        <span class="hljs-tag">&lt;<span class="hljs-name">Button</span> <span class="hljs-attr">variant</span>=<span class="hljs-string">"contained"</span> <span class="hljs-attr">onClick</span>=<span class="hljs-string">{()</span> =&gt;</span> notify('success message')}&gt;
+          Click me to test notify()
+        <span class="hljs-tag">&lt;/<span class="hljs-name">Button</span>&gt;</span>
+
+      <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
+    );
+  }
+}
+
+export default withAuth(Index);</span></code></pre><p>Start your app with <code>yarn dev</code> and log in. Your <code>Index page</code> will be:<br><img src="https://user-images.githubusercontent.com/10218864/36235447-91bf3722-11a5-11e8-8040-d6b8e8f67a9c.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Click the button:<br><img src="https://user-images.githubusercontent.com/10218864/36235456-a20fcf88-11a5-11e8-84f7-3d1cba8cfc15.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Success - your in-app notification opens up as expected (and disappears in 5 seconds as well)!</p>
+<p>As we create more pages, we will use our <code>notify()</code> function several times. Mostly for our Admin user: add/edit book, sync book's content with Github. Occasionaly for our Customer: creating a bookmark. Keep an eye out for more of <code>notify()</code>, especially in Chapters 5 and 6.</p>
+<p>In the next chapter (Chapter 5), you will set up internal APIs. You will learn that implementing a data exchange between client and server consists of four steps. For example, data may travel from <code>page</code> to <code>API method</code> to <code>Express route</code> to <code>static method</code> of some model.</p>
+<br>
+
+<hr>
+<p>At the end of Chapter 4, your codebase should look like the codebase in <code>4-end</code>. The <a target="_blank" href="https://github.com/builderbook/builderbook/tree/master/book/4-end" rel="noopener noreferrer">4-end</a> folder is located at the root of the <code>book</code> directory inside the <a target="_blank" href="https://github.com/builderbook/builderbook" rel="noopener noreferrer">builderbook repo</a>.</p>
+<p>Compare your codebase and make edits if needed.</p>
+<p>You're halfway through the book! If you're enjoying it, please share a quick <a target="_blank" href="https://goo.gl/forms/JdevtnCWsLwZTAio2" rel="noopener noreferrer">review</a>. You can update your review at any time.</p>
+<hr>
+<br>
+</div></div>

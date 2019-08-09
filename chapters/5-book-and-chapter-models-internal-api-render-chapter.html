@@ -1,0 +1,1890 @@
+<div id="chapter-content" style="padding: 20px 10%; background-color: white; color: black;"><h2 style="font-weight: 400; line-height: 1.5em; background-color: white; color: black;">Chapter 5: Book and Chapter models. Internal API. Render chapter.</h2><div style="background-color: white; color: black;"><hr>
+<ul>
+<li>Book model <br><ul>
+<li>Schema for Book</li>
+<li>Static methods for Book</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>Chapter model <br><ul>
+<li>Schema for Chapter</li>
+<li>Static methods for Chapter</li>
+<li>Index in MongoDB </li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>Internal APIs <br><ul>
+<li>Intro to Express routes</li>
+<li>Basics of internal API</li>
+<li>Express routes</li>
+<li>API methods</li>
+<li>Pages</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>Render Chapter page <br><ul>
+<li>Express route</li>
+<li>API method getChapterDetail()</li>
+<li>Page</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>Testing <br></li>
+</ul>
+<hr>
+<p>Before you start working on Chapter 5, get the <code>5-begin</code> codebase. The <a target="_blank" href="https://github.com/builderbook/builderbook/tree/master/book/5-begin" rel="noopener noreferrer">5-begin</a> folder is located at the root of the <code>book</code> directory inside the <a target="_blank" href="https://github.com/builderbook/builderbook" rel="noopener noreferrer">builderbook repo</a>.</p>
+<ul>
+<li>If you haven't cloned the builderbook repo yet, clone it to your local machine with <code>git clone https://github.com/builderbook/builderbook.git</code>.</li>
+<li>Inside the <code>5-begin</code> folder, run <code>yarn</code> to install all packages. </li>
+</ul>
+<p>These are the packages that we install specifically for Chapter 5:</p>
+<ul>
+<li><code>"isomorphic-unfetch"</code></li>
+</ul>
+<p>Check out the <a target="_blank" href="https://github.com/builderbook/builderbook/blob/master/book/5-begin/package.json" rel="noopener noreferrer">package.json</a> for Chapter 5.</p>
+<ul>
+<li>Be sure to use these specific packages and ignore any warnings about upgrading. We regularly upgrade all packages and test them in the book. But before testing, we cannot guarantee that a new package version will work properly.</li>
+</ul>
+<p>Remember to include your <code>.env</code> at the root of your app.</p>
+<hr>
+<br>
+
+<p>In the previous chapter (Chapter 4), you learned testing with Jest and debugging with Winston, integrated AWS SES to send transactional emails, and created a Notifier component to show users success, error and informational in-app messages.</p>
+<p>In this chapter (Chapter 5), we introduce the Book and Chapter models (you will be able to sell a book once you add a paywall and integrate Stripe in Chapter 8). We will write an integration to access Github's API, so we can use Github as our content management system (CMS). In particular, we'd like to host all of our chapter content on Github, then sync this content with our database and render the content inside of our app.</p>
+<p>As discussed in the Introduction chapter, our app has <a target="_blank" href="https://builderbook.org/books/builder-book/introduction#builder-book-app" rel="noopener noreferrer">two types of users</a> - an Admin who writes a book and a Customer who buys and reads the book. We will gradually discuss and introduce dashboards for each user. For example, an Admin should be able to create a book and set the book's price; a Customer should be able to see a list of purchased books and all available books.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="book-model" href="#book-model" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="book-model">
+          Book model
+        </span>
+      </h2><p>In this section, we'll introduce a simplified Book model. <em>Simplified</em> means that this model will not have any code related to Github API or Stripe API. We'll cover <a target="_blank" href="https://builderbook.org/books/builder-book/github-integration-admin-dashboard-testing-admin-ux-and-github-integration#github-integration" rel="noopener noreferrer">Github integration</a> in Chapter 6 and Stripe integration in Chapter 8.</p>
+<p>At this point in the book, you've successfully created User and EmailTemplate models. From the User model, you learned how to create Mongoose's schema and model:</p>
+<pre><code><span class="hljs-keyword">const</span> { Schema } = mongoose;
+
+<span class="hljs-keyword">const</span> mongoSchema = <span class="hljs-keyword">new</span> Schema({
+  <span class="hljs-comment">// parameters</span>
+});
+
+<span class="hljs-keyword">const</span> Book = mongoose.model(<span class="hljs-string">'Book'</span>, mongoSchema);</code></pre><p>You also learned (in Chapter 3) how to add static methods to a model by using <a target="_blank" href="https://builderbook.org/books/builder-book/authentication-hoc-promise-async-await-static-method-for-user-model-google-oauth#static-method-signinorsignup-" rel="noopener noreferrer">Mongoose's <code>class</code></a>. These static methods typically create and edit documents in a collection:</p>
+<pre><code><span class="hljs-keyword">class</span> <span class="hljs-symbol">BookClass</span> { 
+  <span class="hljs-comment">// methods</span>
+};
+
+mongoSchema.loadClass(BookClass);</code></pre><p>Based on what you learned, we can create the Book model in two steps:</p>
+<ul>
+<li>discuss and add parameters to the Book's Schema (parameters such as <code>name</code> and <code>price</code>)</li>
+<li>discuss and write static methods, then add them to the Book's class, <code>BookClass</code> (methods such as <code>add</code> and <code>edit</code>)</li>
+</ul>
+<p>Here's the carcass of the Book model (it's similar to any other model, like our User model):<br><code>server/models/Book.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> mongoose = require(<span class="hljs-string">'mongoose'</span>);
+
+<span class="hljs-keyword">const</span> { Schema } = mongoose;
+
+<span class="hljs-keyword">const</span> mongoSchema = <span class="hljs-keyword">new</span> Schema({
+  <span class="hljs-comment">// parameters</span>
+});
+
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">BookClass</span> </span>{
+  <span class="hljs-comment">// methods</span>
+}
+
+mongoSchema.loadClass(BookClass);
+
+<span class="hljs-keyword">const</span> Book = mongoose.model(<span class="hljs-string">'Book'</span>, mongoSchema);
+
+<span class="hljs-keyword">module</span>.<span class="hljs-keyword">exports</span> = Book;</code></pre><h4 style="color: #FFF;">
+        <a name="schema-for-book" href="#schema-for-book" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Schema for Book
+      </h4><p>For our Book object, we want four common-sense parameters: <code>name</code>, <code>slug</code> (generated from <code>name</code>), <code>createdAt</code>, <code>price</code>:</p>
+<pre><code><span class="hljs-string">const</span> <span class="hljs-string">{</span> <span class="hljs-string">Schema</span> <span class="hljs-string">}</span> <span class="hljs-string">=</span> <span class="hljs-string">mongoose;</span>
+
+<span class="hljs-string">const</span> <span class="hljs-string">mongoSchema</span> <span class="hljs-string">=</span> <span class="hljs-string">new</span> <span class="hljs-string">Schema({</span>
+<span class="hljs-attr">  name:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">    type:</span> <span class="hljs-string">String,</span>
+<span class="hljs-attr">    required:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+  <span class="hljs-string">},</span>
+<span class="hljs-attr">  slug:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">    type:</span> <span class="hljs-string">String,</span>
+<span class="hljs-attr">    required:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+<span class="hljs-attr">    unique:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+  <span class="hljs-string">},</span>
+<span class="hljs-attr">  createdAt:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">    type:</span> <span class="hljs-string">Date,</span>
+<span class="hljs-attr">    required:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+  <span class="hljs-string">},</span>
+<span class="hljs-attr">  price:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">    type:</span> <span class="hljs-string">Number,</span>
+<span class="hljs-attr">    required:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+  <span class="hljs-string">},</span>
+<span class="hljs-attr">  githubRepo:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">    type:</span> <span class="hljs-string">String,</span>
+<span class="hljs-attr">    required:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+  <span class="hljs-string">},</span>
+<span class="hljs-attr">  githubLastCommitSha:</span> <span class="hljs-string">String,</span>
+<span class="hljs-string">});</span></code></pre><p>The parameters <code>githubRepo</code> and <code>githubLastCommitSha</code> are related to integration with Github. We host a book on Github as a repository. This book repo contains a list of <code>.md</code> files, each of which corresponds to one chapter. </p>
+<p>The <code>githubRepo</code> parameter is the name of the repo on Github that contains our book's content (chapters). For example, for our first test book, <code>githubRepo</code> will have the value:</p>
+<pre>"githubRepo": "builderbook/builderbook"</pre>
+
+<p>This is the repo named <code>builderbook</code> inside the organization <code>builderbook</code>.</p>
+<p>The <code>githubLastCommitSha</code> parameter is the <code>ID</code> of the latest commit and may look like:</p>
+<pre>"githubLastCommitSha": "908c5d7d28531ea85a451193eb3b6535c619700d"</pre>
+
+<p>We will discuss these Github-related parameters in more detail in Chapter 6, although we added the parameters to our Book model Schema right now.</p>
+<h4 style="color: #FFF;">
+        <a name="static-methods-for-book" href="#static-methods-for-book" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Static methods for Book
+      </h4><p>Alright, we are done with Schema. Now let's define static methods inside the <code>BookClass</code>. </p>
+<p>You learned about Mongoose's class properties <a target="_blank" href="https://builderbook.org/books/builder-book/authentication-hoc-promise-async-await-static-method-for-user-model-google-oauth#static-method-signinorsignup-" rel="noopener noreferrer">in Chapter 3</a> when we discussed <code>UserClass</code> and added static methods  <code>publicFields()</code> (specifies public parameters for <code>user</code> object) and <code>signInOrSignUp()</code> (either finds an existing user or creates a new user).</p>
+<p>We will have four static methods for <code>BookClass</code>:</p>
+<ol>
+<li><code>list()</code> retrieves a list of all books. When constructing our app's internal APIs, we'll use this method to display a list of all available or purchased books.</li>
+<li><code>getBySlug()</code> finds one unique book by its slug. We'll use it to display a single book - for example, when a Customer reads a book.</li>
+<li><code>add()</code> adds a new book to our Book collection. We'll use it in our admin's internal API (later in this chapter).</li>
+<li><code>edit()</code> finds and edits a book's <code>name</code>, <code>price</code>, or <code>githubRepo</code>. Like the <code>add()</code> method, only an admin can access this method, so we'll use it in our admin's internal API.</li>
+</ol>
+<p>To summarize what we just discussed:</p>
+<pre><code><span class="hljs-keyword">class</span> <span class="hljs-title">BookClass</span> {
+  <span class="hljs-function"><span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> <span class="hljs-title">list</span>(<span class="hljs-params">{ offset = <span class="hljs-number">0</span>, limit = <span class="hljs-number">10</span> } = {}</span>)</span> {
+    <span class="hljs-comment">// some code</span>
+  }
+
+  <span class="hljs-function"><span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> <span class="hljs-title">getBySlug</span>(<span class="hljs-params">{ slug }</span>)</span> {
+    <span class="hljs-comment">// some code</span>
+  }
+
+  <span class="hljs-function"><span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> <span class="hljs-title">add</span>(<span class="hljs-params">{ name, price, githubRepo }</span>)</span> {
+    <span class="hljs-comment">// some code</span>
+  }
+
+  <span class="hljs-function"><span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> <span class="hljs-title">edit</span>(<span class="hljs-params">{
+    id, name, price, githubRepo,
+  }</span>)</span> {
+    <span class="hljs-comment">// some code</span>
+  }
+}
+
+mongoSchema.loadClass(BookClass);</code></pre><ol>
+<li><p>The static and async <code>list()</code> method (<code>static async list()</code>) takes two arguments: <code>offset</code> and <code>limit</code>. The method waits (<code>await</code>) until all books are found (<code>this.find()</code>) and returns an array of book objects (<code>{}</code>). Inside the <code>list()</code> method, we apply three MongoDB methods to reorganize the array of book objects: <a target="_blank" href="https://docs.mongodb.com/manual/reference/method/cursor.sort/" rel="noopener noreferrer">.sort()</a>, <a target="_blank" href="https://docs.mongodb.com/manual/reference/method/cursor.skip/" rel="noopener noreferrer">.skip()</a>, <a target="_blank" href="https://docs.mongodb.com/manual/reference/method/cursor.limit/" rel="noopener noreferrer">.limit</a>:</p>
+<pre><code><span class="hljs-function"><span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> <span class="hljs-title">list</span>(<span class="hljs-params">{ offset = <span class="hljs-number">0</span>, limit = <span class="hljs-number">10</span> } = {}</span>)</span> {
+<span class="hljs-keyword">const</span> books = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.find({})
+ .sort({ createdAt: <span class="hljs-number">-1</span> })
+ .skip(offset)
+ .limit(limit);
+<span class="hljs-keyword">return</span> { books };
+}</code></pre><p><code>.sort({ createdAt: -1 })</code> sorts book objects by creation date, from the most to least recently created.<br><code>.skip(offset)</code> with <code>offset = 0</code> ensures that we do not skip any books.<br><code>.limit(limit)</code> and <code>limit=10</code> returns no more than 10 books. If we return too many books, MongoDB's query time may be high and user-unfriendly.</p>
+<p>The default value for the <code>.skip()</code> method is zero, so we don't need to specify it explicitly. However, let's keep the <code>offset</code> argument. We may need later if we decide to add pagination to our list of books.</p>
+</li>
+<li><p>The static and async <code>getBySlug()</code> method (<code>static async getBySlug()</code>) takes one argument: <code>slug</code>. The main method waits (<code>await</code>) until Mongoose's <code>this.findOne()</code> method finds one book (<code>slug</code> is unique, take a look above at the Book's model Schema). If a book can't be found - we throw anerror:</p>
+<pre>throw new Error('Book not found');</pre>
+
+<p>Otherwise, we take the book document we found and convert it into a plain JavaScript object by using Mongoose's <a target="_blank" href="http://mongoosejs.com/docs/api.html#document_Document-toObject" rel="noopener noreferrer">toObject</a> method:</p>
+<pre>const book = bookDoc.toObject();</pre>
+
+<pre><code><span class="hljs-function"><span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> <span class="hljs-title">getBySlug</span>(<span class="hljs-params">{ slug }</span>)</span> {
+<span class="hljs-keyword">const</span> bookDoc = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.findOne({ slug });
+<span class="hljs-keyword">if</span> (!bookDoc) {
+ <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> Error(<span class="hljs-string">'Book not found'</span>);
+}
+
+<span class="hljs-keyword">const</span> book = bookDoc.toObject();
+
+<span class="hljs-keyword">return</span> book;
+}</code></pre><p>We are not done with the <code>getBySlug()</code> method just yet. Before we return a JS object from our book with <code>return book;</code>, we want to retrieve the book's chapters. Retrieving the book along with its chapters is useful for building a Table of Contents (link to Chapter 6). To find all chapters of a particular book, we use Mongoose's <code>Chapter.find()</code>. We search for all chapters with the proper <code>bookId</code> value (<code>bookId: book._id</code>). For each chapter, we retrieve <code>title</code> and <code>slug</code>.</p>
+<p>We sort our array of chapters with the <code>order</code> parameter and go through <em>each</em> chapter document in our array with the <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map" rel="noopener noreferrer">.map</a> JS method.</p>
+<p>We convert each chapter document into a plain JS object with Mongoose's <a target="_blank" href="http://mongoosejs.com/docs/api.html#document_Document-toObject" rel="noopener noreferrer">toObject()</a> method:</p>
+<pre><code><span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> getBySlug({ slug }) {
+<span class="hljs-keyword">const</span> bookDoc = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.findOne({ slug });
+<span class="hljs-keyword">if</span> (!bookDoc) {
+ <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(<span class="hljs-string">'Book not found'</span>);
+}
+
+<span class="hljs-keyword">const</span> book = bookDoc.toObject();
+
+book.chapters = (<span class="hljs-keyword">await</span> Chapter.find({ <span class="hljs-attr">bookId</span>: book._id }, <span class="hljs-string">'title slug'</span>)
+ .sort({ <span class="hljs-attr">order</span>: <span class="hljs-number">1</span> }))
+ .map(<span class="hljs-function"><span class="hljs-params">chapter</span> =&gt;</span> chapter.toObject());
+<span class="hljs-keyword">return</span> book;
+}</code></pre></li>
+<li><p>The static <code>add()</code> method (<code>static async add()</code>) takes three arguments: book <code>name</code>, <code>price</code>, and <code>githubRepo</code>. This method calls and <em>waits</em> for <code>generateSlug()</code> method to return a unique <code>slug</code> for a book. We discussed <code>async/await</code> construct in detail in <a target="_blank" href="https://builderbook.org/books/builder-book/authentication-hoc-promise-async-await-static-method-for-user-model-google-oauth#async-await" rel="noopener noreferrer">Chapter 3</a>. After we get <code>slug</code>, we use the Mongoose method/Query <code>create()</code> to create a new book document in our database. The new document gets <code>name</code>, <code>price</code>, and <code>githubRepo</code> that are passed from the client (Admin specifies these values on the <code>AddBook</code> page). The new document also gets <code>slug</code> and <code>createdAt</code> parameters:</p>
+<pre><code><span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> add({ name, price, githubRepo }) {
+ <span class="hljs-keyword">const</span> slug = <span class="hljs-keyword">await</span> generateSlug(<span class="hljs-keyword">this</span>, name);
+
+ <span class="hljs-keyword">if</span> (!slug) {
+   <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(<span class="hljs-string">`Error with slug generation for name: <span class="hljs-subst">${name}</span>`</span>);
+ }
+
+ <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.create({
+   name,
+   slug,
+   price,
+   githubRepo,
+   <span class="hljs-attr">createdAt</span>: <span class="hljs-keyword">new</span> <span class="hljs-built_in">Date</span>(),
+ });
+}</code></pre><p><a target="_blank" href="https://github.com/builderbook/builderbook/issues/143" rel="noopener noreferrer">One of our readers</a> has noted that we can add <code>default</code> option to <code>createdAt</code> parameter in Book's schema like this:</p>
+<pre><code><span class="hljs-attr">createdAt:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr"> type:</span> <span class="hljs-string">Date,</span>
+<span class="hljs-attr"> required:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+<span class="hljs-attr"> default:</span> <span class="hljs-string">Date.now,</span>
+<span class="hljs-string">},</span></code></pre><p>If you do so then you can drop <code>createdAt</code> parameter from the above <code>this.create()</code>, so it becomes:</p>
+<pre><code><span class="hljs-keyword">return</span> this.create({
+<span class="hljs-built_in"> name,</span>
+<span class="hljs-built_in"> slug,</span>
+<span class="hljs-built_in"> price,</span>
+<span class="hljs-built_in"> githubRepo,</span>
+})<span class="hljs-comment">;</span></code></pre><p>Read more about Mongoose's <a target="_blank" href="https://mongoosejs.com/docs/defaults.html#default-functions" rel="noopener noreferrer">default option</a> in offical docs.</p>
+<p>Later, in Chapter 6, we will add one more parameter for Book model, <code>githubLastCommitSha</code>.</p>
+</li>
+<li><p>The static and async <code>edit()</code> method (<code>static async edit()</code>) takes four parameters: <code>id</code>, <code>name</code>, <code>price</code> and <code>githubRepo</code>. This method finds one book by its id with Mongoose's <a target="_blank" href="http://mongoosejs.com/docs/api.html#model_Model.findById" rel="noopener noreferrer"><code>findById()</code> method</a> (this method uses Mongo's <a target="_blank" href="https://docs.mongodb.com/manual/reference/method/db.collection.findOne" rel="noopener noreferrer">findOne() method</a>).  </p>
+<p>Unlike the <code>getBySlug()</code> method, we do not convert the book's document into a plain JS object with <code>edit()</code>, so we can use the <code>book</code> variable instead of <code>bookDoc</code>. Waiting (<code>await</code>) to find one book by its id, then retrieving the book's <code>slug</code> and <code>name</code> will look like:</p>
+<pre>const book = await this.findById(id, 'slug name');</pre>
+
+<p>Similar to the <code>getBySlug()</code> method, if a book is not found, we throw an error:</p>
+<pre>throw new Error('Book is not found by id');</pre> 
+
+<p>And catch error later when we write our internal APIs.</p>
+<p>If a book is found, we define a <code>modifier</code> variable that points to an array of two parameters:</p>
+<pre>const modifier = { price, githubRepo };</pre>
+
+<p>Then we check if the book's name in our database (<code>book.name</code>) matches a new <code>name</code> (<code>name !== book.name</code>). If it does not, we <em>add</em> a new <code>name</code> to our modifier by extending it (<code>modifier.name = name;</code>). We also generate and add <code>slug</code> to our modifier:</p>
+<pre>modifier.slug = await generateSlug(this, name);</pre>
+
+<p>Finally, for book found by its id, we modify the book's parameters (<code>name</code>, <code>price</code> and <code>githubRepo</code>) with Mongoose/Mongo's <a target="_blank" href="https://docs.mongodb.com/manual/reference/method/db.collection.updateOne/" rel="noopener noreferrer"><code>this.updateOne()</code> method</a>. We <em>replace</em> the values of all four parameters (<code>name</code>, <code>slug</code>, <code>price</code>, <code>githubRepo</code>) with new values by using the well-known <a target="_blank" href="https://docs.mongodb.com/v3.4/reference/operator/update/set/#up._S_set" rel="noopener noreferrer">$set</a> operator that does just that.</p>
+<p>After translating English to JavaScript, we get:</p>
+<pre><code>static async edit({
+ id, name, price, githubRepo,
+}) {
+ const book = await this.find<span class="hljs-constructor">ById(<span class="hljs-params">id</span>, '<span class="hljs-params">slug</span> <span class="hljs-params">name</span>')</span>;
+
+ <span class="hljs-keyword">if</span> (!book) {
+   throw <span class="hljs-keyword">new</span> <span class="hljs-constructor">Error('Book <span class="hljs-params">is</span> <span class="hljs-params">not</span> <span class="hljs-params">found</span> <span class="hljs-params">by</span> <span class="hljs-params">id</span>')</span>;
+ }
+
+ const modifier = { price, githubRepo };
+
+ <span class="hljs-keyword">if</span> (name !== book.name) {
+   modifier.name = name;
+   modifier.slug = await generate<span class="hljs-constructor">Slug(<span class="hljs-params">this</span>, <span class="hljs-params">name</span>)</span>;
+ }
+
+ await this.update<span class="hljs-constructor">One({ <span class="hljs-params">_id</span>: <span class="hljs-params">id</span> }, { $<span class="hljs-params">set</span>: <span class="hljs-params">modifier</span> })</span>;
+
+ const editedBook = await this.find<span class="hljs-constructor">ById(<span class="hljs-params">id</span>, '<span class="hljs-params">slug</span>')</span>;
+
+ return editedBook;
+}</code></pre><p>Notice that we updated the book document, then we found this edited book document by id and returned it to the Express route that will send the document to the client. This returned book object, called <code>editedBook</code>, contains <code>_id</code> (added to all returned objects by default) and <code>slug</code> (specified explicitly by us):</p>
+<ul>
+<li>we need <code>_id</code> on the client to successfully call the <code>syncContent()</code> API method that requires book <code>_id</code></li>
+<li>we need <code>slug</code> on the client to successfully redirect a user to the <code>BookDetail</code> page, as this page's URL contains the new <code>slug</code> of the edited book</li>
+</ul>
+<p>MongoDB's API allows us to find and update document with just one query. The method to achieve this is <a target="_blank" href="https://mongoosejs.com/docs/api.html#model_Model.findOneAndUpdate" rel="noopener noreferrer">findOneAndUpdate()</a>. As one of our readers (@YuriGor, <a target="_blank" href="https://github.com/builderbook/builderbook/issues/175" rel="noopener noreferrer">link</a>) suggested, we can replace these two queries:</p>
+<pre><code>await this.update<span class="hljs-constructor">One({ <span class="hljs-params">_id</span>: <span class="hljs-params">id</span> }, { $<span class="hljs-params">set</span>: <span class="hljs-params">modifier</span> })</span>;
+
+const editedBook = await this.find<span class="hljs-constructor">ById(<span class="hljs-params">id</span>, '<span class="hljs-params">slug</span>')</span>;</code></pre><p>With one:</p>
+<pre><code><span class="hljs-keyword">const</span> editedBook = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.findOneAndUpdate(
+ { _id: id },
+ { $<span class="hljs-keyword">set</span>: modifier },
+ { fields: <span class="hljs-string">'slug'</span>, <span class="hljs-keyword">new</span>: <span class="hljs-literal">true</span> },
+);</code></pre></li>
+</ol>
+<p>Done. We are ready to put it all together for our Book model.</p>
+<p>Now, add the Schema above and the four static methods to our carcass for the Book model:<br><code>server/models/Book.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> mongoose = <span class="hljs-built_in">require</span>(<span class="hljs-string">'mongoose'</span>);
+<span class="hljs-keyword">const</span> generateSlug = <span class="hljs-built_in">require</span>(<span class="hljs-string">'../utils/slugify'</span>);
+<span class="hljs-keyword">const</span> Chapter = <span class="hljs-built_in">require</span>(<span class="hljs-string">'./Chapter'</span>);
+
+<span class="hljs-keyword">const</span> { Schema } = mongoose;
+
+<span class="hljs-keyword">const</span> mongoSchema = <span class="hljs-keyword">new</span> Schema({
+  name: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    required: <span class="hljs-literal">true</span>,
+  },
+  slug: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    required: <span class="hljs-literal">true</span>,
+    unique: <span class="hljs-literal">true</span>,
+  },
+  githubRepo: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    required: <span class="hljs-literal">true</span>,
+  },
+  githubLastCommitSha: <span class="hljs-built_in">String</span>,
+
+  createdAt: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">Date</span>,
+    required: <span class="hljs-literal">true</span>,
+  },
+  price: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">Number</span>,
+    required: <span class="hljs-literal">true</span>,
+  },
+});
+
+
+<span class="hljs-keyword">class</span> BookClass {
+  <span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> list({ offset = <span class="hljs-number">0</span>, limit = <span class="hljs-number">10</span> } = {}) {
+    <span class="hljs-keyword">const</span> books = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.find({})
+      .sort({ createdAt: <span class="hljs-number">-1</span> })
+      .skip(offset)
+      .limit(limit);
+    <span class="hljs-keyword">return</span> { books };
+  }
+
+  <span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> getBySlug({ slug }) {
+    <span class="hljs-keyword">const</span> bookDoc = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.findOne({ slug });
+    <span class="hljs-keyword">if</span> (!bookDoc) {
+      <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(<span class="hljs-string">'Book not found'</span>);
+    }
+
+    <span class="hljs-keyword">const</span> book = bookDoc.toObject();
+
+    book.chapters = (<span class="hljs-keyword">await</span> Chapter.find({ bookId: book._id }, <span class="hljs-string">'title slug'</span>)
+      .sort({ order: <span class="hljs-number">1</span> }))
+      .map(<span class="hljs-function"><span class="hljs-params">chapter</span> =&gt;</span> chapter.toObject());
+    <span class="hljs-keyword">return</span> book;
+  }
+
+  <span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> add({ name, price, githubRepo }) {
+    <span class="hljs-keyword">const</span> slug = <span class="hljs-keyword">await</span> generateSlug(<span class="hljs-keyword">this</span>, name);
+
+    <span class="hljs-keyword">if</span> (!slug) {
+      <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(<span class="hljs-string">`Error with slug generation for name: <span class="hljs-subst">${name}</span>`</span>);
+    }
+
+    <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.create({
+      name,
+      slug,
+      price,
+      githubRepo,
+      createdAt: <span class="hljs-keyword">new</span> <span class="hljs-built_in">Date</span>(),
+    });
+  }
+
+  <span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> edit({
+    id, name, price, githubRepo,
+  }) {
+    <span class="hljs-keyword">const</span> book = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.findById(id, <span class="hljs-string">'slug name'</span>);
+
+    <span class="hljs-keyword">if</span> (!book) {
+      <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(<span class="hljs-string">'Not found'</span>);
+    }
+
+    <span class="hljs-keyword">const</span> modifier = { price, githubRepo };
+    <span class="hljs-keyword">if</span> (name !== book.name) {
+      modifier.name = name;
+      modifier.slug = <span class="hljs-keyword">await</span> generateSlug(<span class="hljs-keyword">this</span>, name);
+    }
+
+
+    <span class="hljs-keyword">const</span> editedBook = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.findOneAndUpdate( { _id: id }, { $<span class="hljs-keyword">set</span>: modifier }, { fields: <span class="hljs-string">'slug'</span>, <span class="hljs-keyword">new</span>: <span class="hljs-literal">true</span> } );
+
+    <span class="hljs-keyword">return</span> editedBook;
+  }
+}
+
+
+mongoSchema.loadClass(BookClass);
+
+<span class="hljs-keyword">const</span> Book = mongoose.model(<span class="hljs-string">'Book'</span>, mongoSchema);
+
+<span class="hljs-built_in">module</span>.exports = Book;</code></pre><p>Good job! Now you'll have an easier time constructing the Chapter model.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="chapter-model" href="#chapter-model" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="chapter-model">
+          Chapter model
+        </span>
+      </h2><p>Aright, we've introduced the Book model, now time is for the Chapter model.</p>
+<p>Our book consists of chapters. You became familiar with Chapter objects when writing the <code>getBySlug()</code> static method for our Book model. You learned that each Chapter document will have a <code>bookId</code> parameter, which you can use to fetch all chapters that belong to one book. </p>
+<p>At this point, writing the basic version of the Chapter model is straightforward, since we've already written a <a target="_blank" href="https://builderbook.org/books/builder-book/server-database-session-header-and-menudrop-components#database" rel="noopener noreferrer">User model in Chapter 2</a> and a Book model earlier in this chapter.</p>
+<p>The carcass always contains <code>Schema</code> and <code>ModelClass</code>:<br><code>server/models/Chapter.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> mongoose = require(<span class="hljs-string">'mongoose'</span>);
+
+<span class="hljs-keyword">const</span> { Schema } = mongoose;
+
+<span class="hljs-keyword">const</span> mongoSchema = <span class="hljs-keyword">new</span> Schema({
+  <span class="hljs-comment">// parameters</span>
+});
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ChapterClass</span> </span>{
+  <span class="hljs-comment">// methods</span>
+}
+
+mongoSchema.loadClass(ChapterClass);
+
+<span class="hljs-keyword">const</span> Chapter = mongoose.model(<span class="hljs-string">'Chapter'</span>, mongoSchema);
+
+<span class="hljs-keyword">module</span>.<span class="hljs-keyword">exports</span> = Chapter;</code></pre><h4 style="color: #FFF;">
+        <a name="schema-for-chapter" href="#schema-for-chapter" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Schema for Chapter
+      </h4><p>In this subsection, let's go over all parameters that we need for a Chapter object.</p>
+<ul>
+<li>To find and fetch all chapters that belong to one book - we use <code>bookId</code>.</li>
+<li>Each Chapter needs <code>createdAt</code> (creation date), <code>title</code>, <code>slug</code> (generated from title), <code>seoTitle</code>, and <code>seoDescription</code>. We use the latter two parameters to display a title and description to Googlebot for proper indexing of our web app.</li>
+<li>Some chapters - for example the first chapter that we call "Introduction" - will be completely free with no paywall hiding their content. We use the boolean parameter <code>isFree</code> and set the default value to <code>false</code>. But for free chapters, such as Introduction chapter, we set the value to <code>true</code>.</li>
+<li>Every chapter should have <code>content</code> (markdown content), htmlContent (HTML content), <code>excerpt</code> (markdown content that is free to all visitors, even if they didn't sign up or buy a book),<code>htmlExcerpt</code> (HTML excerpt) and <code>githubFilePath</code> (path inside our github repo that points to the <code>.md</code> file containing the chapter's content).</li>
+<li>The final parameter is <code>order</code>. This is the ordinal number that is extracted from each chapter's title and used to order chapters inside our table of contents. Note that the Introduction chapter is always first thus <code>"order": 1</code>.</li>
+</ul>
+<p><code>server/models/Chapter.js</code> :</p>
+<pre><code><span class="hljs-string">const</span> <span class="hljs-string">{</span> <span class="hljs-string">Schema</span> <span class="hljs-string">}</span> <span class="hljs-string">=</span> <span class="hljs-string">mongoose;</span>
+
+<span class="hljs-string">const</span> <span class="hljs-string">mongoSchema</span> <span class="hljs-string">=</span> <span class="hljs-string">new</span> <span class="hljs-string">Schema({</span>
+<span class="hljs-attr">  bookId:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">    type:</span> <span class="hljs-string">Schema.Types.ObjectId,</span>
+<span class="hljs-attr">    required:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+  <span class="hljs-string">},</span>
+<span class="hljs-attr">  isFree:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">    type:</span> <span class="hljs-string">Boolean,</span>
+<span class="hljs-attr">    required:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+<span class="hljs-attr">    default:</span> <span class="hljs-literal">false</span><span class="hljs-string">,</span>
+  <span class="hljs-string">},</span>
+<span class="hljs-attr">  title:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">    type:</span> <span class="hljs-string">String,</span>
+<span class="hljs-attr">    required:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+  <span class="hljs-string">},</span>
+<span class="hljs-attr">  slug:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">    type:</span> <span class="hljs-string">String,</span>
+<span class="hljs-attr">    required:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+  <span class="hljs-string">},</span>
+<span class="hljs-attr">  content:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">    type:</span> <span class="hljs-string">String,</span>
+<span class="hljs-attr">    default:</span> <span class="hljs-string">''</span><span class="hljs-string">,</span>
+<span class="hljs-attr">    required:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+  <span class="hljs-string">},</span>
+<span class="hljs-attr">  htmlContent:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">    type:</span> <span class="hljs-string">String,</span>
+<span class="hljs-attr">    default:</span> <span class="hljs-string">''</span><span class="hljs-string">,</span>
+<span class="hljs-attr">    required:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+  <span class="hljs-string">},</span>
+<span class="hljs-attr">  excerpt:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">    type:</span> <span class="hljs-string">String,</span>
+<span class="hljs-attr">    default:</span> <span class="hljs-string">''</span><span class="hljs-string">,</span>
+  <span class="hljs-string">},</span>
+<span class="hljs-attr">  htmlExcerpt:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">    type:</span> <span class="hljs-string">String,</span>
+<span class="hljs-attr">    default:</span> <span class="hljs-string">''</span><span class="hljs-string">,</span>
+  <span class="hljs-string">},</span>
+<span class="hljs-attr">  createdAt:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">    type:</span> <span class="hljs-string">Date,</span>
+<span class="hljs-attr">    required:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+  <span class="hljs-string">},</span>
+<span class="hljs-attr">  githubFilePath:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">    type:</span> <span class="hljs-string">String,</span>
+  <span class="hljs-string">},</span>
+<span class="hljs-attr">  order:</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">    type:</span> <span class="hljs-string">Number,</span>
+<span class="hljs-attr">    required:</span> <span class="hljs-literal">true</span><span class="hljs-string">,</span>
+  <span class="hljs-string">},</span>
+<span class="hljs-attr">  seoTitle:</span> <span class="hljs-string">String,</span>
+<span class="hljs-attr">  seoDescription:</span> <span class="hljs-string">String,</span>
+<span class="hljs-attr">  sections:</span> <span class="hljs-string">[</span>
+    <span class="hljs-string">{</span>
+<span class="hljs-attr">      text:</span> <span class="hljs-string">String,</span>
+<span class="hljs-attr">      level:</span> <span class="hljs-string">Number,</span>
+<span class="hljs-attr">      escapedText:</span> <span class="hljs-string">String,</span>
+    <span class="hljs-string">},</span>
+  <span class="hljs-string">],</span>
+<span class="hljs-string">});</span></code></pre><p>In the <a target="_blank" href="https://builderbook.org/books/builder-book/github-integration-admin-dashboard-testing-admin-ux-and-github-integration#markdown-to-html" rel="noopener noreferrer">Markdown to HTML</a> section of Chapter 6, we discuss how to convert markdown content to HTML. In the same section, we will discuss how to make array <code>sections</code>.</p>
+<p>Great, we are done with the Chapter Schema. Next we'll write static methods for the class of our Chapter model, <code>ChapterClass</code>.</p>
+<h4 style="color: #FFF;">
+        <a name="static-methods-for-chapter" href="#static-methods-for-chapter" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Static methods for Chapter
+      </h4><p>In our Book model, we wrote four static methods for <code>BookClass</code>. These methods help us retrieve one book with chapters, create a book, edit a book, and fetch a list of all books. We will call these methods when we write our app's backend internal APIs (inside <code>server/api/*</code>).</p>
+<p>Do we need to write CRUD static methods for Chapter model? Create or edit methods? Nope, because we will host Chapter on Github. Instead (when we get to Github integration), we will create a <code>syncContent()</code> static method that will create and update chapters using files hosted in our book's repo on Github.</p>
+<p>Do we need a method to list all of our chapters? No again, becaues we already did it. We wrote the static method <code>getBySlug()</code> for <code>BookClass</code> - that method finds a book by its slug <em>and</em> attaches a list of chapters ordered by our <code>order</code> parameter:</p>
+<pre><code><span class="hljs-keyword">book.chapters </span>= (await Chapter.find({ <span class="hljs-keyword">bookId: </span><span class="hljs-keyword">book._id </span>}, <span class="hljs-string">'title slug'</span>)
+   .sort({ <span class="hljs-keyword">order: </span><span class="hljs-number">1</span> }))
+   .map(chapter =&gt; chapter.toObject())<span class="hljs-comment">;</span></code></pre><p>The only static method we need to create for <code>ChapterClass</code> is <code>getBySlug()</code>.</p>
+<p>This method:</p>
+<ul>
+<li>finds a book by its slug: <code>const book = await Book.getBySlug({ slug: bookSlug });</code></li>
+<li>if unsuccessful, it throws an error: <code>throw new Error('Not found');</code></li>
+<li>if successful, the method finds a chapter by its slug: <code>const chapter = await this.findOne({ bookId: book._id, slug: chapterSlug });</code></li>
+<li>finally, the method converts MongoDB documents (Chapter and Book) into plain JS objects:<pre><code>const chapterObj = chapter.toObject()<span class="hljs-comment">;</span>
+chapterObj.book = book<span class="hljs-comment">;</span></code></pre></li>
+</ul>
+<p>After translating English to JavaScript, we get the following for our static method <code>getBySlug({ bookSlug, chapterSlug })</code>:</p>
+<pre><code><span class="hljs-keyword">class</span> ChapterClass {
+  static async get<span class="hljs-constructor">BySlug({ <span class="hljs-params">bookSlug</span>, <span class="hljs-params">chapterSlug</span> })</span> {
+    const book = await <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">Book</span>.</span></span>get<span class="hljs-constructor">BySlug({ <span class="hljs-params">slug</span>: <span class="hljs-params">bookSlug</span> })</span>;
+
+    <span class="hljs-keyword">if</span> (!book) {
+      throw <span class="hljs-keyword">new</span> <span class="hljs-constructor">Error('Not <span class="hljs-params">found</span>')</span>;
+    }
+
+    const chapter = await this.find<span class="hljs-constructor">One({ <span class="hljs-params">bookId</span>: <span class="hljs-params">book</span>.<span class="hljs-params">_id</span>, <span class="hljs-params">slug</span>: <span class="hljs-params">chapterSlug</span> })</span>;
+
+    <span class="hljs-keyword">if</span> (!chapter) {
+      throw <span class="hljs-keyword">new</span> <span class="hljs-constructor">Error('Not <span class="hljs-params">found</span>')</span>;
+    }
+
+    const chapterObj = chapter.<span class="hljs-keyword">to</span><span class="hljs-constructor">Object()</span>;
+    chapterObj.book = book;
+
+    return chapterObj;
+  }
+}</code></pre><p>Done with the Chapter model!</p>
+<p>Add the above Schema and one static method to our carcass for the Chapter model:<br><code>server/models/Chapter.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> mongoose = <span class="hljs-built_in">require</span>(<span class="hljs-string">'mongoose'</span>);
+
+<span class="hljs-keyword">const</span> Book = <span class="hljs-built_in">require</span>(<span class="hljs-string">'./Book'</span>);
+
+<span class="hljs-keyword">const</span> { Schema } = mongoose;
+
+<span class="hljs-keyword">const</span> mongoSchema = <span class="hljs-keyword">new</span> Schema({
+  bookId: {
+    <span class="hljs-keyword">type</span>: Schema.Types.ObjectId,
+    required: <span class="hljs-literal">true</span>,
+  },
+  isFree: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">Boolean</span>,
+    required: <span class="hljs-literal">true</span>,
+    <span class="hljs-keyword">default</span>: <span class="hljs-literal">false</span>,
+  },
+  githubFilePath: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+  },
+  title: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    required: <span class="hljs-literal">true</span>,
+  },
+  slug: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    required: <span class="hljs-literal">true</span>,
+  },
+  content: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    <span class="hljs-keyword">default</span>: <span class="hljs-string">''</span>,
+    required: <span class="hljs-literal">true</span>,
+  },
+  htmlContent: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    <span class="hljs-keyword">default</span>: <span class="hljs-string">''</span>,
+    required: <span class="hljs-literal">true</span>,
+  },
+  excerpt: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    <span class="hljs-keyword">default</span>: <span class="hljs-string">''</span>,
+  },
+  htmlExcerpt: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    <span class="hljs-keyword">default</span>: <span class="hljs-string">''</span>,
+  },
+  createdAt: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">Date</span>,
+    required: <span class="hljs-literal">true</span>,
+  },
+  order: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">Number</span>,
+    required: <span class="hljs-literal">true</span>,
+  },
+  seoTitle: <span class="hljs-built_in">String</span>,
+  seoDescription: <span class="hljs-built_in">String</span>,
+  sections: [
+    {
+      text: <span class="hljs-built_in">String</span>,
+      level: <span class="hljs-built_in">Number</span>,
+      escapedText: <span class="hljs-built_in">String</span>,
+    },
+  ],
+});
+
+<span class="hljs-keyword">class</span> ChapterClass {
+  <span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> getBySlug({ bookSlug, chapterSlug, user }) {
+    <span class="hljs-keyword">const</span> book = <span class="hljs-keyword">await</span> Book.getBySlug({ slug: bookSlug, user });
+    <span class="hljs-keyword">if</span> (!book) {
+      <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(<span class="hljs-string">'Not found'</span>);
+    }
+
+    <span class="hljs-keyword">const</span> chapter = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.findOne({ bookId: book._id, slug: chapterSlug });
+
+    <span class="hljs-keyword">if</span> (!chapter) {
+      <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(<span class="hljs-string">'Not found'</span>);
+    }
+
+    <span class="hljs-keyword">const</span> chapterObj = chapter.toObject();
+    chapterObj.book = book;
+
+    <span class="hljs-keyword">return</span> chapterObj;
+  }
+}
+
+
+mongoSchema.loadClass(ChapterClass);
+
+<span class="hljs-keyword">const</span> Chapter = mongoose.model(<span class="hljs-string">'Chapter'</span>, mongoSchema);
+
+<span class="hljs-built_in">module</span>.exports = Chapter;</code></pre><p>In the next section, we will create a MongoDB index and update our Chapter model to ensure that our database does not create two chapters with similar parameter values (to prevent duplication).</p>
+<h4 style="color: #FFF;">
+        <a name="index-in-mongodb" href="#index-in-mongodb" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Index in MongoDB
+      </h4><p>Take a look at our <code>getBySlug</code> static method in the Chapter model. In particular, look at this line:</p>
+<pre>this.findOne({ bookId: book._id, slug: chapterSlug });</pre>
+
+<p>The <code>findOne()</code> method is the way to go in every situation when you need to find one unique document in our Book collection on MongoDB. For this method to work, the <code>bookId</code> and <code>slug</code> pair must be unique. If it's not unique, then two or more books exist with the exact same parameter values. This will cause <code>findOne()</code> to return the first document according to insertion/creation order. That document may not be the one you wanted to find. That's a problem.</p>
+<p>MongoDB can identify a duplication in values of parameter(s), but we have to configure it by specifying a <a target="_blank" href="https://docs.mongodb.com/manual/core/index-unique/#unique-compound-index" rel="noopener noreferrer">unique compound index</a>. This index will check that two or more parameters are unique and not duplicated. When <code>this.create()</code> or <code>this.update()</code> create a document with parameters that cause duplication - MongoDB will throw an error:</p>
+<pre>E11000 duplicate key error index</pre>
+
+<p>Before we explain how to configure a unique compound index, let's first understand index, compound index, unique index, and finally unique compound index:</p>
+<ul>
+<li><p>Index. In MongoDB, a collection contains documents (e.g. Book collection contains Book documents). When you want to find one document in a database by its <code>_id</code> parameter - the database has to scan each document within the collection (a collection scan). This can be time consuming. <a target="_blank" href="https://docs.mongodb.com/manual/indexes/#index-types" rel="noopener noreferrer">Index</a> is a data structure that stores values for one or more parameters - so our database saves by scanning index instead of performing a collection. In fact, MongoDB creates an index for our <code>_id</code> parameter by default (created when the collection is created). However, we have to configure MongoDB to create an index for other parameters.</p>
+<p>To create a simple index, we use MongoDB's method <code>createIndex()</code>:</p>
+<pre>db.records.createIndex( { someParameter: 1 } )</pre>
+
+<p><code>1</code> indicates that the values of <code>someParameter</code> will be sorted in ascending order (<code>-1</code> would specify a descending order).</p>
+<p>However, since we use Mongoose, the <a target="_blank" href="http://mongoosejs.com/docs/guide.html#indexes" rel="noopener noreferrer">syntax</a> is: </p>
+<pre>mongoSchema.index({ someParameter: 1 } )</pre>
+
+<p>Mongoose will call the <code>createIndex()</code> method for every <code>index()</code> in your code.</p>
+</li>
+<li><p><a target="_blank" href="https://docs.mongodb.com/manual/core/index-compound/" rel="noopener noreferrer">Compound index</a> is an index that holds values for more than one parameter. The syntax is simple as this: </p>
+<pre>mongoSchema.index({ someParameter: 1, someOtherParameter: 1 } )</pre>
+
+
+</li>
+</ul>
+<ul>
+<li><a target="_blank" href="https://docs.mongodb.com/manual/core/index-unique/" rel="noopener noreferrer">Unique index</a> is an index that ensures there is no duplication in the values of an indexed parameter. For example, by default MongoDB creates a unique index for the <code>_id</code> parameter. If there are two documents with the same <code>_id</code> value, our database will notify us with an error. For <code>someParameter</code>, the syntax is:<pre>mongoSchema.index({ someParameter: 1 }, { unique: true } )</pre>
+
+
+</li>
+</ul>
+<ul>
+<li><a target="_blank" href="https://docs.mongodb.com/manual/core/index-unique/#unique-compound-index" rel="noopener noreferrer">Unique compound index</a>. We think you have a pretty good guess here. It's an index that stores two or more parameters and ensures uniqueness in the <em>combination</em> of those parameters' values:<pre>mongoSchema.index({ someParameter: 1, someOtherParameter: 1 }, { unique: true } )</pre>
+
+
+</li>
+</ul>
+<p>Now we know how a unique compound index works. Create one for our <code>bookId</code> and <code>slug</code> parameters to ensure uniqueness in the combination of these values. In other words, chapters may belong to the same book (same <code>bookId</code>), but they must have a unique <code>slug</code>. Or chapters may have the same <code>slug</code>, but they must belong to different books (unique <code>bookId</code>). If the combination of values is duplicated - the <code>findOne()</code> method may give us the wrong chapter. By using Mongoose's syntax from above:</p>
+<pre>mongoSchema.index({ bookId: 1, slug: 1 }, { unique: true });</pre>
+
+<p>Small note - you might remember <code>generateSlug()</code> function (<code>server/utils/slugify.js</code>) from Chapter 4. This function ensures uniqueness of the slug parameter. However, it's good practice to set up a unique index to prevent duplication. To enforce index uniqueness, you don't want to rely completely on code, code may have bugs.</p>
+<p>Later on, we will add a second static method called <code>syncContent()</code> to <code>ChapterClass</code>. We mentioned above that this method replaces the <code>add()</code> and <code>edit()</code> methods and creates/updates chapter documents by using data from Github. Inside the <code>syncContent()</code> method, we will look for a unique chapter by using <code>findOne()</code>:</p>
+<pre><code><span class="hljs-keyword">const</span> chapter = <span class="hljs-function">await <span class="hljs-keyword">this</span>.<span class="hljs-title">findOne</span><span class="hljs-params">({
+   bookId: book.id,
+   githubFilePath: path,
+})</span></span>;</code></pre><p>You may realize that the combination of values for <code>bookId</code> and <code>githubFilePath</code> must be unique. Two chapters can belong to the same book (same <code>bookId</code>), but they must have a unique <code>githubFilePath</code>. If not, both chapters will get their data from the same <code>.md</code> file. This will create a problem. </p>
+<p>Since we do not ensure uniqueness of <code>githubFilePath</code> anywhere in our code, it's even more important to create a unique compound index for the <code>bookId</code> and <code>githubFilePath</code> pair:</p>
+<pre>mongoSchema.index({ bookId: 1, githubFilePath: 1 }, { unique: true });</pre>
+
+<p>Add these two unique compound indices above to our Chapter model. You'll get:<br><code>server/models/Chapter.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> mongoose = <span class="hljs-built_in">require</span>(<span class="hljs-string">'mongoose'</span>);
+<span class="hljs-keyword">const</span> Book = <span class="hljs-built_in">require</span>(<span class="hljs-string">'./Book'</span>);
+
+<span class="hljs-keyword">const</span> { Schema } = mongoose;
+
+<span class="hljs-keyword">const</span> mongoSchema = <span class="hljs-keyword">new</span> Schema({
+  bookId: {
+    <span class="hljs-keyword">type</span>: Schema.Types.ObjectId,
+    required: <span class="hljs-literal">true</span>,
+  },
+  isFree: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">Boolean</span>,
+    required: <span class="hljs-literal">true</span>,
+    <span class="hljs-keyword">default</span>: <span class="hljs-literal">false</span>,
+  },
+  title: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    required: <span class="hljs-literal">true</span>,
+  },
+  slug: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    required: <span class="hljs-literal">true</span>,
+  },
+  content: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    <span class="hljs-keyword">default</span>: <span class="hljs-string">''</span>,
+    required: <span class="hljs-literal">true</span>,
+  },
+  excerpt: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    <span class="hljs-keyword">default</span>: <span class="hljs-string">''</span>,
+  },
+  htmlExcerpt: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+    <span class="hljs-keyword">default</span>: <span class="hljs-string">''</span>,
+  },
+  createdAt: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">Date</span>,
+    required: <span class="hljs-literal">true</span>,
+  },
+  githubFilePath: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">String</span>,
+  },
+  order: {
+    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">Number</span>,
+    required: <span class="hljs-literal">true</span>,
+  },
+  seoTitle: <span class="hljs-built_in">String</span>,
+  seoDescription: <span class="hljs-built_in">String</span>,
+});
+
+<span class="hljs-keyword">class</span> ChapterClass {
+  <span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> getBySlug({ bookSlug, chapterSlug, user }) {
+    <span class="hljs-keyword">const</span> book = <span class="hljs-keyword">await</span> Book.getBySlug({ slug: bookSlug, user });
+    <span class="hljs-keyword">if</span> (!book) {
+      <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(<span class="hljs-string">'Not found'</span>);
+    }
+
+    <span class="hljs-keyword">const</span> chapter = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.findOne({ bookId: book._id, slug: chapterSlug });
+
+    <span class="hljs-keyword">if</span> (!chapter) {
+      <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(<span class="hljs-string">'Not found'</span>);
+    }
+
+    <span class="hljs-keyword">const</span> chapterObj = chapter.toObject();
+    chapterObj.book = book;
+
+    <span class="hljs-keyword">return</span> chapterObj;
+  }
+}
+
+
+mongoSchema.index({ bookId: <span class="hljs-number">1</span>, slug: <span class="hljs-number">1</span> }, { unique: <span class="hljs-literal">true</span> });
+mongoSchema.index({ bookId: <span class="hljs-number">1</span>, githubFilePath: <span class="hljs-number">1</span> }, { unique: <span class="hljs-literal">true</span> });
+
+mongoSchema.loadClass(ChapterClass);
+
+<span class="hljs-keyword">const</span> Chapter = mongoose.model(<span class="hljs-string">'Chapter'</span>, mongoSchema);
+
+<span class="hljs-built_in">module</span>.exports = Chapter;</code></pre><p>Before we test, open <code>server/app.js</code> and import <code>Chapter</code>:</p>
+<pre><code><span class="hljs-attribute">const Chapter</span> = require(<span class="hljs-string">'./models/Chapter'</span>);</code></pre><p>No need to use <code>Chapter</code> any where inside <code>server/app.js</code> just yet. We added this import because Node will execute code inside <code>server/models/Chapter.js</code> only when this module is referenced explicitly. For more information, you read this <a target="_blank" href="https://github.com/builderbook/builderbook/issues/111" rel="noopener noreferrer">issue</a>.</p>
+<p>Time to test. When we start our app, it should automatically create indices, which will show up on our MongoDB Atlas dashboard in <code>test.chapters</code> collection of <code>test</code> database. </p>
+<ol>
+<li><p>Start your app with <code>yarn dev</code>.</p>
+<p>Navigate to MongoDB Atlas, go to <code>test.chapters</code> collection. Click on <b>Indexes</b> tab. As expected, MongoDB has automatically created only one index (for the <code>_id</code> parameter).<br><img src="https://user-images.githubusercontent.com/10218864/54499244-adec8d00-48cc-11e9-93cc-69fa29a6ced4.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+</li>
+</ol>
+<p>   Delete the <code>test.chapters</code> collection. We will re-create this collection in the next step. We need to delete this collection, since our database creates indices when it creates a new collection.</p>
+<p>   This screenshot shows you how to delete <code>test.chapters</code> collection:<br>   <img src="https://user-images.githubusercontent.com/10218864/54499316-92ce4d00-48cd-11e9-9d82-635870db419d.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<ol start="2">
+<li><p>Open <code>server/app.js</code>. Right above <code>server.listen(port, (err) =&gt; {</code>, add the following code block:</p>
+<pre><code>Chapter.create({ bookId: <span class="hljs-string">'59f3c240a1ab6e39c4b4d10d'</span> }).<span class="hljs-keyword">catch</span>(<span class="hljs-function"><span class="hljs-params">(err)</span> =&gt;</span> {
+   logger.info(err);
+});   </code></pre><p>The above code attempts to create a new document in our Chapter collection. This executes code for our Chapter model (<code>server/models/Chapter.js</code>), creates a collection (the one we deleted in the previous step), and runs these two lines of code:</p>
+<pre><code><span class="hljs-selector-tag">mongoSchema</span><span class="hljs-selector-class">.index</span>({ <span class="hljs-attribute">bookId</span>: <span class="hljs-number">1</span>, slug: <span class="hljs-number">1</span> }, { <span class="hljs-attribute">unique</span>: true });
+<span class="hljs-selector-tag">mongoSchema</span><span class="hljs-selector-class">.index</span>({ <span class="hljs-attribute">bookId</span>: <span class="hljs-number">1</span>, githubFilePath: <span class="hljs-number">1</span> }, { <span class="hljs-attribute">unique</span>: true });</code></pre><p>As discussed earlier, each line above calls <code>createIndex()</code> and creates a unique compound index.</p>
+<p>Save the changes you made to <code>server/app.js</code>.<br>Start yout app with <code>yarn dev</code>. Navigate to newly created <code>test.chapters</code> collection, click on <b>Indexes</b> tab:<br><img src="https://user-images.githubusercontent.com/10218864/54499403-8f879100-48ce-11e9-833c-38a87b2a4ba7.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+</li>
+</ol>
+<p>   As you can see, we indeed created 2 unique compound indices: one for the combination of <code>bookId</code> and <code>slug</code>, and one for the combination of <code>bookId</code> and <code>githubPathFile</code>.</p>
+<p>We hope this brief tutorial on MongoDB's index helps you understand how indices work and how a unique compound index prevents duplication of documents inside a collection.</p>
+<p>Remember to undo changes you made to the server code at <code>server/app.js</code>.</p>
+<p>In the upcoming 'Internal API' section, we will write:</p>
+<ul>
+<li>server code that retrieves/saves data from our database and</li>
+<li>client code that sends data to particular pages. </li>
+</ul>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="internal-apis" href="#internal-apis" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="internal-apis">
+          Internal APIs
+        </span>
+      </h2><p>Our primary goal in this book is to learn how to build a production-ready JavaScript web app. Part of this process is writing <em>internal APIs</em> or  <em>API endpoints</em> for our app. We do this for any data exchange between client and server via a unique URL (endpoint) - for example, fetching a single book or list of books, creating a chapter, or updating chapter content. To understand API endpoints, you should have a basic grasp of HTTP and Express technologies - I'll discuss them below in the context of our app.</p>
+<p>In this section, we'll discuss properties of request and response for HTTP protocol, get familiar with Express middleware and Express routes, and finally write one complete (server and client code) API endpoint for our Admin user.</p>
+<p>For greater readability of our code, we put code for API endpoint in different folders, according to which user API endpoint belongs to: Admin/Customer/Public. Here is a list of some permissions:</p>
+<ul>
+<li>The Admin user creates books, writes chapters, sells books, sends out newsletters, etc. </li>
+<li>The Customer user is logged in to our app. This user can see the full content of any books he/she purchased, create bookmarks, and see a list of purchased books.</li>
+<li>The Public user is not logged in to our app. This user can see the <code>Login</code> page, read chapter excerpts (non-paywalled content), read blog posts, and subscribe to newsletters. The Public user can't see all chapter content and can't create bookmarks. </li>
+</ul>
+<p>If you are new to Express and HTTP, you may not understand construct such as</p>
+<pre>router.get('/books', async (req, res) =&gt; { ... }</pre>
+
+<p>That's OK.</p>
+<p>Here we will make a short detour to learn Express routes. After this detour, we will resume talking about internal APIs.</p>
+<h4 style="color: #FFF;">
+        <a name="intro-to-express-routes" href="#intro-to-express-routes" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Intro to Express routes
+      </h4><p>To make the code of any app more readable, you should strive to make it modular. In our app, we have three types of users: Admin, Public, and Customer. Let's isolate our API endpoints into the same three groups so that we have these routes for our API endpoints: </p>
+<ul>
+<li><code>/api/v1/admin/*</code></li>
+<li><code>/api/v1/public/*</code></li>
+<li><code>/api/v1/customer/*</code></li>
+</ul>
+<p>Modular code is code which is separated into independent modules (pages, components, Express routes, etc). It's much easier to read, maintain, refactor and test individual modules. </p>
+<p>In Express, we make modular API endpoints with <a target="_blank" href="http://expressjs.com/en/guide/routing.html" rel="noopener noreferrer">Router instance</a>, <code>express.Router()</code>. We define and export Router instance in our <code>server/api/admin.js</code> file:<br><code>server/api/admin.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> router = express.Router();
+
+<span class="hljs-keyword">module</span>.<span class="hljs-keyword">exports</span> = router;</code></pre><p>This file will contain all API endpoints specific to the Admin user only. We will do the same for the Public and Customer APIs to achieve modularity and thus better readability.</p>
+<p>Express route has similar syntax and properties as basic middleware. Read about Express middleware <a target="_blank" href="http://expressjs.com/en/guide/using-middleware.html" rel="noopener noreferrer">here</a>. In short, both Express route and Express middleware execute some function to modify <code>req</code> and <code>res</code>. However, middleware calls the next middleware in a stack with <code>next()</code> to end the <code>req</code>-<code>res</code> cycle.</p>
+<p>We will write Express routes inside <code>server/api/*</code>, but instead of <code>server.use()</code> and <code>server.get()</code>, we will use <code>router.use()</code> or <code>router.get()</code>. Later, before importing these routes to the main server code at <code>server/app.js</code>, we will apply <code>server.use()</code> on them at <code>server.api/index.js</code>.</p>
+<p>Let walk through two examples to get a better understanding of how to write Express middleware and routes.<br>In both examples, we'll focus on only the API endpoints for the Admin user. All Admin API endpoints have the same base route: <code>/api/v1/admin</code>.</p>
+<p>Examples:</p>
+<ol>
+<li><p>In our first example, let's discuss Express middleware. We want to write a request that checks if a user exists and if the user is an Admin: <code>if (!req.user || !req.user.isAdmin)</code>. If both conditions are true, we will execute the rest of the middleware with <code>next()</code>.</p>
+<p>If not, we attach an error to the response using <a target="_blank" href="http://expressjs.com/en/api.html#res.status" rel="noopener noreferrer">res.status()</a> and return undefined with <code>return;</code>. We will use <a target="_blank" href="http://expressjs.com/en/api.html#router.use" rel="noopener noreferrer">router.use()</a>, which works in the same way as <a target="_blank" href="http://expressjs.com/en/api.html#app.use" rel="noopener noreferrer">server.use()</a>.</p>
+<p>Important note - the middleware in this example is called <code>router-level</code> middleware, and it only executes on routes specified in the router. For example, for our Admin user, this middleware will run for all routes that start with <code>/api/v1/admin</code>.</p>
+<p>Simply put - when the client calls any API endpoint that contains <code>/api/v1/admin</code> as a base, the function inside <code>router.use()</code> will run. Putting together what you already know about middleware:<br> <code>server/api/admin.js</code> :</p>
+<pre><code>router.use(<span class="hljs-string">'/api/v1/admin'</span>, <span class="hljs-function"><span class="hljs-params">(req, res, <span class="hljs-built_in">next</span>)</span> =&gt;</span> {
+ <span class="hljs-keyword">if</span> (!req.user || !req.user.isAdmin) {
+   res.status(<span class="hljs-number">401</span>).json({ <span class="hljs-name">error</span>: <span class="hljs-string">'Unauthorized access'</span> });
+   <span class="hljs-keyword">return</span>;
+ }
+
+ <span class="hljs-built_in">next</span>();
+});</code></pre><p>The function inside <code>router.use()</code> does not retrieve or save data; instead, it acts as a permission gateway. This function makes sure that only the Admin user has access to Admin-specific API endpoints. To end this request-response cycle, we need to execute a function <em>downstream</em> of our middleware (for example, a function inside <code>router.get(/api/v1/admin/books)</code>). We do so by using <code>next()</code>. We use <code>next</code> to pass control from one middleware function to another in cases when <em>upstream</em> middleware function does not end request-response cycle (for example, does not send response to browser). Here is an example of this situation from the <a target="_blank" href="http://expressjs.com/en/guide/writing-middleware.html" rel="noopener noreferrer">Express docs</a>:</p>
+<pre><code><span class="hljs-keyword">var</span> express = <span class="hljs-built_in">require</span>(<span class="hljs-string">'express'</span>)
+<span class="hljs-keyword">var</span> app = express()
+
+<span class="hljs-keyword">var</span> myLogger = <span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params">req, res, next</span>) </span>{
+ <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'LOGGED'</span>)
+ next()
+}
+
+app.use(myLogger)
+
+app.get(<span class="hljs-string">'/'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params">req, res</span>) </span>{
+ res.send(<span class="hljs-string">'Hello World!'</span>)
+})
+
+app.listen(<span class="hljs-number">3000</span>)</code></pre><p>In the above example, middleware function <code>function (req, res, next)</code> does not end request-response cycle so it must call <code>next</code> to prevent a request from hanging.</p>
+</li>
+<li><p>After checking permission, we use an Express route that calls a static method from our Book model. Unlike our example above, this route will have no <code>next()</code> method. Let's create an API endpoint that GETs a list of all books. We will use our favorite <code>async/await</code> function with <code>try ... catch</code> (<a target="_blank" href="https://builderbook.org/books/builder-book/authentication-hoc-promise-async-await-static-method-for-user-model-google-oauth#async-await" rel="noopener noreferrer">link to Chapter 3</a>). We will <code>try</code> and <code>await</code> for the static method <code>Book.list()</code> to return a list of books. If we <code>catch</code> an error, we will attach it to a response with <a target="_blank" href="http://expressjs.com/en/api.html#res.json" rel="noopener noreferrer">res.json()</a>:<br><code>server/api/admin.js</code> :</p>
+<pre><code>router.<span class="hljs-keyword">get</span>(<span class="hljs-string">'api/v1/admin/books'</span>, <span class="hljs-keyword">async</span> (req, res) =&gt; {
+ <span class="hljs-keyword">try</span> {
+   <span class="hljs-keyword">const</span> books = <span class="hljs-keyword">await</span> Book.list();
+   res.json(books);
+ } <span class="hljs-keyword">catch</span> (err) {
+   res.json({ error: err.message || err.toString() });
+ }
+});</code></pre></li>
+</ol>
+<p>We provided links to the Express API methods that we use in this app. For a full list of API methods, go to the <a target="_blank" href="http://expressjs.com/en/api.html" rel="noopener noreferrer">official docs</a>.</p>
+<h4 style="color: #FFF;">
+        <a name="basics-of-internal-api" href="#basics-of-internal-api" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Basics of internal API
+      </h4><p>As mentioned earlier in the section, we have three types users and API endpoints: Admin, Public, and Customer. In general, our internal APIs will be one of following: </p>
+<ol>
+<li>Express routes located in <code>server/api/*</code> (server code). For our Admin user, we put routes into <code>server/api/admin</code>. When this user triggers an API method, the method sends a request that matches the correct API endpoint. In return, our Express routes will call and pass data from the client to the static method specified in our Models. </li>
+<li>API methods. A user calls these methods from pages. We define methods at <code>lib/api/*</code> (for our Admin user - at <code>lib/api/admin.js</code>). When called, these methods send GET or POST requests to our Express routes.</li>
+<li>Pages. Our pages contain data-less static code and API methods that get data. In the context of a page, methods are called upon particular user actions (e.g. clicking a button or loading a page). For better organization, we place Admin pages into <code>pages/admin/*</code>.</li>
+</ol>
+<p>To demonstrate how to set up internal APIs, we will set up just one API endpoint: <code>/api/v1/admin/books</code>. More specifically, we will write and connect the following:</p>
+<ol>
+<li><p>Server-side Express route. In response to a request, function inside Express route calls and waits for the static method <code>Book.list()</code>. Static method returns a list of all books and sends it to the client via API method. Our route uses the GET method (<code>router.get('/books')</code>), and the route's API endpoint is <code>/books</code>.</p>
+</li>
+<li><p>API method. We can add the API method <code>getBookList()</code> to any Admin page. This method, when called, sends a request (GET or POST) to an API endpoint, and then the corresponding Express route is executed. We define <code>getBookList()</code> API method in <code>lib/api/admin.js</code>.</p>
+</li>
+<li><p>Page. We will import and use <code>getBookList()</code> in main Admin page (<code>pages/admin/index.js</code>). We will show a list of books on this page once the page is loaded - no need for any user action. This means that we will place our API method in the <code>componentDidMount</code> lifecycle hook of page's component. We place page to <code>pages/admin/all-books.js</code>.</p>
+</li>
+</ol>
+<p>You already know that on the server side, we keep all API endpoints in three files:</p>
+<ul>
+<li><code>server/api/admin.js</code></li>
+<li><code>server/api/public.js</code></li>
+<li><code>server/api/customer.js</code></li>
+</ul>
+<p>In the previous subsection, we went through two examples of how to write Express middleware and route:</p>
+<ul>
+<li>router-level middleware: <code>router.use('/api/v1/admin', (req, res, next) =&gt; { ... }</code></li>
+<li>route: <code>router.get('api/v1/admin/books', async (req, res) =&gt; { ... }</code></li>
+</ul>
+<p>Writing long routes such as <code>api/v1/admin/books</code> is not productive. To solve this problem, let's put all the base routes in one file and mount them on server with <code>server.use()</code>:<br><code>server/api/index.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> publicApi = <span class="hljs-keyword">require</span>(<span class="hljs-string">'./public'</span>);
+<span class="hljs-keyword">const</span> customerApi = <span class="hljs-keyword">require</span>(<span class="hljs-string">'./customer'</span>);
+<span class="hljs-keyword">const</span> adminApi = <span class="hljs-keyword">require</span>(<span class="hljs-string">'./admin'</span>);
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">api</span><span class="hljs-params">(server)</span> </span>{
+  server.<span class="hljs-keyword">use</span>(<span class="hljs-string">'/api/v1/public'</span>, publicApi);
+  server.<span class="hljs-keyword">use</span>(<span class="hljs-string">'/api/v1/customer'</span>, customerApi);
+  server.<span class="hljs-keyword">use</span>(<span class="hljs-string">'/api/v1/admin'</span>, adminApi);
+}
+
+module.exports = api;</code></pre><p>We import Express routes from <code>server/api/admin.js</code> into <code>server/api/index.js</code>. Then we pass base endpoints (for example <code>/api/v1/admin</code>) and imported routes to <code>server.use()</code> and export out the <code>api()</code> function. We later import <code>api()</code> into our main server code at <code>server/app.js</code>:</p>
+<pre>const api = require('./api');</pre>
+
+<p>And initialize Express routes on server by adding following line of code above <code>server.get('*', (req, res) =&gt; handle(req, res));</code>:</p>
+<pre>api(server);</pre>
+
+<p>Since our <code>api(server)</code> function is located in the index file <code>index.js</code>, we can simply import from <code>./api</code>, not from <code>./api/index.js</code>.</p>
+<p>Here is how we get more productive - since we specified base routes in <code>server/api/index.js</code>, we don't need to specify them over and over inside our routes.</p>
+<p>The route inside <code>server/api/admin.js</code> was:</p>
+<pre>router.get('api/v1/admin/books', ... )</pre>
+
+<p>But now we simply write:</p>
+<pre>router.get('/books', ...)</pre>
+
+
+<h4 style="color: #FFF;">
+        <a name="express-routes" href="#express-routes" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Express routes
+      </h4><p>Our ultimate goal is to display a list of books on the page. In this subsection, we do roughly 1/3 of what's needed to achieve our goal. We set up our first Express route with the API endpoint <code>/api/v1/admin/books</code>.</p>
+<p>Previously, we gave you two examples of Express routes: one using <code>router.use()</code>, and one using <code>router.get()</code>. Let's put these two examples together. Remember that we don't need to specify the full route:<br><code>server/api/admin.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> express = <span class="hljs-built_in">require</span>(<span class="hljs-string">'express'</span>);
+<span class="hljs-keyword">const</span> Book = <span class="hljs-built_in">require</span>(<span class="hljs-string">'../models/Book'</span>);
+
+<span class="hljs-keyword">const</span> router = express.Router();
+
+router.use(<span class="hljs-function">(<span class="hljs-params">req, res, next</span>) =&gt;</span> {
+  <span class="hljs-keyword">if</span> (!req.user || !req.user.isAdmin) {
+    res.status(<span class="hljs-number">401</span>).json({ <span class="hljs-attr">error</span>: <span class="hljs-string">'Unauthorized'</span> });
+    <span class="hljs-keyword">return</span>;
+  }
+
+  next();
+});
+
+router.get(<span class="hljs-string">'/books'</span>, <span class="hljs-keyword">async</span> (req, res) =&gt; {
+  <span class="hljs-keyword">try</span> {
+    <span class="hljs-keyword">const</span> books = <span class="hljs-keyword">await</span> Book.list();
+    res.json(books);
+  } <span class="hljs-keyword">catch</span> (err) {
+    res.json({ <span class="hljs-attr">error</span>: err.message || err.toString() });
+  }
+});
+
+<span class="hljs-comment">// more routes</span>
+
+<span class="hljs-built_in">module</span>.exports = router;</code></pre><p>Alright, we wrote router-level middleware that verifies our user is Admin. If so, then the user has access to all API endpoints with the base route <code>/api/v1/admin/*</code>. If the client (web browser) sends a GET request to <code>/api/v1/admin/books</code> - our router calls the static method <code>Book.list()</code> that returns the list of books. If successful, the router returns JSON data: <code>res.json(books)</code>.</p>
+<p>In the next section, we will discuss an API method that, when triggered, <em>sends</em> a GET request from the client to our Express route (server). </p>
+<h4 style="color: #FFF;">
+        <a name="api-methods" href="#api-methods" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        API methods
+      </h4><p>In the explanation above, we used the phrase <em>client sends a request to <code>/api/v1/admin/books</code></em>. What exactly needs to happen for this request to send from client to server? Our app's user has to trigger an API method (we can call it <code>getBookList()</code>), which will in turn send a GET request to the Express route.</p>
+<p>For example, a user may click a button that calls the <code>getBookList()</code> method or a user may simply load a page. In the case of the book list, we implement the latter: when an Admin user goes to the <code>/admin</code> route, we will render a list of books on that page.</p>
+<p>After the <code>admin</code> renders, we will call the API method <code>getBookList()</code>. This method will send a request to the proper API endpoint and trigger the corresponding Express route on our server. The Express route calls the static method <code>Book.list()</code> and returns a response <code>res</code> with the list of books in JSON format.</p>
+<p>We will store our API methods in the <code>lib/api/*</code> folder. For three types of API endpoints, we have three files:</p>
+<ul>
+<li><code>lib/api/admin.js</code></li>
+<li><code>lib/api/public.js</code></li>
+<li><code>lib/api/customer.js</code></li>
+</ul>
+<p>Our client-side method <code>getBookList()</code> will execute the <code>sendRequest()</code> function:<br><code>lib/api/admin.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> sendRequest <span class="hljs-keyword">from</span> <span class="hljs-string">'./sendRequest'</span>;
+
+<span class="hljs-keyword">const</span> BASE_PATH = <span class="hljs-string">'/api/v1/admin'</span>;
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> getBookList = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span>
+  sendRequest(<span class="hljs-string">`<span class="hljs-subst">${BASE_PATH}</span>/books`</span>, {
+    <span class="hljs-attr">method</span>: <span class="hljs-string">'GET'</span>,
+  });
+
+<span class="hljs-comment">// more API methods</span></code></pre><p>The reasons to introduce <code>sendRequest()</code> function are again reusability and readability. As you may guess, we will write an Express route and corresponding API method for every API endpoint. <em>Each</em> API method that we will write in this book will do following:</p>
+<ul>
+<li>call and wait for <code>fetch()</code> method<pre><code><span class="hljs-keyword">const</span> response = <span class="hljs-keyword">await</span> fetch(
+  <span class="hljs-string">`<span class="hljs-subst">${ROOT_URL}</span><span class="hljs-subst">${path}</span>`</span>,
+  <span class="hljs-built_in">Object</span>.assign( <span class="hljs-comment">// method type, headers, more parameters ),</span>
+);</code></pre></li>
+<li>return data in json format<pre>const data = await response.json();</pre></li>
+<li>returns data<pre>return data;</pre>
+
+</li>
+</ul>
+<p>Method <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Learn/JavaScript/Client-side_web_APIs/Fetching_data" rel="noopener noreferrer">fetch()</a> takes route as argument, sends HTTP request to that route and returns HTTP response. We discussed HTTP request and response in detail in <a target="_blank" href="https://builderbook.org/books/builder-book/server-database-session-header-and-menudrop-components#http" rel="noopener noreferrer">Chapter 2, section HTTP</a>.</p>
+<p>Instead of repeating code that sends a request and waits for response - we will define the <code>sendRequest()</code> and reuse it. This function will accept parameters such as HTTP method (GET or POST), so we can modify it for different requests.</p>
+<p>Each request will have either GET or POST <code>method</code>. POST request will have <code>body</code>. Example, Admin user creates new book - POST request from browser to server will have <code>body</code> that contains book name and price.</p>
+<p>So you see that <code>sendRequest()</code> will take multiple parameters <em>depending</em> on situation. All requests need route (<code>path</code>), HTTP method, POST requests will have body and some GET requests will have <code>headers</code> with <code>cookie</code>.</p>
+<p>Use <code>async/await</code> to define <code>sendRequest()</code> based on above discussion:<br><code>lib/api/sendRequest.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> <span class="hljs-string">'isomorphic-unfetch'</span>;
+
+<span class="hljs-keyword">const</span> port = process.env.PORT || <span class="hljs-number">8000</span>;
+<span class="hljs-keyword">const</span> ROOT_URL = <span class="hljs-string">`http://localhost:<span class="hljs-subst">${port}</span>`</span>;
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-keyword">async</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">sendRequest</span>(<span class="hljs-params">path, opts = {}</span>) </span>{
+  <span class="hljs-comment">// define headers</span>
+
+  <span class="hljs-keyword">const</span> response = <span class="hljs-keyword">await</span> fetch(
+    <span class="hljs-string">`<span class="hljs-subst">${ROOT_URL}</span><span class="hljs-subst">${path}</span>`</span>,
+    <span class="hljs-built_in">Object</span>.assign(<span class="hljs-comment">// pass parameters),</span>
+  );
+
+  <span class="hljs-keyword">const</span> data = <span class="hljs-keyword">await</span> response.json();
+
+  <span class="hljs-keyword">if</span> (data.error) {
+    <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(data.error);
+  }
+
+  <span class="hljs-keyword">return</span> data;
+}</code></pre><p>In the code above, you see that we imported package <a target="_blank" href="https://github.com/developit/unfetch" rel="noopener noreferrer">isomorphic-unfetch</a>, this makes <code>fetch()</code> method to be available in our app. Our code awaits for <code>fetch()</code> to return a response with data. <code>fetch(path, options)</code> is a global JavaScript method that takes a route and the parameters of a request, then returns a response with data available from the API endpoint. You can read more about the properties of <code>fetch()</code> <a target="_blank" href="https://github.github.io/fetch/" rel="noopener noreferrer">here</a>.</p>
+<p>The <code>fetch()</code> method is not available on older browsers. That why we import <code>isomorphic-unfetch</code>, which makes global <code>fetch()</code> method available in our code.</p>
+<p>After creating a new <code>headers</code> object out of three smaller objects with <code>Object.assign()</code>:</p>
+<pre><code><span class="hljs-keyword">const</span> headers = Object.<span class="hljs-built_in">assign</span>({}, opts.headers || {}, {
+  <span class="hljs-string">'Content-type'</span>: <span class="hljs-string">'application/json; charset=UTF-8'</span>,
+})<span class="hljs-comment">;</span></code></pre><p>Three smaller objects are:</p>
+<ul>
+<li><code>{}</code>, </li>
+<li><code>opts.header</code> or <code>{}</code>, </li>
+<li><code>{ 'Content-type': 'application/json; charset=UTF-8' }</code>.</li>
+</ul>
+<p>We discussed creating new object with <code>Object.assign()</code> in detail at <a target="_blank" href="https://builderbook.org/books/builder-book/app-structure-next-js-hoc-material-ui-server-side-rendering-styles#inject-styles-on-server" rel="noopener noreferrer">Chapter 1</a>.</p>
+<p>We create new <code>request</code> object using three smaller objects with <code>Object.assign()</code> as well:</p>
+<pre><code>Object.<span class="hljs-built_in">assign</span>(
+  {
+    credentials: <span class="hljs-string">'same-origin'</span>,
+  },
+  opts,
+  { headers },
+)</code></pre><p>In this case, three smaller objects are:</p>
+<ul>
+<li><code>{ credential: 'same-origin' }</code>,</li>
+<li><code>opts</code> (which is emptry by default)</li>
+<li><code>{ headers }</code>.</li>
+</ul>
+<p>Put it together, you finally get:<br><code>lib/api/sendRequest.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> <span class="hljs-string">'isomorphic-unfetch'</span>;
+
+<span class="hljs-keyword">const</span> port = process.env.PORT || <span class="hljs-number">8000</span>;
+<span class="hljs-keyword">const</span> ROOT_URL = <span class="hljs-string">`http://localhost:<span class="hljs-subst">${port}</span>`</span>;
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-keyword">async</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">sendRequest</span>(<span class="hljs-params">path, opts = {}</span>) </span>{
+  <span class="hljs-keyword">const</span> headers = <span class="hljs-built_in">Object</span>.assign({}, opts.headers || {}, {
+    <span class="hljs-string">'Content-type'</span>: <span class="hljs-string">'application/json; charset=UTF-8'</span>,
+  });
+
+  <span class="hljs-keyword">const</span> response = <span class="hljs-keyword">await</span> fetch(
+    <span class="hljs-string">`<span class="hljs-subst">${ROOT_URL}</span><span class="hljs-subst">${path}</span>`</span>,
+    <span class="hljs-built_in">Object</span>.assign({ <span class="hljs-attr">method</span>: <span class="hljs-string">'POST'</span>, <span class="hljs-attr">credentials</span>: <span class="hljs-string">'same-origin'</span> }, opts, { headers }),
+  );
+
+  <span class="hljs-keyword">const</span> data = <span class="hljs-keyword">await</span> response.json();
+
+  <span class="hljs-keyword">if</span> (data.error) {
+    <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(data.error);
+  }
+
+  <span class="hljs-keyword">return</span> data;
+}</code></pre><p>We will discuss page organization and one of the Admin pages in the next subsection.</p>
+<h4 style="color: #FFF;">
+        <a name="pages" href="#pages" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Pages
+      </h4><p>We've completed 3 steps out of 4 to implement our <code>/api/v1/admin/books</code> API endpoint:</p>
+<ul>
+<li>Static method <code>list()</code> in Book model (done)</li>
+<li>Express routes <code>/api/v1/admin/books</code> (done)</li>
+<li>API method <code>getBookList()</code> (done)</li>
+<li>Page that displays a list of books (this subsection).</li>
+</ul>
+<p>We use Next.js for many reasons - one of them is to easily assign routes to pages. For example, if we create our <code>admin.js</code> file inside our <code>pages</code> folder, Next.js shows the contents of the <code>admin.js</code> page on the <code>/admin</code> route.</p>
+<p>Once built, our app will have over a dozen pages. We can store all pages at the root of <code>pages</code>; however, our app's readability and modularity will suffer. Alternatively, pages can be split into three groups according to which API endpoints they use (Admin, Public, or Customer):</p>
+<pre><code>pages<span class="hljs-regexp">/admin/</span>*
+pages<span class="hljs-regexp">/public/</span>*
+pages<span class="hljs-regexp">/customer/</span>*</code></pre><p>Look inside the current <code>pages</code> folder. Consider the Login page, which we created in Chapter 3. This page is public (meaning it's visible to logged-out guest users). When we move our <code>login.js</code> page to the <code>public</code> folder, the new destination becomes <code>pages/public/login.js</code>, and the new route becomes <code>/public/login</code>. That's not a pretty login route - <code>/login</code> was way simpler. </p>
+<p>There is an obvious trade-off. We would like to store page in three folders <em>and</em> have nice-looking, short routes. To achieve both of these goals, we have implement two changes:</p>
+<ol>
+<li>Tell our Express server to treat <code>/login</code> as <code>/public/login</code>.</li>
+<li>Make our <code>&lt;Link&gt;</code> element, which leads to the Login page, use the <code>as</code> parameter to show <code>/login</code> as the route but actually fetch <code>/public/login</code>: <code>&lt;Link prefetch href="/public/login" as="/login"&gt; ... &lt;/Link&gt;</code>. Read more about <code>&lt;Link&gt;</code> parameters in the <a target="_blank" href="https://github.com/zeit/next.js/#with-link" rel="noopener noreferrer">Next.js docs</a>.</li>
+</ol>
+<p>Let's achieve our first goal with <code>const url = URL_MAP[req.path];</code>. Edit our main server code at <code>server/app.js</code> by adding two code snippets:<br><code>server/app.js</code> :</p>
+<pre><code><span class="hljs-keyword">const</span> URL_MAP = {
+  <span class="hljs-string">'/login'</span>: <span class="hljs-string">'/public/login'</span>,
+};</code></pre><p>Then using <code>URL_MAP</code> for every request to server:</p>
+<pre><code>server.get(<span class="hljs-string">'*'</span>, <span class="hljs-function"><span class="hljs-params">(req, res)</span> =&gt;</span> {
+  const url = URL_MAP[req.path];
+  <span class="hljs-keyword">if</span> (url) {
+    app.render(req, res, url);
+  } <span class="hljs-keyword">else</span> {
+    handle(req, res);
+  }
+});</code></pre><p>To achieve our second goal, add <code>as</code> to the <code>&lt;Link&gt;</code> element for all pages that are mentioned in <code>URL_MAP</code>. We will show you two examples. Edit links inside the Header component as follows:<br><code>components/Header.js</code> :</p>
+<pre><code><span class="hljs-tag">&lt;<span class="hljs-name">Link</span> <span class="hljs-attr">prefetch</span> <span class="hljs-attr">href</span>=<span class="hljs-string">"/public/login"</span> <span class="hljs-attr">as</span>=<span class="hljs-string">"/login"</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">a</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">margin:</span> '<span class="hljs-attr">0px</span> <span class="hljs-attr">20px</span> <span class="hljs-attr">0px</span> <span class="hljs-attr">auto</span>' }}&gt;</span>Log in<span class="hljs-tag">&lt;/<span class="hljs-name">a</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">Link</span>&gt;</span></code></pre><p>Almost done.</p>
+<p>After you move <code>login.js</code> file from <code>pages/</code> folder to <code>pages/public/</code>, make sure to update import routes inside <code>login.js</code>:</p>
+<pre><code><span class="hljs-keyword">import</span> withAuth <span class="hljs-keyword">from</span> <span class="hljs-string">'../lib/withAuth'</span>;
+<span class="hljs-keyword">import</span> { styleLoginButton } <span class="hljs-keyword">from</span> <span class="hljs-string">'../components/SharedStyles'</span>;</code></pre><p>Becomes:</p>
+<pre><code><span class="hljs-keyword">import</span> withAuth <span class="hljs-keyword">from</span> <span class="hljs-string">'../../lib/withAuth'</span>;
+<span class="hljs-keyword">import</span> { styleLoginButton } <span class="hljs-keyword">from</span> <span class="hljs-string">'../../components/SharedStyles'</span>;</code></pre><p>Done!</p>
+<p>Custom routing requires to write a bit of code to keep routes short (<code>/login</code> vs <code>/public/login</code>). The upside is higher modularity of code - we organize all pages into three folders (<code>pages/admin</code>, <code>/pages/customer</code>, <code>pages/public</code>).</p>
+<p>Test it out. Start app with <code>yarn dev</code> and go to <code>http://localhost:8000/login</code>. Though you put page code in <code>pages/public/login.js</code>, you access page on the browser at <code>/login</code>.</p>
+<p>Later in this chapter and in the beginning of the next chapter (Chapter 6), we will discuss our Admin, Public, and Customer pages in detail. Here, I'd like to introduce just one page - the page that displays a list of books by calling the <code>getBookList()</code> method (which in turn executes our <code>/api/v1/admin/books</code> API endpoint). This page is the main Admin page with the route <code>/admin</code>, which we store at <code>pages/admin/index.js</code>.<br><code>pages/admin/index.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> { Component } <span class="hljs-keyword">from</span> <span class="hljs-string">'react'</span>;
+<span class="hljs-keyword">import</span> PropTypes <span class="hljs-keyword">from</span> <span class="hljs-string">'prop-types'</span>;
+<span class="hljs-keyword">import</span> Link <span class="hljs-keyword">from</span> <span class="hljs-string">'next/link'</span>;
+
+<span class="hljs-keyword">import</span> notify <span class="hljs-keyword">from</span> <span class="hljs-string">'../../lib/notifier'</span>;
+
+<span class="hljs-keyword">import</span> withAuth <span class="hljs-keyword">from</span> <span class="hljs-string">'../../lib/withAuth'</span>;
+<span class="hljs-keyword">import</span> {
+  getBookList,
+} <span class="hljs-keyword">from</span> <span class="hljs-string">'../../lib/api/admin'</span>;
+
+
+<span class="hljs-keyword">const</span> Index = ({
+  books,
+}) =&gt; (
+  <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">padding:</span> '<span class="hljs-attr">10px</span> <span class="hljs-attr">45px</span>' }}&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">div</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">h2</span>&gt;</span>Books<span class="hljs-tag">&lt;/<span class="hljs-name">h2</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">ul</span>&gt;</span>
+        {books.map(book =&gt; (
+          <span class="hljs-tag">&lt;<span class="hljs-name">li</span> <span class="hljs-attr">key</span>=<span class="hljs-string">{book._id}</span>&gt;</span>
+            <span class="hljs-tag">&lt;<span class="hljs-name">Link</span>
+              <span class="hljs-attr">as</span>=<span class="hljs-string">{</span>`/<span class="hljs-attr">admin</span>/<span class="hljs-attr">book-detail</span>/${<span class="hljs-attr">book.slug</span>}`}
+              <span class="hljs-attr">href</span>=<span class="hljs-string">{</span>`/<span class="hljs-attr">admin</span>/<span class="hljs-attr">book-detail</span>?<span class="hljs-attr">slug</span>=<span class="hljs-string">${book.slug}</span>`}
+            &gt;</span>
+              <span class="hljs-tag">&lt;<span class="hljs-name">a</span>&gt;</span>{book.name}<span class="hljs-tag">&lt;/<span class="hljs-name">a</span>&gt;</span>
+            <span class="hljs-tag">&lt;/<span class="hljs-name">Link</span>&gt;</span>
+          <span class="hljs-tag">&lt;/<span class="hljs-name">li</span>&gt;</span>
+          ))}
+      <span class="hljs-tag">&lt;/<span class="hljs-name">ul</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span></span>
+);
+
+Index.propTypes = {
+  <span class="hljs-attr">books</span>: PropTypes.arrayOf(PropTypes.shape({
+    <span class="hljs-attr">name</span>: PropTypes.string.isRequired,
+    <span class="hljs-attr">slug</span>: PropTypes.string.isRequired,
+  })).isRequired,
+};
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">IndexWithData</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">Component</span> </span>{
+  state = {
+    <span class="hljs-attr">books</span>: [],
+  };
+
+  <span class="hljs-keyword">async</span> componentDidMount() {
+    <span class="hljs-keyword">try</span> {
+      <span class="hljs-keyword">const</span> { books } = <span class="hljs-keyword">await</span> getBookList();
+      <span class="hljs-keyword">this</span>.setState({ books }); <span class="hljs-comment">// eslint-disable-line</span>
+    } <span class="hljs-keyword">catch</span> (err) {
+      notify(err);
+    }
+  }
+
+  render() {
+    <span class="hljs-keyword">return</span> (
+      <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">Index</span>
+        {<span class="hljs-attr">...this.state</span>}
+      /&gt;</span>
+    );
+  }
+}
+
+export default withAuth(IndexWithData, { adminRequired: true });</span></code></pre><p>In Chapter 3, you learned about <a target="_blank" href="https://builderbook.org/books/builder-book/authentication-hoc-promise-async-await-static-method-for-user-model-google-oauth#authentication-hoc" rel="noopener noreferrer">optional validation</a> for <code>propTypes</code>.</p>
+<p><code>IndexWithData</code> component renders <code>Index</code> component. Latter component displays a list of books but initially has no data.</p>
+<p>Once the <code>IndexWithData</code> component is mounted (<code>componentDidMount</code> lifecycle hook), we call and wait for the <code>getBookList()</code> method using our favorite <code>async/await</code> with <code>try/catch</code> construct:</p>
+<pre><code><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">IndexWithData</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">Component</span> </span>{
+  state = {
+    books: [],
+  };
+
+  async componentDidMount() {
+    <span class="hljs-keyword">try</span> {
+      const { books } = await getBookList();
+      <span class="hljs-keyword">this</span>.setState({ books }); <span class="hljs-comment">// eslint-disable-line</span>
+    } <span class="hljs-keyword">catch</span> (err) {
+      notify(err);
+    }
+  }
+
+  render() {
+    <span class="hljs-keyword">return</span> (
+      &lt;<span class="hljs-type">Index</span>
+        {...<span class="hljs-keyword">this</span>.state}
+      /&gt;
+    );
+  }
+}</code></pre><p>As you see from above code, once data is available, we pass it to state with:</p>
+<pre>this.setState({ books });</pre>
+
+<p>Then we render the Index with state that has data:</p>
+<pre><code>render() {
+  <span class="hljs-keyword">return</span> (
+    &lt;Index
+      {...<span class="hljs-keyword">this</span>.state}
+    /&gt;
+  );
+}</code></pre><p>When we export the <code>IndexWithData</code> component, we pass <code>adminRequired: true</code> to our <code>withAuth</code> HOC (<code>server/withAuth.js</code>). This ensures that only an Admin user has access to this page.</p>
+<p><code>...</code> inside <code>{...this.state}</code> is called a spread operator, and it's a ES6 feature. We use spread operator to pass <em>all</em> parameters inside <code>state</code> object to component. In React, often, spread operator is used to pass <em>all</em> <code>props</code> parameters (i.e. entire <code>props</code> object) to a component. Here is a <a target="_blank" href="https://reactjs.org/docs/jsx-in-depth.html#spread-attributes" rel="noopener noreferrer">simple example</a>. See our <a target="_blank" href="https://builderbook.org/books/builder-book/app-structure-next-js-hoc-material-ui-server-side-rendering-styles#inject-styles-on-server" rel="noopener noreferrer">discussion in Chapter 1</a> about spread operator.</p>
+<p>In our case, we use it because of shorter syntax. Later on, we may add more data to <code>state</code> (e.g. the tutorials list in addition to the books list). So instead of writing <code>&lt;Index books={state.books} tutorials={state.tutorials} /&gt;</code>, we use the spread operator <code>...</code>:</p>
+<pre><code><span class="hljs-keyword">state</span> = {
+  books: [],
+  tutorials: [],
+};</code></pre><p>and <code>&lt;Index {...this.state} /&gt;</code>.</p>
+<p>A final note worth mentioning is that this page is rendered on the client. Instead of using <code>getInitialProps()</code> (used for server-side rendering), we send JSON data to the client. The client re-renders the page with data, following instructions specified in <code>async componentDidMount()</code>.</p>
+<p>Time to test.</p>
+<p>Before you test, make sure that your user is an Admin. Go to MongoDB Atlas and find your user document in the <code>test.users</code> collection of <code>test</code> database (that is located in your free Cluster0 cluster). Add this parameter to this user document: <code>"isAdmin": true</code>.</p>
+<p>Let's create two dummy book documents as well. In MongoDB Atlas, inside <code>test</code> database of <code>Cluster0</code> cluster, go to the <code>test.books</code> collection and manually add two new book documents:</p>
+<pre><code>name: dummy<span class="hljs-number">-1</span>
+slug: dummy<span class="hljs-number">-1</span>
+price: <span class="hljs-number">49</span>
+createdAt: <span class="hljs-number">2017</span><span class="hljs-number">-11</span><span class="hljs-number">-21</span>T23:<span class="hljs-number">39</span>:<span class="hljs-number">18.426</span>+<span class="hljs-number">00</span>:<span class="hljs-number">00</span></code></pre><p>and</p>
+<pre><code>name: dummy<span class="hljs-number">-2</span>
+slug: dummy<span class="hljs-number">-2</span>
+price: <span class="hljs-number">49</span>
+createdAt: <span class="hljs-number">2017</span><span class="hljs-number">-11</span><span class="hljs-number">-21</span>T23:<span class="hljs-number">29</span>:<span class="hljs-number">18.426</span>+<span class="hljs-number">00</span>:<span class="hljs-number">00</span></code></pre><p>Note Atlas will automatically generate <code>id</code> for new document, so your task is to manually add <code>name</code> (type <code>String</code>), <code>slug</code> (type <code>String</code>), <code>price</code> (type <code>Int32</code>) and <code>createdAt</code> (type <code>Date</code>) to the document. If you forgot how to create a new document in Atlas, check up Chapter 2.</p>
+<p>Start your app (<code>yarn dev</code>) and navigate to the <code>/admin</code> page:<br><img src="https://user-images.githubusercontent.com/10218864/36345223-96dc1738-13db-11e8-8829-fe6833a69b80.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>If you see a list of books, then you successfully implemented <code>/api/v1/admin/books</code>. To display list of books on <code>/admin</code> page, we did following:</p>
+<ul>
+<li>created <code>list()</code> static method in Book model (<code>server/models/Book.js</code>),</li>
+<li>created Express route <code>/books</code> (<code>server/api/admin.js</code>),</li>
+<li>create API method <code>getBookList()</code> (<code>lib/api/admin.js</code>),</li>
+<li>place above method to <code>componentDidMount()</code> lifecycle hook of Admin page (<code>pages/admin/index.js</code>).</li>
+</ul>
+<p>In this book we will write about a dozen of API endpoints - that's doable. A new technology called <a target="_blank" href="http://graphql.org" rel="noopener noreferrer">GraphQL</a> is an alternative to multiple endpoints APIs. In GraphQL, you send or get data from a single endpoint. Instead of writing all code associated for multiple API endpoints, you save time by constructing proper queries and mutations and send them to single API endpoint.</p>
+<p>We should make one more UX improvement - right now, app redirects user to <code>/</code> page after login. Instead, we want user to be redirected to <code>/admin</code> page. Open <code>server/google.js</code> file and find following Express route:</p>
+<pre><code>server.get(
+  <span class="hljs-string">'/oauth2callback'</span>,
+  passport.authenticate(<span class="hljs-string">'google'</span>, {
+    failureRedirect: <span class="hljs-string">'/login'</span>,
+  }),
+  <span class="hljs-function"><span class="hljs-params">(req, res)</span> =&gt;</span> {
+    res.redirect(<span class="hljs-string">'/'</span>);
+  },
+);</code></pre><p>The code inside Express code redirects user to <code>/</code> page if login when passport authentication succeeds. Change code so code redirects user to <code>/admin</code> page:</p>
+<pre><code>server.get(
+  <span class="hljs-string">'/oauth2callback'</span>,
+  passport.authenticate(<span class="hljs-string">'google'</span>, {
+    failureRedirect: <span class="hljs-string">'/login'</span>,
+  }),
+  <span class="hljs-function"><span class="hljs-params">(req, res)</span> =&gt;</span> {
+    res.redirect(<span class="hljs-string">'/admin'</span>);
+  },
+);</code></pre><p>Log out of app, log in again, you'll be automatically <em>redirected</em> to <code>/admin</code>.</p>
+<p>At this point, we've introduced Book and Chapter models but did not add any code related to Github's integration. That's why you had to <em>manually</em> insert two books to MongoDB for testing the <code>/admin</code> page.</p>
+<p>Before integrating with Github (Chapter 6), let's create a <code>ReadChapter</code> page (<code>pages/public/read-chapter.js</code>) where we will display our dummy chapter. <em>Dummy</em>, since you will create a chapter document <em>manually</em> in your database. Customer users will preview chapter content and read their purchased books on the <code>ReadChapter</code> page (we discuss preview and payments in Chapter 7).</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="readchapter-page" href="#readchapter-page" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="readchapter-page">
+          ReadChapter page
+        </span>
+      </h2><p>You see that we placed the <code>ReadChapter</code> page into the <code>pages/public/*</code> folder. This page uses  API method(s) from <code>lib/api/public.js</code> and Express routes from <code>server/api/public.js</code>.</p>
+<p>Earlier in this chapter, you learned how to display a list of books on the <code>/admin</code> page at <code>pages/admin/index.js</code>. It's a four-step process of writing static method for model, Express route,  API method, and adding method to page. </p>
+<p>Since we already wrote the static method <code>getBySlug()</code> for our Chapter model (<a target="_blank" href="https://builderbook.org/books/builder-book/book-and-chapter-models-internal-api-render-chapter#static-methods-for-chapter" rel="noopener noreferrer">see section "Chapter model"</a>), then we only have three steps to implement.</p>
+<p>To display chapter content on the <code>ReadChapter</code> page, follow these three steps:</p>
+<ol>
+<li>On the server (<code>server/api/public.js</code>), we will create an Express route with the GET method and route (or API endpoint) <code>/get-chapter-detail</code>. Inside this Express route, we call the <code>Chapter.getBySlug()</code> static method (we wrote it earlier in this chapter).</li>
+<li>On the client (<code>lib/api/public.js</code>), we will create an API method called <code>getChapterDetail()</code> that calls the API endpoint <code>/get-chapter-detail</code> and passes necessary data to the corresponding Express routes.</li>
+<li>Also on the client, we add the above API method to the ReadChapter page. When a user visits the route <code>/books/:bookSlug/:chapterSlug</code>, we will render the page from <code>pages/public/read-chapter.js</code>. In the page's code, we will call the <code>getChapterDetail()</code> API method inside <code>getInitialProps()</code>. <em>Unlike</em> an <code>Admin</code> page (<code>pages/admin/index.js</code>), which is rendered on the client, the <code>ReadChapter</code> page will be rendered on the server. The API method <code>getChapterDetail()</code> will be executed <em>inside</em> Next.js's <code>getInitialProps()</code> <em>instead</em> of a <code>componentDidMount()</code> lifecycle hook.</li>
+</ol>
+<h4 style="color: #FFF;">
+        <a name="express-route" href="#express-route" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Express route
+      </h4><p>Express route with the GET method and <code>/get-chapter-detail</code> API endpoint:<br>  <code>router.get('/get-chapter-detail', async (req, res) =&gt; ... )</code>.</p>
+<p>  On the browser, a user will access <code>/books/:bookSlug/:chapterSlug</code>, so we need to extract <code>bookSlug</code> and <code>chapterSlug</code> values from this query string. Express achieves this with <a target="_blank" href="http://expressjs.com/en/api.html#req.query" rel="noopener noreferrer">req.query</a>. For example, if the query string is:<br>  <code>/get-chapter-detail?bookSlug=${bookSlug}&amp;chapterSlug=${chapterSlug}</code>,<br>  then we can access parameters inside this query string with:</p>
+<pre><code><span class="hljs-attribute">  const bookSlug</span> = req.query.bookSlug;
+<span class="hljs-attribute">  const chapterSlug</span> = req.query.chapterSlug;</code></pre><p>  After using <a target="_blank" href="https://javascript.info/destructuring-assignment#object-destructuring" rel="noopener noreferrer">object destructuring</a>, we can simplify it and get:<br>  <code>const { bookSlug, chapterSlug } = req.query;</code></p>
+<p>  Let's use our favorite <code>async/await</code> with the <code>try/catch</code> construct. <code>Await</code> for the static method <code>Chapter.getBySlug()</code> to find and return the proper chapter object:</p>
+<pre><code>  const chapter = await Chapter.getBySlug({
+    bookSlug,
+    chapterSlug,
+    userId: req.<span class="hljs-keyword">user</span> <span class="hljs-title">&amp;&amp; req</span>.user.id,
+    isAdmin: req.<span class="hljs-keyword">user</span> <span class="hljs-title">&amp;&amp; req</span>.user.isAdmin,
+  });</code></pre><p>  We will use <code>userId</code> and <code>isAdmin</code> in Chapter 8. The first parameter checkes whether a user has purchased a book, and the second parameter shows the full content of the chapter to an Admin user. For now, we'll ignore these parameters but we do discuss them in Chapter 8, Section ReadChapter page.</p>
+<p>  If we successfully retrieve the right chapter, we will send a response with JSON data:<br>  </p><pre>res.json(chapter);</pre><p></p>
+<p>  Otherwise, we will catch an error and send a response with an error message:<br>  </p><pre>res.json({ error: err.message || err.toString() });</pre><p></p>
+<p>  After putting this all together and adding <code>try/catch</code>, our final <code>server/api/public.js</code> becomes:</p>
+<pre><code>  <span class="hljs-keyword">const</span> express = require(<span class="hljs-string">'express'</span>);
+  <span class="hljs-keyword">const</span> Book = require(<span class="hljs-string">'../models/Book'</span>);
+  <span class="hljs-keyword">const</span> Chapter = require(<span class="hljs-string">'../models/Chapter'</span>);
+
+  <span class="hljs-keyword">const</span> router = express.Router();
+
+  router.<span class="hljs-keyword">get</span>(<span class="hljs-string">'/books'</span>, <span class="hljs-keyword">async</span> (req, res) =&gt; {
+    <span class="hljs-keyword">try</span> {
+      <span class="hljs-keyword">const</span> books = <span class="hljs-keyword">await</span> Book.list();
+      res.json(books);
+    } <span class="hljs-keyword">catch</span> (err) {
+      res.json({ error: err.message || err.toString() });
+    }
+  });
+
+  router.<span class="hljs-keyword">get</span>(<span class="hljs-string">'/books/:slug'</span>, <span class="hljs-keyword">async</span> (req, res) =&gt; {
+    <span class="hljs-keyword">try</span> {
+      <span class="hljs-keyword">const</span> book = <span class="hljs-keyword">await</span> Book.getBySlug({ slug: req.params.slug, userId: req.user &amp;&amp; req.user.id });
+      res.json(book);
+    } <span class="hljs-keyword">catch</span> (err) {
+      res.json({ error: err.message || err.toString() });
+    }
+  });
+
+  router.<span class="hljs-keyword">get</span>(<span class="hljs-string">'/get-chapter-detail'</span>, <span class="hljs-keyword">async</span> (req, res) =&gt; {
+    <span class="hljs-keyword">try</span> {
+      <span class="hljs-keyword">const</span> { bookSlug, chapterSlug } = req.query;
+      <span class="hljs-keyword">const</span> chapter = <span class="hljs-keyword">await</span> Chapter.getBySlug({
+        bookSlug,
+        chapterSlug,
+      });
+      res.json(chapter);
+    } <span class="hljs-keyword">catch</span> (err) {
+      res.json({ error: err.message || err.toString() });
+    }
+  });
+
+  module.exports = router;</code></pre><h4 style="color: #FFF;">
+        <a name="api-method-getchapterdetail-" href="#api-method-getchapterdetail-" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        API method getChapterDetail()
+      </h4><p>The  API method <code>getChapterDetail()</code> will send a request with the following API endpoint:</p>
+<pre>${BASE_PATH}/get-chapter-detail?bookSlug=${bookSlug}&amp;chapterSlug=${chapterSlug}</pre>
+
+<pre><code><span class="hljs-string">sendRequest(</span>
+  `${<span class="hljs-string">BASE_PATH}</span>/<span class="hljs-built_in">get-chapter-detail?bookSlug=${bookSlug}&amp;chapterSlug=${chapterSlug}`,</span>
+  <span class="hljs-string">Object.</span><span class="hljs-string">assign(</span>
+    {
+      <span class="hljs-string">method:</span> <span class="hljs-string">'GET'</span>,
+    },
+    <span class="hljs-string">options,</span>
+  ),
+);</code></pre><p>This method takes an API endpoint, specifies a method (GET) and options (<code>req.headers</code>, check page's code), and sends a request to the server. Query string has values of two parameters: <code>${bookSlug}</code> and <code>${chapterSlug}</code> values. These two values are taken from the query string when a user accesses <code>/books/:bookSlug/:chapterSlug</code> route with <code>req.query</code> (<a target="_blank" href="https://builderbook.org/books/builder-book/book-and-chapter-models-internal-api-render-chapter#express-route" rel="noopener noreferrer">discussed earlier</a>):</p>
+<pre>const { bookSlug, chapterSlug } = req.query;</pre>
+
+<p>Our API method:<br><code>lib/api/public.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> sendRequest <span class="hljs-keyword">from</span> <span class="hljs-string">'./sendRequest'</span>;
+
+<span class="hljs-keyword">const</span> BASE_PATH = <span class="hljs-string">'/api/v1/public'</span>;
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> getChapterDetail = <span class="hljs-function">(<span class="hljs-params">{ bookSlug, chapterSlug }, options = {}</span>) =&gt;</span>
+  sendRequest(
+    <span class="hljs-string">`<span class="hljs-subst">${BASE_PATH}</span>/get-chapter-detail?bookSlug=<span class="hljs-subst">${bookSlug}</span>&amp;chapterSlug=<span class="hljs-subst">${chapterSlug}</span>`</span>,
+    <span class="hljs-built_in">Object</span>.assign(
+      {
+        <span class="hljs-attr">method</span>: <span class="hljs-string">'GET'</span>,
+      },
+      options,
+    ),
+  );</code></pre><h4 style="color: #FFF;">
+        <a name="page" href="#page" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Page
+      </h4><p>We want our users to see the route <code>/books/:bookSlug/:chapterSlug</code> on their browsers. However, we want our app to render a page that is located at <code>pages/public/read-chapter.js</code>. To make server pass data to <code>/books/:bookSlug/:chapterSlug</code> route, we need to add Express route:</p>
+<pre><code>server.get(<span class="hljs-string">'/books/:bookSlug/:chapterSlug'</span>, <span class="hljs-function"><span class="hljs-params">(req, res)</span> =&gt;</span> {
+  const { bookSlug, chapterSlug } = req.params;
+  app.render(req, res, <span class="hljs-string">'/public/read-chapter'</span>, { bookSlug, chapterSlug });
+});</code></pre><p>Add above code snippet above <code>server.get('*', (req, res) =&gt; handle(req, res));</code> line in the <code>server/app.js</code> file.</p>
+<p>Let's discuss <code>req.params</code>. In a way, <code>req.params</code> is similar to <code>req.query</code>. The latter extracts values from a <em>query</em> string (route accessed by user on browser). The former extracts <em>parameters</em> values from the server route (a parameter inside the route has to have a colon <code>:</code> prepended to the name). Read more about route parameters <a target="_blank" href="http://expressjs.com/en/guide/routing.html#route-parameters" rel="noopener noreferrer">here</a>.</p>
+<p>For example, Express route has <code>/books/:bookSlug/:chapterSlug</code> route. When user navigates to the URL:</p>
+<pre>http://localhost:8000/books/book-1/introduction</pre>
+
+<p>then <code>req.params</code> object is:</p>
+<pre>req.params: { "bookSlug": "book-1", "chapterSlug": "introduction" }</pre>
+
+
+<p>You may not be familiar with <code>app.render()</code>. The general syntax for the Express method <a target="_blank" href="http://expressjs.com/en/api.html#app.render" rel="noopener noreferrer">app.render()</a> Express is:</p>
+<pre>app.render(view, [locals], callback)</pre>
+
+<p>The parameter <code>view</code> is a path to file that we render. In our case, it's <code>/public/read-chapter</code>.<br>Local variables <code>[locals]</code> contain parameters that get passed to <code>view</code>. In our case, it's <code>{ bookSlug, chapterSlug }</code>.</p>
+<p>In summary, the Express route above <em>receives</em> the <code>{ bookSlug, chapterSlug }</code> parameters from our app user's browser, sends them to the <code>/public/read-chapter</code> page, and then renders this page.</p>
+<p>The page <code>ReadChapter</code> <em>sends</em> <code>bookSlug</code> and <code>chapterSlug</code> parameters to our server as parameters of <code>query</code> object:</p>
+<pre><code><span class="hljs-attribute">const bookSlug</span> = query.bookSlug;
+<span class="hljs-attribute">const chapterSlug</span> = query.chapterSlug;</code></pre><p>After using ES6 object destructuring:</p>
+<pre>const { bookSlug, chapterSlug } = query;</pre>
+
+<p><code>getInitialProps()</code> method accepts <code>query</code> parameter, defines <code>{ bookSlug, chapterSlug }</code> and passes paramters to API method <code>getChapterDetail()</code>:</p>
+<pre><code><span class="hljs-function"><span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> <span class="hljs-title">getInitialProps</span>(<span class="hljs-params">{ req, query }</span>)</span> {
+  <span class="hljs-keyword">const</span> { bookSlug, chapterSlug } = query;
+
+  <span class="hljs-comment">// pass parameters to API method getChapterDetail()</span>
+  <span class="hljs-comment">// return data</span>
+}</code></pre><p>The parameter <code>query</code> is a query string section of a route. For our <code>/books/:bookSlug/:chapterSlug</code> route, ES6 object destructuring for <code>query</code> is:</p>
+<pre>const { bookSlug, chapterSlug } = query;</pre>
+
+
+<p>At this point, we've created multiple pages in our app. From Chapters 2 and 3, you know about ES6 class component declaration:</p>
+<pre>class ReadChapter extends React.Component</pre>
+
+<p>You also know about the optional but recommended use of <code>propTypes</code>:</p>
+<pre><code><span class="hljs-attr">static</span> <span class="hljs-string">propTypes = {</span>
+  <span class="hljs-attr">chapter</span>: <span class="hljs-string">PropTypes.shape({</span>
+    <span class="hljs-attr">_id</span>: <span class="hljs-string">PropTypes.string.isRequired,</span>
+  <span class="hljs-attr">}),</span>
+<span class="hljs-attr">};</span>
+
+<span class="hljs-attr">static</span> <span class="hljs-string">defaultProps = {</span>
+  <span class="hljs-attr">chapter</span>: <span class="hljs-string">null,</span>
+<span class="hljs-attr">};</span></code></pre><p>You are familiar with <code>state</code>:</p>
+<pre><code>this.<span class="hljs-keyword">state</span> = {
+  chapter,
+  htmlContent,
+};</code></pre><p>Let's outline what we need to do inside <code>ReadChapter</code> page:</p>
+<ul>
+<li><p>Inside <code>renderMainContent()</code>, render the chapter's <code>title</code> and <code>htmContent</code>.</p>
+</li>
+<li><p>Page has <code>&lt;Head&gt;</code> with chapter title and description</p>
+</li>
+<li><p>We use <code>&lt;Grid&gt;</code> Materil-UI (you learned about <code>&lt;Grid&gt;</code> <a target="_blank" href="https://builderbook.org/books/builder-book/app-structure-next-js-hoc-material-ui-server-side-rendering-styles#header-component" rel="noopener noreferrer">in Chapter 1</a>)</p>
+</li>
+<li><p>get values of <code>chapter</code> and <code>htmlContent</code> from <code>state</code>:</p>
+<pre>const { chapter, htmlContent } = this.state;</pre>
+</li>
+<li><p>Since <code>chapter.htmlContent</code> is a HTML string, we use React version of DOM method <code>innerHTML</code>, <code>dangerouslySetInnerHTM</code>, to set HTML content of element: <code>&lt;div className="main-content" dangerouslySetInnerHTML={{ __html: htmlContent }} /&gt;</code>.</p>
+</li>
+<li><p>We also know that <code>Chapter.geBySlug()</code> static method returns <code>book</code> object in addition to <code>chapter</code> object. Thus we can get book data with:</p>
+<pre>const book = chapter.book;</pre>
+
+<p>With object destructuring:</p>
+<pre>const { book } = chapter;</pre>
+</li>
+<li><p>If chapter is null, show 404 page (provided by Next.js):</p>
+<pre><code><span class="hljs-keyword">if</span> (!chapter) {
+  <span class="hljs-keyword">return</span> &lt;<span class="hljs-built_in">Error</span> statusCode={<span class="hljs-number">404</span>} /&gt;;
+}</code></pre></li>
+<li><p>The <code>ReadChapter</code> page component is automatically wrapped with <code>App</code> HOC, thus the page has <code>&lt;Header&gt;</code>.</p>
+</li>
+<li><p>In export code, we wrap <code>ReadChapter</code> page component with <code>withAuth</code> HOC with parameter <code>loginRequired: false</code>. Which means that logged out user can see this page.</p>
+</li>
+</ul>
+<p>Put together these bits of knowledge, and we get a high-level structure for our <code>ReadChapter</code> page:<br><code>pages/public/read-chapter.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> React from <span class="hljs-string">'react'</span>;
+<span class="hljs-keyword">import</span> PropTypes from <span class="hljs-string">'prop-types'</span>;
+<span class="hljs-keyword">import</span> Error from <span class="hljs-string">'next/error'</span>;
+<span class="hljs-keyword">import</span> Head from <span class="hljs-string">'next/head'</span>;
+<span class="hljs-keyword">import</span> Grid from <span class="hljs-string">'@material-ui/core/Grid'</span>;
+
+<span class="hljs-keyword">import</span> { getChapterDetail } from <span class="hljs-string">'../../lib/api/public'</span>;
+<span class="hljs-keyword">import</span> withAuth from <span class="hljs-string">'../../lib/withAuth'</span>;
+
+<span class="hljs-keyword">const</span> styleGrid = {
+  flexGrow: <span class="hljs-string">'1'</span>,
+};
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ReadChapter</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">React</span>.<span class="hljs-title">Component</span> </span>{
+  <span class="hljs-keyword">static</span> propTypes = {
+    chapter: PropTypes.shape({
+      _id: PropTypes.string.isRequired,
+      htmlContent: PropTypes.string,
+    }),
+  };
+
+  <span class="hljs-keyword">static</span> defaultProps = {
+    chapter: <span class="hljs-keyword">null</span>,
+  };
+
+  constructor(props, ...args) {
+    <span class="hljs-comment">// 1. define state</span>
+  }
+
+  componentWillReceiveProps(nextProps) {
+    <span class="hljs-comment">// 2. render new chapter</span>
+  }
+
+  <span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> getInitialProps({ req, query }) {
+    <span class="hljs-comment">// 3. call API method, pass neccessary data to server</span>
+  }
+
+  renderMainContent() {
+    <span class="hljs-keyword">const</span> { chapter, htmlContent } = <span class="hljs-keyword">this</span>.state;
+
+    <span class="hljs-keyword">return</span> (
+      &lt;div&gt;
+        &lt;h3&gt;Chapter: {chapter.title}&lt;/h3&gt;
+
+        &lt;div className=<span class="hljs-string">"main-content"</span> dangerouslySetInnerHTML={{ __html: htmlContent }} /&gt;
+
+      &lt;/div&gt;
+    );
+  }
+
+  render() {
+    <span class="hljs-keyword">const</span> { chapter } = <span class="hljs-keyword">this</span>.state;
+
+    <span class="hljs-keyword">if</span> (!chapter) {
+      <span class="hljs-keyword">return</span> &lt;Error statusCode={<span class="hljs-number">404</span>} /&gt;;
+    }
+
+    <span class="hljs-keyword">const</span> { book } = chapter;
+
+    <span class="hljs-keyword">return</span> (
+      &lt;div style={{ padding: <span class="hljs-string">'10px 45px'</span> }}&gt;
+        &lt;Head&gt;
+          &lt;title&gt;
+          {chapter.title === <span class="hljs-string">'Introduction'</span>
+              ? <span class="hljs-string">'Introduction'</span>
+              : `Chapter ${chapter.order - <span class="hljs-number">1</span>}. ${chapter.title}`}
+          &lt;/title&gt;
+          {chapter.seoDescription ? (
+            &lt;meta name=<span class="hljs-string">"description"</span> content={chapter.seoDescription} /&gt;
+          ) : <span class="hljs-keyword">null</span>}
+        &lt;/Head&gt;
+
+        &lt;Grid style={styleGrid} container direction=<span class="hljs-string">"row"</span> justify=<span class="hljs-string">"space-around"</span> align=<span class="hljs-string">"flex-start"</span>&gt;
+
+          &lt;Grid
+            item
+            sm={<span class="hljs-number">10</span>}
+            xs={<span class="hljs-number">12</span>}
+            style={{
+              textAlign: <span class="hljs-string">'left'</span>,
+              paddingLeft: <span class="hljs-string">'25px'</span>,
+            }}
+          &gt;
+            &lt;h2&gt;Book: {book.name}&lt;/h2&gt;
+
+            {<span class="hljs-keyword">this</span>.renderMainContent()}
+
+          &lt;/Grid&gt;
+        &lt;/Grid&gt;
+      &lt;/div&gt;
+    );
+  }
+}
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> withAuth(ReadChapter, { loginRequired: <span class="hljs-keyword">false</span> });</code></pre><p>Let's discuss parts of <code>ReadChapter</code> page that are missing code:</p>
+<ol>
+<li><p>So far, we haven't used <code>constructor(props)</code>. It's straightforwad as you will see below.</p>
+<p>In React, <code>constructor(props)</code> sets an initial <code>state</code> and is called <em>before</em> a component is mounted. In our case, initial <code>state</code> is simply:</p>
+<pre><code>this.<span class="hljs-keyword">state</span> = {
+ chapter,
+ htmlContent,
+};</code></pre><p>The official React <a target="_blank" href="https://reactjs.org/docs/react-component.html#constructor" rel="noopener noreferrer">docs</a> advise to always call <code>super(props)</code> before any statement (to make <code>this.props</code> available inside <code>constructor</code> since <code>this</code> is not initialized until <code>super()</code> is called) and initiate state with <code>this.state</code> instead of <code>setState</code>. After considering these two rules, we get:</p>
+<pre><code><span class="hljs-function"><span class="hljs-keyword">constructor</span><span class="hljs-params">(props)</span> <span class="hljs-comment">{
+ super(props);
+
+ this.state = {
+   chapter,
+   htmlContent,
+ }</span>;</span>
+}</code></pre><p>As we discussed in <a target="_blank" href="https://builderbook.org/books/builder-book/server-database-session-header-and-menudrop-components#menudrop-component" rel="noopener noreferrer">Chapter 2 while building MenuDrop component</a> - we could've used <code>state = { ... }</code> to state initial state if we don't need to access props. We chose <code>constructor(props)</code> instead since we need access to <code>chapter</code> and <code>htmlContent</code> props to set initial state.</p>
+<p>You don't need to use <code>constructor</code> if you don't use props for setting initial state. For example, take a look at <code>components/MenuDrop.js</code>, we set initial state for <code>MenuDrop</code> component without <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes/constructor" rel="noopener noreferrer">constructor</a>.</p>
+<p>The constructor above does not define <code>chapter</code> and <code>htmlContent</code>. After adding these two definitions:</p>
+<pre><code><span class="hljs-function"><span class="hljs-keyword">constructor</span><span class="hljs-params">(props)</span> <span class="hljs-comment">{
+ super(props);
+
+ const { chapter }</span> = <span class="hljs-title">props</span>;</span>
+
+ let htmlContent = <span class="hljs-string">''</span>;
+ <span class="hljs-keyword">if</span> (chapter) <span class="hljs-comment">{
+   htmlContent = chapter.htmlContent;
+ }</span>
+
+ this.state = <span class="hljs-comment">{
+   chapter,
+   htmlContent,
+ }</span>;
+}</code></pre><p>When we test <code>ReadChapter</code> page, it's important that we create chapter document on database that contains <code>chapter.htmlContent</code> parameter. Value of this parameter should a string of HTML code.</p>
+</li>
+<li><p><a target="_blank" href="https://reactjs.org/docs/react-component.html#componentwillreceiveprops" rel="noopener noreferrer">componentWillReceiveProps()</a> is one of our component's lifecycle methods. We discussed <code>componentDidMount()</code> but not this one.</p>
+<p><code>componentWillReceiveProps(nextProps)</code> is invoked before a mounted component receives new props. This lifecycle will get executed even when props have not changed, thus it is important to compare <code>this.props</code>(current) and <code>nextProps</code> (incoming). To re-render component, we update <code>state</code> with <code>this.setState()</code> (same way as in <code>componentDidMount()</code>).</p>
+<p>If incoming prop <code>chapter</code> exists (<code>const chapter = nextProps.chapter</code> or with ES6 object destructuring: <code>const { chapter } = nextProps</code>) <em>and</em> chapter id has changed (<code>chapter._id !== this.props.chapter._id</code>), <em>then</em> a user navigated to new chapter (component did receive new <code>chapter</code> prop). If user navigated to new chapter, we want to re-render page component with <code>this.setState()</code>:</p>
+<pre><code>componentWillReceiveProps(nextProps) {
+ <span class="hljs-keyword">const</span> { chapter } = nextProps;
+
+ <span class="hljs-keyword">if</span> (chapter &amp;&amp; chapter._id !== <span class="hljs-keyword">this</span>.props.chapter._id) {
+   <span class="hljs-keyword">const</span> { htmlContent } = chapter;
+   <span class="hljs-keyword">this</span>.setState({ chapter, htmlContent });
+ }
+}</code></pre></li>
+<li><p>We've used <code>getInitialProps()</code> method in <code>Index</code> page to render a user email, usage in <code>ReadChapter</code> page is a bit more complicated. Here we call the <code>getChapterDetail</code> API method instead of getting user object from query.</p>
+<p>As <a target="_blank" href="https://builderbook.org/books/builder-book/authentication-hoc-promise-async-await-static-method-for-user-model-google-oauth#getinitialprops-method" rel="noopener noreferrer">we discussed in Chapter 3</a>, <code>getInitialProps()</code> populates page's <code>props</code> with data. We want  <code>ReadChapter</code> page <em>with</em> data to be rendered on the server. To achieve that in Next.js app, we call the <code>getChapterDetail()</code> method inside of <code>getInitialProps()</code>. If we wanted to render data on the client (which is not the case for <code>ReadChapter</code> page), we would call <code>getChapterDetail()</code> inside of <code>componentDidMount()</code>.</p>
+<p>General usage of <code>getInitialProps()</code> (which can be async):</p>
+<pre><code><span class="hljs-function"><span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> <span class="hljs-title">getInitialProps</span>(<span class="hljs-params">{ req, query }</span>)</span> {
+ <span class="hljs-comment">// pass data and call `getChapterDetail()` method</span>
+}</code></pre><p>Take a look at the <code>getChapterDetail()</code> method (<code>lib/api/public.js</code>). This method takes <code>bookSlug</code>, <code>chapterSlug</code>, <code>headers</code>, and <code>options</code>. Once user is on the <code>/books/:bookSlug/:chapterSlug</code> route, we send request to server. Request has data that we pass to <code>getInitialProps()</code> method via <code>req</code> and <code>query</code>. In turn, <code>getInitialProps</code> passes data to API method <code>getChapterDetail()</code> method.</p>
+<p>In Next.js, <code>query</code> is a query string section of a URL (similar to Express's <code>req.query</code> and <code>req.params</code>). By using ES6 destructuring:</p>
+<pre>const { bookSlug, chapterSlug } = query;</pre>
+
+<p>We get <code>bookSlug</code> and <code>chapterSlug</code> from <code>query</code>.</p>
+<p>By using <code>req.headers.cookie</code>, we can pass cookies from client (browser) to the server to identify logged-in user (see the <a target="_blank" href="https://builderbook.org/books/builder-book/server-database-session-header-and-menudrop-components#session" rel="noopener noreferrer">section on Session</a> in Chapter 2):</p>
+<pre><code>const <span class="hljs-attr">headers</span> = {};
+ <span class="hljs-keyword">if</span> (req &amp;&amp; req.headers &amp;&amp; req.headers.cookie) {
+   headers.<span class="hljs-attr">cookie</span> = req.headers.cookie;
+ }</code></pre><p>Finally, to pass <code>bookSlug</code>, <code>chapterSlug</code>, and <code>headers</code> to the server <em>via</em> our API method <code>getChaperDetail()</code>:</p>
+<pre>const chapter = await getChapterDetail({ bookSlug, chapterSlug }, { headers });</pre>
+
+<p>In summary, we have:</p>
+<pre><code><span class="hljs-function"><span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> <span class="hljs-title">getInitialProps</span>(<span class="hljs-params">{ req, query }</span>)</span> {
+ <span class="hljs-keyword">const</span> { bookSlug, chapterSlug } = query;
+
+ <span class="hljs-keyword">const</span> headers = {};
+ <span class="hljs-keyword">if</span> (req &amp;&amp; req.headers &amp;&amp; req.headers.cookie) {
+   headers.cookie = req.headers.cookie;
+ }
+
+ <span class="hljs-keyword">const</span> chapter = <span class="hljs-keyword">await</span> getChapterDetail({ bookSlug, chapterSlug }, { headers });
+
+ <span class="hljs-keyword">return</span> { chapter };
+}</code></pre></li>
+</ol>
+<p>Add the missing code snippets from steps 1-3 to the <code>ReadChapter</code> page:<br><code>pages/public/read-chapter.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> React from <span class="hljs-string">'react'</span>;
+<span class="hljs-keyword">import</span> PropTypes from <span class="hljs-string">'prop-types'</span>;
+<span class="hljs-keyword">import</span> Error from <span class="hljs-string">'next/error'</span>;
+<span class="hljs-keyword">import</span> Head from <span class="hljs-string">'next/head'</span>;
+<span class="hljs-keyword">import</span> Grid from <span class="hljs-string">'@material-ui/core/Grid'</span>;
+
+<span class="hljs-keyword">import</span> { getChapterDetail } from <span class="hljs-string">'../../lib/api/public'</span>;
+<span class="hljs-keyword">import</span> withAuth from <span class="hljs-string">'../../lib/withAuth'</span>;
+
+<span class="hljs-keyword">const</span> styleGrid = {
+  flexGrow: <span class="hljs-string">'1'</span>,
+};
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ReadChapter</span> <span class="hljs-title">extends</span> <span class="hljs-title">React</span>.<span class="hljs-title">Component</span> </span>{
+  static propTypes = {
+    chapter: PropTypes.shape({
+      _id: PropTypes.string.isRequired,
+    }),
+  };
+
+  static defaultProps = {
+    chapter: <span class="hljs-literal">null</span>,
+  };
+
+  <span class="hljs-keyword">constructor</span>(props) {
+    <span class="hljs-keyword">super</span>(props);
+
+    <span class="hljs-keyword">const</span> { chapter } = props;
+
+    let htmlContent = <span class="hljs-string">''</span>;
+    <span class="hljs-keyword">if</span> (chapter) {
+      htmlContent = chapter.htmlContent;
+    }
+
+    <span class="hljs-keyword">this</span>.state = {
+      chapter,
+      htmlContent,
+    };
+  }
+
+  componentWillReceiveProps(nextProps) {
+    <span class="hljs-keyword">const</span> { chapter } = nextProps;
+
+    <span class="hljs-keyword">if</span> (chapter &amp;&amp; chapter._id !== <span class="hljs-keyword">this</span>.props.chapter._id) {
+      <span class="hljs-keyword">const</span> { htmlContent } = chapter;
+      <span class="hljs-keyword">this</span>.setState({ chapter, htmlContent });
+    }
+  }
+
+  static async getInitialProps({ req, query }) {
+    <span class="hljs-keyword">const</span> { bookSlug, chapterSlug } = query;
+
+    <span class="hljs-keyword">const</span> headers = {};
+    <span class="hljs-keyword">if</span> (req &amp;&amp; req.headers &amp;&amp; req.headers.cookie) {
+      headers.cookie = req.headers.cookie;
+    }
+
+    <span class="hljs-keyword">const</span> chapter = await getChapterDetail({ bookSlug, chapterSlug }, { headers });
+
+    <span class="hljs-keyword">return</span> { chapter };
+  }
+
+  renderMainContent() {
+    <span class="hljs-keyword">const</span> { chapter, htmlContent } = <span class="hljs-keyword">this</span>.state;
+
+    <span class="hljs-keyword">return</span> (
+      &lt;div&gt;
+        &lt;h3&gt;Chapter: {chapter.title}&lt;/h3&gt;
+
+        &lt;div className=<span class="hljs-string">"main-content"</span> dangerouslySetInnerHTML={{ __html: htmlContent }} /&gt;
+
+      &lt;/div&gt;
+    );
+  }
+
+  render() {
+    <span class="hljs-keyword">const</span> { chapter } = <span class="hljs-keyword">this</span>.state;
+
+    <span class="hljs-keyword">if</span> (!chapter) {
+      <span class="hljs-keyword">return</span> &lt;Error statusCode={<span class="hljs-number">404</span>} /&gt;;
+    }
+
+    <span class="hljs-keyword">const</span> { book } = chapter;
+
+    <span class="hljs-keyword">return</span> (
+      &lt;div style={{ padding: <span class="hljs-string">'10px 45px'</span> }}&gt;
+        &lt;Head&gt;
+          &lt;title&gt;
+            {chapter.title === <span class="hljs-string">'Introduction'</span>
+              ? <span class="hljs-string">'Introduction'</span>
+              : `Chapter ${chapter.order - <span class="hljs-number">1</span>}. ${chapter.title}`}
+          &lt;/title&gt;
+          {chapter.seoDescription ? (
+            &lt;meta name=<span class="hljs-string">"description"</span> content={chapter.seoDescription} /&gt;
+          ) : <span class="hljs-literal">null</span>}
+        &lt;/Head&gt;
+
+        &lt;Grid style={styleGrid} container direction=<span class="hljs-string">"row"</span> justify=<span class="hljs-string">"space-around"</span> align=<span class="hljs-string">"flex-start"</span>&gt;
+
+          &lt;Grid
+            item
+            sm={<span class="hljs-number">10</span>}
+            xs={<span class="hljs-number">12</span>}
+            style={{
+              textAlign: <span class="hljs-string">'left'</span>,
+              paddingLeft: <span class="hljs-string">'25px'</span>,
+            }}
+          &gt;
+            &lt;h2&gt;Book: {book.name}&lt;/h2&gt;
+
+            {<span class="hljs-keyword">this</span>.renderMainContent()}
+
+          &lt;/Grid&gt;
+        &lt;/Grid&gt;
+      &lt;/div&gt;
+    );
+  }
+}
+
+export <span class="hljs-keyword">default</span> withAuth(ReadChapter, { loginRequired: <span class="hljs-literal">false</span> });</code></pre><p>In the next subsection, we finally test our page, API method, and Express route.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="testing" href="#testing" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="testing">
+          Testing
+        </span>
+      </h2><p>We are almost there. You wrote static method for Chapter model, an Express route, API method, and placed API method to page. Time to test if our page indeed displays chapter data.</p>
+<p>From our previous tests, the current database contains two dummy books with names <code>dummy-1</code> and <code>dummy-2</code>. Let's create a new book <code>dummy-3</code> and add an introduction chapter to this book.</p>
+<ul>
+<li><p>Create a new book. Navigate to Atlas dashboard, go to <code>test.books</code> collection and manually create a new book document:</p>
+<pre><code>name: dummy<span class="hljs-number">-3</span>
+slug: dummy<span class="hljs-number">-3</span>
+price: <span class="hljs-number">40</span>
+createdAt: <span class="hljs-number">2017</span><span class="hljs-number">-11</span><span class="hljs-number">-21</span>T23:<span class="hljs-number">29</span>:<span class="hljs-number">18.426</span>+<span class="hljs-number">00</span>:<span class="hljs-number">00</span></code></pre><p>Note Atlas will automatically generate <code>id</code> for new document, so your task is to manually add <code>name</code> (type <code>String</code>), <code>slug</code> (type <code>String</code>), <code>price</code> (type <code>Int32</code>) and <code>createdAt</code> (type <code>Date</code>) to the document. If you forgot how to create a new document in Atlas, check up Chapter 2.</p>
+</li>
+<li><p>Create an introduction chapter for <code>dummy-3</code>. Navigate to Atlas dashboard, go to <code>test.chapters</code> collection and <em>manually</em> create a new chapter document:</p>
+<pre><code><span class="xml">bookId: ObjectId ("5a42c6f2a437e1289c66f063")
+title: Introduction
+slug: introduction
+order: 1
+seoTitle: Builder Book
+seoDescription: Build modern, production-ready web application from scratch.
+createdAt: 2017-12-26T23:39:18.426+00:00
+content: 
+htmlContent:"<span class="hljs-tag">&lt;<span class="hljs-name">h2</span> <span class="hljs-attr">class</span>=<span class="hljs-string">"chapter-section"</span> <span class="hljs-attr">style</span>=<span class="hljs-string">"color: #222; font-weight: 400;"</span>&gt;</span>          <span class="hljs-tag">&lt;<span class="hljs-name">a</span>            <span class="hljs-attr">name</span>=<span class="hljs-string">"heading-h2"</span>            <span class="hljs-attr">href</span>=<span class="hljs-string">"#heading-h2"</span>            <span class="hljs-attr">style</span>=<span class="hljs-string">"color: #222;"</span>          &gt;</span>             <span class="hljs-tag">&lt;<span class="hljs-name">i</span> <span class="hljs-attr">class</span>=<span class="hljs-string">"material-icons"</span> <span class="hljs-attr">style</span>=<span class="hljs-string">"vertical-align: middle; opacity: 0.5; cursor: pointer;"</span>&gt;</span>link<span class="hljs-tag">&lt;/<span class="hljs-name">i</span>&gt;</span>          <span class="hljs-tag">&lt;/<span class="hljs-name">a</span>&gt;</span>          <span class="hljs-tag">&lt;<span class="hljs-name">span</span> <span class="hljs-attr">class</span>=<span class="hljs-string">"section-anchor"</span> <span class="hljs-attr">name</span>=<span class="hljs-string">"heading-h2"</span>&gt;</span>            Heading h2          <span class="hljs-tag">&lt;/<span class="hljs-name">span</span>&gt;</span>        <span class="hljs-tag">&lt;/<span class="hljs-name">h2</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-name">h4</span> <span class="hljs-attr">style</span>=<span class="hljs-string">"color: #222;"</span>&gt;</span>          <span class="hljs-tag">&lt;<span class="hljs-name">a</span>            <span class="hljs-attr">name</span>=<span class="hljs-string">"heading-h4"</span>            <span class="hljs-attr">href</span>=<span class="hljs-string">"#heading-h4"</span>            <span class="hljs-attr">style</span>=<span class="hljs-string">"color: #222;"</span>          &gt;</span>            <span class="hljs-tag">&lt;<span class="hljs-name">i</span> <span class="hljs-attr">class</span>=<span class="hljs-string">"material-icons"</span> <span class="hljs-attr">style</span>=<span class="hljs-string">"vertical-align: middle; opacity: 0.5; cursor: pointer;"</span>&gt;</span>link<span class="hljs-tag">&lt;/<span class="hljs-name">i</span>&gt;</span>          <span class="hljs-tag">&lt;/<span class="hljs-name">a</span>&gt;</span>          Heading h4        <span class="hljs-tag">&lt;/<span class="hljs-name">h4</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-name">ul</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-name">li</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-name">strong</span>&gt;</span>bold<span class="hljs-tag">&lt;/<span class="hljs-name">strong</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">li</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-name">li</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-name">em</span>&gt;</span>emphasized<span class="hljs-tag">&lt;/<span class="hljs-name">em</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">li</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-name">li</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-name">code</span>&gt;</span>highlighted<span class="hljs-tag">&lt;/<span class="hljs-name">code</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">li</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-name">li</span>&gt;</span>regular text<span class="hljs-tag">&lt;/<span class="hljs-name">li</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">ul</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-name">pre</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-name">code</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-name">span</span> <span class="hljs-attr">class</span>=<span class="hljs-string">"hljs-function"</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-name">span</span> <span class="hljs-attr">class</span>=<span class="hljs-string">"hljs-keyword"</span>&gt;</span>function<span class="hljs-tag">&lt;/<span class="hljs-name">span</span>&gt;</span> <span class="hljs-tag">&lt;<span class="hljs-name">span</span> <span class="hljs-attr">class</span>=<span class="hljs-string">"hljs-title"</span>&gt;</span>Square<span class="hljs-tag">&lt;/<span class="hljs-name">span</span>&gt;</span>(<span class="hljs-tag">&lt;<span class="hljs-name">span</span> <span class="hljs-attr">class</span>=<span class="hljs-string">"hljs-params"</span>&gt;</span>props<span class="hljs-tag">&lt;/<span class="hljs-name">span</span>&gt;</span>) <span class="hljs-tag">&lt;/<span class="hljs-name">span</span>&gt;</span>{    <span class="hljs-tag">&lt;<span class="hljs-name">span</span> <span class="hljs-attr">class</span>=<span class="hljs-string">"hljs-keyword"</span>&gt;</span>return<span class="hljs-tag">&lt;/<span class="hljs-name">span</span>&gt;</span> (        <span class="hljs-tag">&lt;<span class="hljs-name">span</span> <span class="hljs-attr">class</span>=<span class="hljs-string">"xml"</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-name">span</span> <span class="hljs-attr">class</span>=<span class="hljs-string">"hljs-tag"</span>&gt;</span><span class="hljs-tag">&lt;&lt;<span class="hljs-attr">span</span> <span class="hljs-attr">class</span>=<span class="hljs-string">"hljs-name"</span>&gt;</span>button<span class="hljs-tag">&lt;/<span class="hljs-name">span</span>&gt;</span> <span class="hljs-tag">&lt;<span class="hljs-name">span</span> <span class="hljs-attr">class</span>=<span class="hljs-string">"hljs-attr"</span>&gt;</span>className<span class="hljs-tag">&lt;/<span class="hljs-name">span</span>&gt;</span>=<span class="hljs-tag">&lt;<span class="hljs-name">span</span> <span class="hljs-attr">class</span>=<span class="hljs-string">"hljs-string"</span>&gt;</span>"square"<span class="hljs-tag">&lt;/<span class="hljs-name">span</span>&gt;</span> <span class="hljs-tag">&lt;<span class="hljs-name">span</span> <span class="hljs-attr">class</span>=<span class="hljs-string">"hljs-attr"</span>&gt;</span>onClick<span class="hljs-tag">&lt;/<span class="hljs-name">span</span>&gt;</span>=<span class="hljs-tag">&lt;<span class="hljs-name">span</span> <span class="hljs-attr">class</span>=<span class="hljs-string">"hljs-string"</span>&gt;</span>{props.onClick}<span class="hljs-tag">&lt;/<span class="hljs-name">span</span>&gt;</span>&gt;<span class="hljs-tag">&lt;/<span class="hljs-name">span</span>&gt;</span>            {props.value}        <span class="hljs-tag">&lt;<span class="hljs-name">span</span> <span class="hljs-attr">class</span>=<span class="hljs-string">"hljs-tag"</span>&gt;</span><span class="hljs-tag">&lt;/&lt;<span class="hljs-attr">span</span> <span class="hljs-attr">class</span>=<span class="hljs-string">"hljs-name"</span>&gt;</span>button<span class="hljs-tag">&lt;/<span class="hljs-name">span</span>&gt;</span>&gt;<span class="hljs-tag">&lt;/<span class="hljs-name">span</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">span</span>&gt;</span>    );}<span class="hljs-tag">&lt;/<span class="hljs-name">code</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">pre</span>&gt;</span>"
+excerpt: 
+isFree: true</span></code></pre></li>
+</ul>
+<p>Note Atlas will automatically generate <code>id</code> for new document, so your task is to manually add <code>bookId</code> (type <code>ObjectId</code>), <code>title</code> (type <code>String</code>), <code>slug</code> (type <code>String</code>), <code>order</code> (type <code>Int32</code>), <code>seoTitle</code> (type <code>String</code>), seoDescription (type <code>String</code>), <code>createdAt</code> (type <code>Date</code>), <code>content</code> (type <code>String</code>, value is empty string), <code>htmlContent</code> (type <code>String</code>), <code>excerpt</code> (type <code>String</code>, value is empty string), <code>isFree</code> (type <code>Boolean</code>) to the document. If you forgot how to create a new document in Atlas, check up Chapter 2 where we manually created a user document in <code>test.users</code> collection.</p>
+<p>Notice two important things:</p>
+<ul>
+<li>chapter parameter <code>bookId</code> should have the same value as <code>dummy-3</code> book <code>_id</code>,</li>
+<li>parameter <code>htmlContent</code> is a HTML string. We need this parameter for testing since on <code>ReadChapter</code> page, we defined:<pre><code><span class="hljs-attribute">let</span> htmlContent = <span class="hljs-string">''</span>;
+<span class="hljs-attribute">if</span> (chapter) {
+  <span class="hljs-attribute">htmlContent</span> = chapter.htmlContent;
+}</code></pre></li>
+</ul>
+<p>Look carefully at HTML string at <code>htmlContent</code> inside above chapter document. You will see many classes which start with <code>hljs</code>. In Chapter 6, we will convert markdown content <code>content</code> to HTML content <code>htmlContent</code>. When do so, we will add <code>hljs</code> classes to some elements inside <code>&lt;pre&gt;</code> and <code>&lt;code&gt;</code> tags. Open file (<code>pages/_document.js</code>), find line <code>&lt;link rel="stylesheet" href="https://storage.googleapis.com/builderbook/vs.min.css" /&gt;</code>.</p>
+<p>This line adds styles that are responsible for adding different colors elements with <code>hljs</code> classes. We use Google Cloud CDN to add styles to our app.</p>
+<p>In the same file (<code>pages/_document.js</code>), find following code:</p>
+<pre><code><span class="hljs-selector-tag">blockquote</span> {
+  <span class="hljs-attribute">padding</span>: <span class="hljs-number">0</span> <span class="hljs-number">1em</span>;
+  <span class="hljs-attribute">color</span>: <span class="hljs-number">#555</span>;
+  <span class="hljs-attribute">border-left</span>: <span class="hljs-number">0.25em</span> solid <span class="hljs-number">#dfe2e5</span>;
+}
+<span class="hljs-selector-tag">pre</span> {
+  <span class="hljs-attribute">display</span>:block;
+  <span class="hljs-attribute">overflow-x</span>:auto;
+  <span class="hljs-attribute">padding</span>:<span class="hljs-number">0.5em</span>;
+  <span class="hljs-attribute">background</span>:<span class="hljs-number">#FFF</span>;
+  <span class="hljs-attribute">color</span>: <span class="hljs-number">#000</span>;
+  <span class="hljs-attribute">border</span>: <span class="hljs-number">1px</span> solid <span class="hljs-number">#ddd</span>;
+}
+<span class="hljs-selector-tag">code</span> {
+  <span class="hljs-attribute">font-size</span>: <span class="hljs-number">14px</span>;
+}</code></pre><p>We introduced these styles in Chapter 1 when modifying <code>&lt;Document&gt;</code> of Next.js. These styles improve the way blockquote, code and pre tags look like.</p>
+<p>We are ready to test.</p>
+<p>Start your app (<code>yarn dev</code>), no need to log in, navigate to <code>http://localhost:8000/books/dummy-3/introduction</code>:<br><img src="https://user-images.githubusercontent.com/10218864/36327381-51e12f42-1313-11e8-9dc8-2fafba8ca5f7.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Instead of this page, you will encounter an error: <code>Book.getBySlug</code> is not a function.<br>When you load <code>ReadChapter</code> page, page's code calls <code>getChapterDetail</code> method. <code>getChapterDetail</code> method sends request to <code>/get-chapter-detail</code> Express route. This route executes <code>Chapter.getBySlug</code>. Finally, <code>Chapter.getBySlug</code> calls <code>Book.getBySlug</code>. However, <code>Book</code> model is not available in <code>server/models/Chapter.js</code> because <code>Book</code> and <code>Chapter</code> models form so called circular dependency: <code>Book</code> model is imported to and used to define <code>Chapter</code> model, at the same time, <code>Chapter</code> model is imported to and used to define <code>Book</code> model. Read more on circular dependencies and how to deal with them <a target="_blank" href="https://stackoverflow.com/questions/46589957/es6-modules-and-circular-dependency" rel="noopener noreferrer">here</a>.</p>
+<p>Since we don't want to refactor models entirely, we chose one of the simplest solutions. We will import <code>Book</code> model at the very end of <code>server/models/Chapter.js</code> and we will import <code>Chapter</code> at the very end of <code>server/models/Book.js</code>.</p>
+<p>After you made the above changes, you will have for <code>Chapter</code> model<br><code>server/models/Chapter.js</code> :</p>
+<pre><code><span class="hljs-comment">/* eslint-disable no-use-before-define */</span>
+
+<span class="hljs-comment">// some code</span>
+
+<span class="hljs-comment">// const Book = require('./Book');</span>
+
+
+<span class="hljs-comment">// some code</span>
+
+<span class="hljs-keyword">const</span> Chapter = mongoose.model(<span class="hljs-string">'Chapter'</span>, mongoSchema);
+
+<span class="hljs-keyword">module</span>.<span class="hljs-keyword">exports</span> = Chapter;
+
+<span class="hljs-keyword">const</span> Book = require(<span class="hljs-string">'./Book'</span>);</code></pre><p>And for <code>Book</code> model<br><code>server/models/Book.js</code> :</p>
+<pre><code><span class="hljs-comment">/* eslint-disable no-use-before-define */</span>
+
+<span class="hljs-comment">// some code</span>
+
+<span class="hljs-comment">// const Chapter = require('./Chapter');</span>
+
+
+<span class="hljs-comment">// some code</span>
+
+<span class="hljs-keyword">const</span> Book = mongoose.model(<span class="hljs-string">'Book'</span>, mongoSchema);
+
+<span class="hljs-keyword">module</span>.<span class="hljs-keyword">exports</span> = Book;
+
+<span class="hljs-keyword">const</span> Chapter = require(<span class="hljs-string">'./Chapter'</span>);</code></pre><p>We commented out imports at the top of the files to indicate that <code>Chapter</code> and <code>Book</code> models are circularly dependent. Also we added <code>/* eslint-disable no-use-before-define */</code> at the beggining of each file to disable ESLint warning about defining variable <strong>after</strong> it was used.</p>
+<p>Done with circular dependencies. If you see that page loads successfully with data that you added to DB then your are done implementing the most complex page in this book!</p>
+<p>Good job!</p>
+<p>In this chapter, you learned about data exchange between client and server. And you built two <em>complete</em> internal APIs for our app:</p>
+<ul>
+<li>you rendered a list of books on our <code>Admin</code> page (<code>pages/admin/index.js</code>),</li>
+<li>you rendered chapter content on our <code>ReadChapter</code> page (<code>public/read-chapter.js</code>).</li>
+</ul>
+<p>Building a complete internal API means that we handled data flow from page (<code>cookie</code>, <code>bookSlug</code>, <code>chapterSlug</code>) =&gt; API method =&gt; Express route =&gt; static method on Model and back to page (<code>book</code> and <code>chapter</code> objects).</p>
+<p>In the next chapter (Chapter 6), we will integrate our app with Github, add missing internal APIs for our Admin, and test out the entire Admin experience in our web application.</p>
+<br>
+
+<hr>
+<p>At the end of Chapter 5, your codebase should look like the codebase in <code>5-end</code>. The <a target="_blank" href="https://github.com/builderbook/builderbook/tree/master/book/5-end" rel="noopener noreferrer">5-end</a> folder is located at the root of the <code>book</code> directory inside the <a target="_blank" href="https://github.com/builderbook/builderbook" rel="noopener noreferrer">builderbook repo</a>.</p>
+<p>Compare your codebase and make edits if needed.</p>
+<p>Enjoying the book so far? Please share a quick <a target="_blank" href="https://goo.gl/forms/JdevtnCWsLwZTAio2" rel="noopener noreferrer">review</a>. You can update your review at any time.</p>
+<hr>
+<br>
+</div></div>

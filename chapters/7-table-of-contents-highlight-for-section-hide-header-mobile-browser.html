@@ -1,0 +1,1461 @@
+<div id="chapter-content" style="padding: 20px 10%; background-color: white; color: black;"><h2 style="font-weight: 400; line-height: 1.5em; background-color: white; color: black;">Chapter 7: Table of Contents. Highlight for section. Hide Header. Mobile browser.</h2><div style="background-color: white; color: black;"><hr>
+<ul>
+<li>Table of Contents <br><ul>
+<li>Sections</li>
+<li>Sidebar</li>
+<li>Toggle TOC</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>Highlight for section <br></li>
+</ul>
+<ul>
+<li>Hide Header <br></li>
+</ul>
+<ul>
+<li>Mobile browser <br></li>
+</ul>
+<hr>
+<p>Before you start working on Chapter 7, get the <code>7-begin</code> codebase. The <a target="_blank" href="https://github.com/builderbook/builderbook/tree/master/book/7-begin" rel="noopener noreferrer">7-begin</a> folder is located at the root of the <code>book</code> directory inside the <a target="_blank" href="https://github.com/builderbook/builderbook" rel="noopener noreferrer">builderbook repo</a>.</p>
+<ul>
+<li>If you haven't cloned the builderbook repo yet, clone it to your local machine with <code>git clone https://github.com/builderbook/builderbook.git</code>.</li>
+<li>Inside the <code>7-begin</code> folder, run <code>yarn</code> to install all packages. </li>
+</ul>
+<p>Check out the <a target="_blank" href="https://github.com/builderbook/builderbook/blob/master/book/7-begin/package.json" rel="noopener noreferrer">package.json</a> for Chapter 7.</p>
+<ul>
+<li>Be sure to use these specific packages and ignore any warnings about upgrading. We regularly upgrade all packages and test them in the book. But before testing, we cannot guarantee that a new package version will work properly.</li>
+</ul>
+<p>Remember to include your <code>.env</code> at the root of your app.</p>
+<hr>
+<br>
+
+<p>In Chapter 5, you <a target="_blank" href="https://builderbook.org/books/builder-book/book-and-chapter-models-internal-api-render-chapter#render-chapter-page" rel="noopener noreferrer">built the <code>ReadChapter</code> page</a>, which displays the content of one chapter. In this chapter, we will make multiple improvements to this page. </p>
+<p>For example, a user should be able to navigate between chapters and between sections within one chapter. To achieve that, we need to introduce a Table of Contents (TOC). The TOC should contain:</p>
+<ul>
+<li>hyperlinked sections within each chapter</li>
+<li>hyperlinked titles of all chapters</li>
+</ul>
+<p>Here's an example of what the TOC would look like:<br><img src="https://user-images.githubusercontent.com/10218864/36613230-b7cbcd1a-188d-11e8-9472-4e02d510c15c.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="table-of-contents" href="#table-of-contents" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="table-of-contents">
+          Table of Contents
+        </span>
+      </h2><p>On a high level, we will add the TOC to our <code>ReadChapter</code> page in two main steps. We will discuss and write:</p>
+<ul>
+<li><code>renderSections()</code> function that returns a list of hyperlinked sections within one chapter</li>
+<li><code>renderSidebar()</code> function that returns a list of hyperlinked titles for all chapters and <em>includes</em> <code>renderSections()</code> under each chapter's title</li>
+</ul>
+<p>We will add the <code>renderSidebar()</code> function to the <code>ReadChapter</code> component's <code>render()</code> function and then test out the TOC.</p>
+<h4 style="color: #FFF;">
+        <a name="sections" href="#sections" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Sections
+      </h4><p>In this subsection, we define the <code>renderSections()</code> function. This function returns a list of hyperlinked sections for one chapter.</p>
+<p>Recall how we defined the <code>sections</code> parameter in our Chapter model. Open <code>server/models/Chapter.js</code> and look at the schema:</p>
+<pre><code><span class="hljs-symbol">sections:</span> [
+  {
+<span class="hljs-symbol">    text:</span> String,
+<span class="hljs-symbol">    level:</span> Number,
+<span class="hljs-symbol">    escapedText:</span> String,
+  },
+],</code></pre><p>Sections is an array of objects, and each object has <code>text</code>, <code>level</code>, and <code>escapedText</code>. Where do these three parameters come from? In the same <code>server/models/Chapter.js</code> file, find how we generate the <code>sections</code> array:</p>
+<pre>const sections = getSections(content);</pre>
+
+<p>Definition of <code>getSections()</code>:</p>
+<pre><code><span class="hljs-keyword">function</span> getSections(content) {
+  const renderer = <span class="hljs-built_in">new</span> marked.Renderer();
+
+  const sections = [];
+
+  renderer.heading = (<span class="hljs-type">text</span>, <span class="hljs-keyword">level</span>) =&gt; {
+    <span class="hljs-keyword">if</span> (<span class="hljs-keyword">level</span> !== <span class="hljs-number">2</span>) {
+      <span class="hljs-keyword">return</span>;
+    }
+
+    const escapedText = <span class="hljs-type">text</span>
+      .trim()
+      .toLowerCase()
+      .replace(/[^\w]+/g, <span class="hljs-string">'-'</span>);
+
+    sections.push({ <span class="hljs-type">text</span>, <span class="hljs-keyword">level</span>, escapedText });
+  };
+
+  marked.setOptions({
+    renderer,
+  });
+
+  marked(he.decode(content));
+
+  <span class="hljs-keyword">return</span> sections;
+}</code></pre><p><code>Marked</code> parses markdown <code>content</code> and finds headings with <code>level</code> equal to 2 (any heading that has <code>##</code>). For every heading, we push an object to the <code>sections</code> array:</p>
+<pre>sections.push({ text, level, escapedText })</pre>
+
+<p>In other words, if your markdown <code>content</code> has:</p>
+<pre>## Why this book?</pre>
+
+<p>Then <code>getSections(content)</code> will return this array:</p>
+<pre><code>[
+  {
+    <span class="hljs-attr">"text"</span>: <span class="hljs-string">"Why this book?"</span>,
+    <span class="hljs-attr">"level"</span>: <span class="hljs-number">2</span>,
+    <span class="hljs-attr">"escapedText"</span>: <span class="hljs-string">"why-this-book-"</span>
+  },
+]</code></pre><p>We will use <code>text</code> as text inside <code>&lt;a&gt;{text}&lt;/a&gt;</code> and use <code>escapedText</code> for <code>href</code>. When a user clicks on a hyperlinked section inside the TOC, we want the page to scroll to the beginning of that section. In fact, when we wrote our <code>markdownToHtml()</code> function in <a target="_blank" href="https://builderbook.org/books/builder-book/github-integration-admin-dashboard-testing-admin-ux-and-github-integration#markdown-to-html" rel="noopener noreferrer">Chapter 6</a>, we defined the <code>&lt;h2&gt;</code> heading as follows:</p>
+<pre><code><span class="hljs-keyword">if</span> (<span class="hljs-keyword">level</span> === <span class="hljs-number">2</span>) {
+  <span class="hljs-keyword">return</span> `&lt;h${<span class="hljs-keyword">level</span>} <span class="hljs-keyword">class</span>="chapter-section" style="color: #222; font-weight: 400;"&gt;
+    &lt;a
+      <span class="hljs-keyword">class</span>="section-anchor"
+      <span class="hljs-type">name</span>="${escapedText}"
+      href="#${escapedText}"
+      style="color: #222;"
+    &gt; 
+      &lt;i <span class="hljs-keyword">class</span>="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer;"&gt;link&lt;/i&gt;
+    &lt;/a&gt;
+    ${<span class="hljs-type">text</span>}
+  &lt;/h${<span class="hljs-keyword">level</span>}&gt;`;
+}</code></pre><p>Let's say we have the heading <code>## Why this book?</code> in our markdown content. When user a clicks on the <code>link</code> icon next to that heading, two things will happen:</p>
+<ul>
+<li>the URL in the browser address bar gets <code>#why-this-book-</code> appended to it</li>
+<li>the page scrolls to the beginning of that section because <code>&lt;a&gt;</code> has the <a target="_blank" href="https://www.w3schools.com/tags/att_a_name.asp" rel="noopener noreferrer">name</a> attribute</li>
+</ul>
+<p>We want to get the exact same behaviour when a user clicks on the hyperlinked section <code>text</code> inside our TOC. Thus we get:</p>
+<pre><code><span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">a</span> <span class="hljs-attr">href</span>=</span></span><span class="hljs-template-variable">{`#${s.escapedText}</span><span class="xml"><span class="hljs-tag">`}&gt;</span>
+  </span><span class="hljs-template-variable">{s.text}</span><span class="xml">
+<span class="hljs-tag">&lt;/<span class="hljs-name">a</span>&gt;</span></span></code></pre><p>Keep in mind that <code>sections</code> is an array. Thus, you should use JavaScript's method <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map" rel="noopener noreferrer">.map()</a>:</p>
+<pre><code><span class="hljs-tag">&lt;<span class="hljs-name">ul</span>&gt;</span>
+  {sections.map(s =&gt; (
+    <span class="hljs-tag">&lt;<span class="hljs-name">li</span> <span class="hljs-attr">key</span>=<span class="hljs-string">{s.escapedText}</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">paddingTop:</span> '<span class="hljs-attr">10px</span>' }}&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">a</span> <span class="hljs-attr">href</span>=<span class="hljs-string">{</span>`#${<span class="hljs-attr">s.escapedText</span>}`}&gt;</span>
+        {s.text}
+      <span class="hljs-tag">&lt;/<span class="hljs-name">a</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">li</span>&gt;</span>
+  ))}
+<span class="hljs-tag">&lt;/<span class="hljs-name">ul</span>&gt;</span></code></pre><p>You already used this method earlier in this book. Check out <code>books.map()</code> in <code>pages/admin/index.js</code>.</p>
+<p>At this point, the main part of our <code>renderSection()</code> function is actually done. </p>
+<p>Open <code>pages/public/read-chapter.js</code>. Remember that we send a <code>chapter</code> object to a page with:</p>
+<pre>const chapter = await getChapterDetail()</pre>
+
+<p>And then we set the initial state of our <code>ReadChapter</code> page component with:</p>
+<pre><code>this.<span class="hljs-keyword">state</span> = {
+  chapter,
+  htmlContent,
+};</code></pre><p>Now let's use ES6 object destructuring to define <code>sections</code> as <code>this.state.chapter.sections</code>:</p>
+<pre>const { sections } = this.state.chapter</pre>
+
+<p>Also, let's return null if the section array does not exist or has zero objects:</p>
+<pre><code><span class="hljs-keyword">if</span> (!sections || !sections.length === <span class="hljs-number">0</span>) {
+  <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>;
+}</code></pre><p>Put together these two code snippets, plus return a list of hyperlinked sections, and you get:</p>
+<pre><code>renderSections() {
+  <span class="hljs-keyword">const</span> { sections } = <span class="hljs-keyword">this</span>.state.chapter;
+
+  <span class="hljs-keyword">if</span> (!sections || !sections.length === <span class="hljs-number">0</span>) {
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>;
+  }
+
+  <span class="hljs-keyword">return</span> (
+    <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">ul</span>&gt;</span>
+      {sections.map(s =&gt; (
+        <span class="hljs-tag">&lt;<span class="hljs-name">li</span> <span class="hljs-attr">key</span>=<span class="hljs-string">{s.escapedText}</span> <span class="hljs-attr">style</span>=<span class="hljs-string">{{</span> <span class="hljs-attr">paddingTop:</span> '<span class="hljs-attr">10px</span>' }}&gt;</span>
+          <span class="hljs-tag">&lt;<span class="hljs-name">a</span> <span class="hljs-attr">href</span>=<span class="hljs-string">{</span>`#${<span class="hljs-attr">s.escapedText</span>}`}&gt;</span>
+            {s.text}
+          <span class="hljs-tag">&lt;/<span class="hljs-name">a</span>&gt;</span>
+        <span class="hljs-tag">&lt;/<span class="hljs-name">li</span>&gt;</span>
+      ))}
+    <span class="hljs-tag">&lt;/<span class="hljs-name">ul</span>&gt;</span></span>
+  );
+}</code></pre><p>Good job if you got the same result. We'll add this to our <code>read-chapter.js</code> page at the end of the next subsection.</p>
+<h4 style="color: #FFF;">
+        <a name="sidebar" href="#sidebar" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Sidebar
+      </h4><p>In this subsection, we discuss the <code>renderSidebar()</code> function that returns a list of hyperlinked titles for all chapters. We will then add our <code>renderSection()</code> function from above to add a list of all sections under each chapter title.</p>
+<p>Similar to how we defined <code>renderSections()</code>, we will use list, list item, and anchor elements together with the JavaScript method <code>.map()</code> for our <code>renderSidebar()</code> function:</p>
+<pre><code>renderSidebar() {
+  <span class="hljs-keyword">return</span> (
+    <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">p</span>&gt;</span>{book.name}<span class="hljs-tag">&lt;/<span class="hljs-name">p</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">ol</span>&gt;</span>
+        {chapters.map((ch, i) =&gt; (
+          <span class="hljs-tag">&lt;<span class="hljs-name">li</span> <span class="hljs-attr">key</span>=<span class="hljs-string">{ch._id}</span> <span class="hljs-attr">role</span>=<span class="hljs-string">"presentation"</span>&gt;</span>
+            <span class="hljs-tag">&lt;<span class="hljs-name">Link</span>
+              <span class="hljs-attr">prefetch</span>
+              <span class="hljs-attr">as</span>=<span class="hljs-string">{</span>`/<span class="hljs-attr">books</span>/${<span class="hljs-attr">book.slug</span>}/${<span class="hljs-attr">ch.slug</span>}`}
+              <span class="hljs-attr">href</span>=<span class="hljs-string">{</span>`/<span class="hljs-attr">public</span>/<span class="hljs-attr">read-chapter</span>?<span class="hljs-attr">bookSlug</span>=<span class="hljs-string">${book.slug}&amp;chapterSlug</span>=<span class="hljs-string">${ch.slug}</span>`}
+            &gt;</span>
+              <span class="hljs-tag">&lt;<span class="hljs-name">a</span>&gt;</span>{ch.title}<span class="hljs-tag">&lt;/<span class="hljs-name">a</span>&gt;</span>
+            <span class="hljs-tag">&lt;/<span class="hljs-name">Link</span>&gt;</span>
+          <span class="hljs-tag">&lt;/<span class="hljs-name">li</span>&gt;</span>
+        ))}
+      <span class="hljs-tag">&lt;/<span class="hljs-name">ol</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span></span>
+  );
+}</code></pre><p>The only differences are:</p>
+<ul>
+<li>instead of an unordered list <code>&lt;ul&gt;</code>, we use an ordered list <code>&lt;ol&gt;</code></li>
+<li>we wrap the anchor <code>&lt;a&gt;</code> with Next.js's <code>&lt;Link&gt;</code>, so we can take advantage of the <code>prefetch</code> feature in production</li>
+<li>we also display the book name on the top of the TOC with <code>&lt;p&gt;{book.name}&lt;/p&gt;</code></li>
+</ul>
+<p>Time to add <code>renderSections()</code> to <code>renderSidebar()</code> to our code. In doing so, we should think about creating good UX. Do we want every chapter to have a list of sections on the TOC? That might be an overwhelming amount of information.</p>
+<p>It's sufficient to show sections for only the chapter that is currently rendered on the <code>ReadChapter</code> page. In other words, if the chapter id from the page's <code>state</code> (<code>chapter._id</code>) equals the chapter id from the list (<code>ch._id</code>), then we display the list of sections. Otherwise, we return null:</p>
+<pre>{chapter._id === ch._id ? this.renderSections() : null}</pre>
+
+
+<p>Add this line of code right after the hyperlinked title of the chapter in the <code>ReadChapter</code> page:</p>
+<pre><code>renderSidebar() {
+  <span class="hljs-keyword">return</span> (
+    <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">div</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">p</span>&gt;</span>{book.name}<span class="hljs-tag">&lt;/<span class="hljs-name">p</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">ol</span>&gt;</span>
+        {chapters.map((ch, i) =&gt; (
+          <span class="hljs-tag">&lt;<span class="hljs-name">li</span> <span class="hljs-attr">key</span>=<span class="hljs-string">{ch._id}</span> <span class="hljs-attr">role</span>=<span class="hljs-string">"presentation"</span>&gt;</span>
+            <span class="hljs-tag">&lt;<span class="hljs-name">Link</span>
+              <span class="hljs-attr">prefetch</span>
+              <span class="hljs-attr">as</span>=<span class="hljs-string">{</span>`/<span class="hljs-attr">books</span>/${<span class="hljs-attr">book.slug</span>}/${<span class="hljs-attr">ch.slug</span>}`}
+              <span class="hljs-attr">href</span>=<span class="hljs-string">{</span>`/<span class="hljs-attr">public</span>/<span class="hljs-attr">read-chapter</span>?<span class="hljs-attr">bookSlug</span>=<span class="hljs-string">${book.slug}&amp;chapterSlug</span>=<span class="hljs-string">${ch.slug}</span>`}
+            &gt;</span>
+              <span class="hljs-tag">&lt;<span class="hljs-name">a</span>&gt;</span>{ch.title}<span class="hljs-tag">&lt;/<span class="hljs-name">a</span>&gt;</span>
+            <span class="hljs-tag">&lt;/<span class="hljs-name">Link</span>&gt;</span>
+            {chapter._id === ch._id ? this.renderSections() : null}
+          <span class="hljs-tag">&lt;/<span class="hljs-name">li</span>&gt;</span>
+        ))}
+      <span class="hljs-tag">&lt;/<span class="hljs-name">ol</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span></span>
+  );
+}</code></pre><p>Alright, the main part of our <code>renderSidebar()</code> function is done. However, if you look at the code above, you may notice that we have not defined the following three variables:</p>
+<ol>
+<li><code>chapter</code> (we used it in <code>chapter._id</code>)</li>
+<li><code>book</code> (used in <code>book.name</code>)</li>
+<li><code>chapters</code> (used in <code>chapters.map()</code>)</li>
+</ol>
+<p>Let's discuss in more detail.</p>
+<ol>
+<li><p>Defining <code>chapter</code> is easy, since we initiate <code>state</code> with <code>chapter</code> in it. Thus:</p>
+<pre>const { chapter } = this.state;</pre></li>
+<li><p>To understand how to define <code>book</code>, we should look into how we define <code>chapter</code>. In <code>pages/public/read-chapter.js</code>, find the line:</p>
+<pre>const chapter = await getChapterDetail()</pre>
+
+<p>The API method <code>getChapterDetail()</code> sends a request to our Express route <code>router.get('/get-chapter-detail')</code>. Open <code>server/api/public.js</code> and find this Express route:</p>
+<pre><code>router.<span class="hljs-keyword">get</span>(<span class="hljs-string">'/get-chapter-detail'</span>, <span class="hljs-keyword">async</span> (req, res) =&gt; {
+ <span class="hljs-keyword">try</span> {
+   <span class="hljs-keyword">const</span> { bookSlug, chapterSlug } = req.query;
+   <span class="hljs-keyword">const</span> chapter = <span class="hljs-keyword">await</span> Chapter.getBySlug({
+     bookSlug,
+     chapterSlug,
+   });
+   res.json(chapter);
+ } <span class="hljs-keyword">catch</span> (err) {
+   res.json({ error: err.message || err.toString() });
+ }
+});</code></pre><p>Ok, now we remember that <code>chapter</code> gets returned by the <code>Chapter.getBySlug</code> static method. Let's look back at that method. Open <code>server/models/Chapter.js</code> and find <code>getBySlug()</code> static method:</p>
+<pre><code>static async get<span class="hljs-constructor">BySlug({ <span class="hljs-params">bookSlug</span>, <span class="hljs-params">chapterSlug</span> })</span> {
+ const book = await <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">Book</span>.</span></span>get<span class="hljs-constructor">BySlug({ <span class="hljs-params">slug</span>: <span class="hljs-params">bookSlug</span>, <span class="hljs-params">userId</span> })</span>;
+ <span class="hljs-keyword">if</span> (!book) {
+   throw <span class="hljs-keyword">new</span> <span class="hljs-constructor">Error('Book <span class="hljs-params">not</span> <span class="hljs-params">found</span>')</span>;
+ }
+
+ const chapter = await this.find<span class="hljs-constructor">One({ <span class="hljs-params">bookId</span>: <span class="hljs-params">book</span>.<span class="hljs-params">_id</span>, <span class="hljs-params">slug</span>: <span class="hljs-params">chapterSlug</span> })</span>;
+
+ <span class="hljs-keyword">if</span> (!chapter) {
+   throw <span class="hljs-keyword">new</span> <span class="hljs-constructor">Error('Chapter <span class="hljs-params">not</span> <span class="hljs-params">found</span>')</span>;
+ }
+
+ const chapterObj = chapter.<span class="hljs-keyword">to</span><span class="hljs-constructor">Object()</span>;
+ chapterObj.book = book;
+
+ return chapterObj;
+}</code></pre><p>Aha! So the <code>book</code> object is part of the <code>chapter</code> object! Because <code>chapterObj.book = book;</code> and <code>const chapter = await getChapterDetail()</code>, then:</p>
+<pre>const book = chapter.book</pre>
+
+<p>Or with ES6 object destructuring:</p>
+<pre>const { book } = chapter</pre></li>
+<li><p>To define <code>chapters</code>, we need to dig a bit deeper. Inside <code>Chapter.getBySlug()</code>, we defined <code>book</code> as follows:</p>
+<pre>const book = await Book.getBySlug()</pre>
+
+<p>Open <code>server/models/Book.js</code> and find the static method <code>getBySlug()</code>:</p>
+<pre><code><span class="hljs-keyword">static</span> <span class="hljs-keyword">async</span> getBySlug({ slug }) {
+ <span class="hljs-keyword">const</span> bookDoc = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.findOne({ slug });
+ <span class="hljs-keyword">if</span> (!bookDoc) {
+   <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(<span class="hljs-string">'Book not found'</span>);
+ }
+
+ <span class="hljs-keyword">const</span> book = bookDoc.toObject();
+
+ book.chapters = (<span class="hljs-keyword">await</span> Chapter.find({ <span class="hljs-attr">bookId</span>: book._id }, <span class="hljs-string">'title slug'</span>)
+   .sort({ <span class="hljs-attr">order</span>: <span class="hljs-number">1</span> }))
+   .map(<span class="hljs-function"><span class="hljs-params">chapter</span> =&gt;</span> chapter.toObject());
+ <span class="hljs-keyword">return</span> book;
+}</code></pre><p>We can clearly see that the <code>chapters</code> object is part of the <code>book</code> object. Thus:</p>
+<pre>const chapters = chapter.book.chapters</pre>
+
+<p>Or with ES6 object destructuring:</p>
+<pre>const { chapters } = book</pre>
+
+
+</li>
+</ol>
+<p>Put these definitions of <code>chapter</code>, <code>book</code>, and <code>chapters</code> into <code>renderSidebar()</code>:</p>
+<pre><code><span class="xml">renderSidebar() </span><span class="hljs-template-variable">{
+  const {  chapter }</span><span class="xml"> = this.state;
+
+  const </span><span class="hljs-template-variable">{ book }</span><span class="xml"> = chapter;
+  const </span><span class="hljs-template-variable">{ chapters }</span><span class="xml"> = book;
+
+  return (
+    <span class="hljs-tag">&lt;<span class="hljs-name">div</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">p</span>&gt;</span></span><span class="hljs-template-variable">{book.name}</span><span class="xml"><span class="hljs-tag">&lt;/<span class="hljs-name">p</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">ol</span>&gt;</span>
+        </span><span class="hljs-template-variable">{chapters.map((ch, i) =&gt; (
+          &lt;li key={ch._id}</span><span class="xml"> role="presentation"&gt;
+            <span class="hljs-tag">&lt;<span class="hljs-name">Link</span>
+              <span class="hljs-attr">prefetch</span>
+              <span class="hljs-attr">as</span>=</span></span><span class="hljs-template-variable">{`/books/${book.slug}</span><span class="xml"><span class="hljs-tag">/$</span></span><span class="hljs-template-variable">{ch.slug}</span><span class="xml"><span class="hljs-tag">`}
+              <span class="hljs-attr">href</span>=</span></span><span class="hljs-template-variable">{`/public/read-chapter?bookSlug=${book.slug}</span><span class="xml"><span class="hljs-tag">&amp;<span class="hljs-attr">chapterSlug</span>=<span class="hljs-string">$</span></span></span><span class="hljs-template-variable">{ch.slug}</span><span class="xml"><span class="hljs-tag">`}
+            &gt;</span>
+              <span class="hljs-tag">&lt;<span class="hljs-name">a</span>&gt;</span></span><span class="hljs-template-variable">{ch.title}</span><span class="xml"><span class="hljs-tag">&lt;/<span class="hljs-name">a</span>&gt;</span>
+            <span class="hljs-tag">&lt;/<span class="hljs-name">Link</span>&gt;</span>
+            </span><span class="hljs-template-variable">{chapter._id === ch._id ? this.renderSections() : null}</span><span class="xml">
+          <span class="hljs-tag">&lt;/<span class="hljs-name">li</span>&gt;</span>
+        ))}
+      <span class="hljs-tag">&lt;/<span class="hljs-name">ol</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
+  );
+}</span></code></pre><p>This book assumes that you have basic knowledge of CSS, so we won't discuss styling in great detail. Below, we simply added inline CSS to style some HTML elements:</p>
+<pre><code>renderSidebar() {
+  const {  chapter } = this.state;
+
+  const { book } = chapter;
+  const { chapters } = book;
+
+  return (
+    &lt;div
+      style={{
+        textAlign: <span class="hljs-string">'left'</span>,
+        position: <span class="hljs-string">'absolute'</span>,
+        bottom: <span class="hljs-number">0</span>,
+        top: <span class="hljs-string">'64px'</span>,
+        left: <span class="hljs-number">0</span>,
+        overflowY: <span class="hljs-string">'auto'</span>,
+        overflowX: <span class="hljs-string">'hidden'</span>,
+        width: <span class="hljs-string">'400px'</span>,
+        padding: <span class="hljs-string">'0px 25px'</span>,
+      }}
+    &gt;
+      &lt;p style={{ padding: <span class="hljs-string">'0px 40px'</span>, fontSize: <span class="hljs-string">'17px'</span>, fontWeight: <span class="hljs-string">'400'</span> }}&gt;{book.name}&lt;/p&gt;
+      &lt;ol start=<span class="hljs-string">"0"</span> style={{ padding: <span class="hljs-string">'0 25'</span>, fontSize: <span class="hljs-string">'14px'</span>, fontWeight: <span class="hljs-string">'300'</span> }}&gt;
+        {chapters.map((ch, i) =&gt; (
+          &lt;li
+            key={ch._id}
+            role=<span class="hljs-string">"presentation"</span>
+            style={{ listStyle: i === <span class="hljs-number">0</span> ? <span class="hljs-string">'none'</span> : <span class="hljs-string">'decimal'</span>, paddingBottom: <span class="hljs-string">'10px'</span> }}
+          &gt;
+            &lt;Link
+              prefetch
+              as={`/books/${book.slug}/${ch.slug}`}
+              href={`/public/read-chapter?bookSlug=${book.slug}&amp;chapterSlug=${ch.slug}`}
+            &gt;
+              &lt;a style={{ color: chapter._id === ch._id ? <span class="hljs-string">'#1565C0'</span> : <span class="hljs-string">'#222'</span> }}&gt;{ch.title}&lt;/a&gt;
+            &lt;/Link&gt;
+            {chapter._id === ch._id ? this.renderSections() : null}
+          &lt;/li&gt;
+        ))}
+      &lt;/ol&gt;
+    &lt;/div&gt;
+  );
+}</code></pre><p>The ternary operator on styles is worth mentioning. We've used the <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Conditional_Operator" rel="noopener noreferrer">ternary operator</a> many times before, and you can use it inside inline styles:</p>
+<pre>condition ? value1 : value2</pre>
+
+<p>Look at the style of a list item in <code>&lt;li&gt;</code>:</p>
+<pre>style={{ listStyle: i === 0 ? 'none' : 'decimal' }}</pre>
+
+<p>If a list item has an index of zero, then the <a target="_blank" href="https://www.w3schools.com/cssref/pr_list-style-type.asp" rel="noopener noreferrer">list style type</a> is <code>none</code>.<br>If a list item has an index other than zero, then the list style type is <code>decimal</code>.</p>
+<p>This will ensure that our rendered TOC looks like:</p>
+<pre><code>Introduction
+<span class="hljs-number">1.</span> App structure...</code></pre><p>The Introduction chapter won't have a number as a list item marker, but the rest of the chapters will.</p>
+<p>Another use of the ternary operator:</p>
+<pre>style={{ color: chapter._id === ch._id ? '#1565C0' : '#222' }}</pre>
+
+<p>This allows us to highlight the chapter title of only the currently rendered chapter on the <code>ReadChapter</code> page. For example, if a reader is on Chapter 7, then the TOC will only highlight the title of Chapter 7.</p>
+<p>At this point, we are ready to add our <code>renderSections()</code> and <code>renderSidebar()</code> functions to the <code>ReadChapter</code> page.<br>Add these functions to the <code>pages/public/read-chapter.js</code> file like this:<br><code>pages/public/read-chapter.js</code> :</p>
+<pre><code><span class="hljs-keyword">import</span> React from <span class="hljs-string">'react'</span>;
+<span class="hljs-keyword">import</span> PropTypes from <span class="hljs-string">'prop-types'</span>;
+<span class="hljs-keyword">import</span> Error from <span class="hljs-string">'next/error'</span>;
+<span class="hljs-keyword">import</span> Head from <span class="hljs-string">'next/head'</span>;
+<span class="hljs-keyword">import</span> Link from <span class="hljs-string">'next/link'</span>;
+
+<span class="hljs-keyword">import</span> { getChapterDetail } from <span class="hljs-string">'../../lib/api/public'</span>;
+<span class="hljs-keyword">import</span> withAuth from <span class="hljs-string">'../../lib/withAuth'</span>;
+
+<span class="hljs-keyword">const</span> styleIcon = {
+  opacity: <span class="hljs-string">'0.75'</span>,
+  fontSize: <span class="hljs-string">'24px'</span>,
+  cursor: <span class="hljs-string">'pointer'</span>,
+};
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ReadChapter</span> <span class="hljs-title">extends</span> <span class="hljs-title">React</span>.<span class="hljs-title">Component</span> </span>{
+  static propTypes = {
+    chapter: PropTypes.shape({
+      _id: PropTypes.string.isRequired,
+    }),
+  };
+
+  static defaultProps = {
+    chapter: <span class="hljs-literal">null</span>,
+  };
+
+  <span class="hljs-keyword">constructor</span>(props) {
+    <span class="hljs-keyword">super</span>(props);
+
+    <span class="hljs-keyword">const</span> { chapter } = props;
+
+    let htmlContent = <span class="hljs-string">''</span>;
+    <span class="hljs-keyword">if</span> (chapter) {
+      htmlContent = chapter.htmlContent;
+    }
+
+    <span class="hljs-keyword">this</span>.state = {
+      chapter,
+      htmlContent,
+    };
+  }
+
+  componentWillReceiveProps(nextProps) {
+    <span class="hljs-keyword">const</span> { chapter } = nextProps;
+
+    <span class="hljs-keyword">if</span> (chapter &amp;&amp; chapter._id !== <span class="hljs-keyword">this</span>.props.chapter._id) {
+      <span class="hljs-keyword">const</span> { htmlContent } = chapter;
+      <span class="hljs-keyword">this</span>.setState({ chapter, htmlContent });
+    }
+  }
+
+  static async getInitialProps({ req, query }) {
+    <span class="hljs-keyword">const</span> { bookSlug, chapterSlug } = query;
+
+    <span class="hljs-keyword">const</span> headers = {};
+    <span class="hljs-keyword">if</span> (req &amp;&amp; req.headers &amp;&amp; req.headers.cookie) {
+      headers.cookie = req.headers.cookie;
+    }
+
+    <span class="hljs-keyword">const</span> chapter = await getChapterDetail({ bookSlug, chapterSlug }, { headers });
+
+    <span class="hljs-keyword">return</span> { chapter };
+  }
+
+  renderMainContent() {
+    <span class="hljs-keyword">const</span> { chapter, htmlContent } = <span class="hljs-keyword">this</span>.state;
+
+    <span class="hljs-keyword">return</span> (
+      &lt;div&gt;
+        &lt;h2&gt;Chapter: {chapter.title}&lt;/h2&gt;
+
+        &lt;div className=<span class="hljs-string">"main-content"</span> dangerouslySetInnerHTML={{ __html: htmlContent }} /&gt;
+      &lt;/div&gt;
+    );
+  }
+
+  renderSections() {
+    <span class="hljs-keyword">const</span> { sections } = <span class="hljs-keyword">this</span>.state.chapter;
+
+    <span class="hljs-keyword">if</span> (!sections || !sections.length === <span class="hljs-number">0</span>) {
+      <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>;
+    }
+
+    <span class="hljs-keyword">return</span> (
+      &lt;ul&gt;
+        {sections.map(s =&gt; (
+          &lt;li key={s.escapedText} style={{ paddingTop: <span class="hljs-string">'10px'</span> }}&gt;
+            &lt;a href={`#${s.escapedText}`}&gt;
+              {s.text}
+            &lt;/a&gt;
+          &lt;/li&gt;
+        ))}
+      &lt;/ul&gt;
+    );
+  }
+
+  renderSidebar() {
+    <span class="hljs-keyword">const</span> {  chapter } = <span class="hljs-keyword">this</span>.state;
+
+    <span class="hljs-keyword">const</span> { book } = chapter;
+    <span class="hljs-keyword">const</span> { chapters } = book;
+
+    <span class="hljs-keyword">return</span> (
+      &lt;div
+        style={{
+          textAlign: <span class="hljs-string">'left'</span>,
+          position: <span class="hljs-string">'absolute'</span>,
+          bottom: <span class="hljs-number">0</span>,
+          top: <span class="hljs-string">'64px'</span>,
+          left: <span class="hljs-number">0</span>,
+          overflowY: <span class="hljs-string">'auto'</span>,
+          overflowX: <span class="hljs-string">'hidden'</span>,
+          width: <span class="hljs-string">'400px'</span>,
+          padding: <span class="hljs-string">'0px 25px'</span>,
+        }}
+      &gt;
+        &lt;p style={{ padding: <span class="hljs-string">'0px 40px'</span>, fontSize: <span class="hljs-string">'17px'</span>, fontWeight: <span class="hljs-string">'400'</span> }}&gt;{book.name}&lt;/p&gt;
+        &lt;ol start=<span class="hljs-string">"0"</span> style={{ padding: <span class="hljs-string">'0 25'</span>, fontSize: <span class="hljs-string">'14px'</span>, fontWeight: <span class="hljs-string">'300'</span> }}&gt;
+          {chapters.map((ch, i) =&gt; (
+            &lt;li
+              key={ch._id}
+              role=<span class="hljs-string">"presentation"</span>
+              style={{ listStyle: i === <span class="hljs-number">0</span> ? <span class="hljs-string">'none'</span> : <span class="hljs-string">'decimal'</span>, paddingBottom: <span class="hljs-string">'10px'</span> }}
+            &gt;
+              &lt;Link
+                prefetch
+                <span class="hljs-keyword">as</span>={`/books/${book.slug}/${ch.slug}`}
+                href={`/<span class="hljs-keyword">public</span>/read-chapter?bookSlug=${book.slug}&amp;chapterSlug=${ch.slug}`}
+              &gt;
+                &lt;a style={{ color: chapter._id === ch._id ? <span class="hljs-string">'#1565C0'</span> : <span class="hljs-string">'#222'</span> }}&gt;{ch.title}&lt;/a&gt;
+              &lt;/Link&gt;
+              {chapter._id === ch._id ? <span class="hljs-keyword">this</span>.renderSections() : <span class="hljs-literal">null</span>}
+            &lt;/li&gt;
+          ))}
+        &lt;/ol&gt;
+      &lt;/div&gt;
+    );
+  }
+
+
+  render() {
+    <span class="hljs-keyword">const</span> { chapter } = <span class="hljs-keyword">this</span>.state;
+
+    <span class="hljs-keyword">if</span> (!chapter) {
+      <span class="hljs-keyword">return</span> &lt;Error statusCode={<span class="hljs-number">404</span>} /&gt;;
+    }
+
+    <span class="hljs-keyword">return</span> (
+      &lt;div&gt;
+        &lt;Head&gt;
+          &lt;title&gt;
+            {chapter.title === <span class="hljs-string">'Introduction'</span>
+              ? <span class="hljs-string">'Introduction'</span>
+              : `Chapter ${chapter.order - <span class="hljs-number">1</span>}. ${chapter.title}`}
+          &lt;/title&gt;
+          {chapter.seoDescription ? (
+            &lt;meta name=<span class="hljs-string">"description"</span> content={chapter.seoDescription} /&gt;
+          ) : <span class="hljs-literal">null</span>}
+        &lt;/Head&gt;
+
+        {<span class="hljs-keyword">this</span>.renderSidebar()}
+
+        &lt;div
+          style={{
+            textAlign: <span class="hljs-string">'left'</span>,
+            padding: <span class="hljs-string">'0px 10px 20px 30px'</span>,
+            position: <span class="hljs-string">'fixed'</span>,
+            right: <span class="hljs-number">0</span>,
+            bottom: <span class="hljs-number">0</span>,
+            top: <span class="hljs-string">'64px'</span>,
+            left: <span class="hljs-string">'400px'</span>,
+            overflowY: <span class="hljs-string">'auto'</span>,
+            overflowX: <span class="hljs-string">'hidden'</span>,
+          }}
+          id=<span class="hljs-string">"main-content"</span>
+        &gt;
+          {<span class="hljs-keyword">this</span>.renderMainContent()}
+        &lt;/div&gt;
+
+        &lt;div
+          style={{
+            position: <span class="hljs-string">'fixed'</span>,
+            top: <span class="hljs-string">'80px'</span>,
+            left: <span class="hljs-string">'15px'</span>,
+          }}
+        &gt;
+          &lt;i <span class="hljs-comment">// eslint-disable-line</span>
+            className=<span class="hljs-string">"material-icons"</span>
+            style={styleIcon}
+          &gt;
+            format_list_bulleted
+          &lt;/i&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    );
+  }
+}
+
+export <span class="hljs-keyword">default</span> withAuth(ReadChapter, { loginRequired: <span class="hljs-literal">false</span> });</code></pre><p>Notice that we added the Material icon <code>format_list_bulleted</code> that does nothing at this point.</p>
+<p>Time to test, we will test using the book made from the <code>/demo-book</code> repo (<a target="_blank" href="https://builderbook.org/books/builder-book/github-integration-admin-dashboard-testing-admin-ux-and-github-integration#testing" rel="noopener noreferrer">see Chapter 6</a>).</p>
+<p>Start your app with <code>yarn dev</code> and go to <code>http://localhost:8000/books/demo-book/introduction</code>:<br><img src="https://user-images.githubusercontent.com/10218864/36635442-a49a6d14-1969-11e8-99e2-ca7584dc5459.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Not bad! Try clicking on sections within the Introduction. Also try clicking "Example", the title of Chapter 1.</p>
+<p>Having the TOC always present is not good UX, since it takes attention away from the main content. In the next subsection, let's add a boolean parameter that allows a reader to hide/reveal the TOC.</p>
+<h4 style="color: #FFF;">
+        <a name="toggle-toc" href="#toggle-toc" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Toggle TOC
+      </h4><p>In this subsection, we want make the TOC closed on the initial load of the <code>ReadChapter</code> page. The easiest way to achieve this is to introduce a <code>showTOC</code> boolean parameter and set it to <code>false</code> when we initiate state. The page's <code>constructor</code> becomes:</p>
+<pre><code><span class="hljs-function"><span class="hljs-keyword">constructor</span><span class="hljs-params">(props, ...args)</span> <span class="hljs-comment">{
+  super(props, ...args);
+
+  const { chapter }</span> = <span class="hljs-title">props</span>;</span>
+
+  let htmlContent = <span class="hljs-string">''</span>;
+  <span class="hljs-keyword">if</span> (chapter) <span class="hljs-comment">{
+    htmlContent = chapter.htmlContent;
+  }</span>
+
+  this.state = <span class="hljs-comment">{
+    showTOC: false,
+    chapter,
+    htmlContent,
+  }</span>;
+}</code></pre><p>Next, modify the <code>renderSidebar()</code> function. This line:</p>
+<pre>const { chapter } = this.state;</pre>
+
+<p>Becomes:</p>
+<pre>const { showTOC, chapter } = this.state;</pre>
+
+<p><em>Under</em> this line, add a code snippet that ensures that <code>renderSidebar()</code> returns <code>null</code> when <code>showTOC</code> is false:</p>
+<pre><code><span class="hljs-keyword">if</span> (!showTOC) {
+  <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>;
+}</code></pre><p>This code snippet above will ensure that the TOC is closed on initial page load.</p>
+<p>Next, we want to define a function that gets executed when a user <em>clicks</em> on on <code>format_list_bulleted</code> icon:</p>
+<pre><code>toggleChapterList = () =&gt; {
+  this.<span class="hljs-built_in">set</span>State({ showTOC: !this.<span class="hljs-keyword">state</span>.showTOC });
+};</code></pre><p>Add this <code>toggleChapterList</code> function right before the line that has:</p>
+<pre>renderMainContent()</pre>
+
+<p>Clicking on an icon should change <code>showTOC</code> from its default false value to <code>true</code>. Modify our icon code for <code>format_list_bulleted</code> like this:</p>
+<pre><code><span class="hljs-tag">&lt;<span class="hljs-name">i</span> // <span class="hljs-attr">eslint-disable-line</span>
+  <span class="hljs-attr">className</span>=<span class="hljs-string">"material-icons"</span>
+  <span class="hljs-attr">style</span>=<span class="hljs-string">{styleIcon}</span>
+  <span class="hljs-attr">onClick</span>=<span class="hljs-string">{this.toggleChapterList}</span>
+  <span class="hljs-attr">onKeyPress</span>=<span class="hljs-string">{this.toggleChapterList}</span>
+  <span class="hljs-attr">role</span>=<span class="hljs-string">"button"</span>
+&gt;</span>
+  format_list_bulleted
+<span class="hljs-tag">&lt;/<span class="hljs-name">i</span>&gt;</span></code></pre><p>Start your app with <code>yarn dev</code> and go to <code>http://localhost:8000/books/demo-book/introduction</code>.<br>Initial load:<br><img src="https://user-images.githubusercontent.com/10218864/36635633-8cb3aca2-196d-11e8-9e76-befedf417fdf.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>After clicking the <code>format_list_bulleted</code> icon:<br><img src="https://user-images.githubusercontent.com/10218864/36635639-b0893f34-196d-11e8-8f3d-c06648ce5c78.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>Nice, this is much better than having an open TOC at all times.</p>
+<p>In the next section, we will make another UX improvement for our TOC.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="highlight-for-section" href="#highlight-for-section" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="highlight-for-section">
+          Highlight for section
+        </span>
+      </h2><p>In the previous section, we highlighted a chapter title on the TOC with a blue color if that chapter was rendered on the page. This is a nice feature that helps a user navigate a book:<br><img src="https://user-images.githubusercontent.com/10218864/36635695-7910ac58-196e-11e8-8065-2540cd2f36a1.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>In this snapshot, you see that the TOC highlights <em>Introduction</em>, since the page shows the Introduction chapter.</p>
+<p>However, you'll notice that <em>both</em> sections within the Introduction chapter are highlighted as well. It would be great if our TOC highlights only one section from the chapter - the section that is currently in view. That way, the highlighted section tells a user which particular section he/she is reading.</p>
+<p>To highlight a section, we need to somehow detect if a particular section inside our content is in view.</p>
+<h4 style="color: #FFF;">
+        <a name="active-section" href="#active-section" style="color: #FFF;">
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+              link
+            </i>
+        </a>
+        Active section
+      </h4><p>In <a target="_blank" href="https://builderbook.org/books/builder-book/github-integration-admin-dashboard-testing-admin-ux-and-github-integration#markdown-to-html" rel="noopener noreferrer">Chapter 6</a>, when we wrote the <code>markdownToHtml()</code> function inside our <code>server/models/Chapter.js</code> file, we specified the following rule for conversion of the <code>&lt;h2&gt;</code> heading:</p>
+<pre><code><span class="hljs-keyword">if</span> (level === <span class="hljs-number">2</span>) {
+  <span class="hljs-keyword">return</span> `<span class="javascript">&lt;h${level} <span class="hljs-class"><span class="hljs-keyword">class</span></span>=<span class="hljs-string">"chapter-section"</span> style=<span class="hljs-string">"color: #222; font-weight: 400;"</span>&gt;
+    <span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">a</span>
+      <span class="hljs-attr">name</span>=<span class="hljs-string">"${escapedText}"</span>
+      <span class="hljs-attr">href</span>=<span class="hljs-string">"#${escapedText}"</span>
+      <span class="hljs-attr">style</span>=<span class="hljs-string">"color: #222;"</span>
+    &gt;</span> 
+      <span class="hljs-tag">&lt;<span class="hljs-name">i</span> <span class="hljs-attr">class</span>=<span class="hljs-string">"material-icons"</span> <span class="hljs-attr">style</span>=<span class="hljs-string">"vertical-align: middle; opacity: 0.5; cursor: pointer;"</span>&gt;</span>link<span class="hljs-tag">&lt;/<span class="hljs-name">i</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">a</span>&gt;</span></span>
+    &lt;span <span class="hljs-class"><span class="hljs-keyword">class</span></span>=<span class="hljs-string">"section-anchor"</span> name=<span class="hljs-string">"${escapedText}"</span>&gt;
+      ${text}
+    &lt;<span class="hljs-regexp">/span&gt;
+  &lt;/</span>h${level}&gt;</span>`;
+}</code></pre><p>Back in Chapter 6, we added <code>class="section-anchor"</code> to the <code>&lt;span&gt;</code> element without explaining why. We will use this class to detect all <code>&lt;span&gt;</code> elements and <em>match</em> them to sections in the TOC. When matched, we will highlight corresponding section in the TOC.</p>
+<p>Each chapter has multiple <code>&lt;h2&gt;</code> headings (i.e. sections). To highlight a particular section inside the TOC, we need to know <em>which</em> <code>&lt;span&gt;</code> element with the class <code>section-anchor</code> is in view. Once we know which <code>&lt;span&gt;</code> element is in view, we extract the <code>${escapedText}</code> value from the <code>name</code> attribute of this <code>&lt;span&gt;</code> element.</p>
+<p>After we know the <code>${escapedText}</code> value of the <code>&lt;span&gt;</code> element in view, we can compare it to the <code>${s.escapedText}</code> value of the section inside the TOC. If the values match, we highlight that section in the TOC with a blue color.</p>
+<p>To detect which <code>&lt;span&gt;</code> element is in view, we should do the following:</p>
+<ol>
+<li>on every scroll event, execute an <code>onScroll</code> function</li>
+<li>find all <code>span.section-anchor</code> elements inside this <code>onScroll</code> function, then create an <code>activeSection</code> object and add the <code>${s.escapedText}</code> value to it as <code>activeSection.hash</code></li>
+<li>set state with <code>activeSection</code></li>
+<li>write a conditional style with the ternary operator to highlight a section on the TOC</li>
+<li>properly detect which element is in view and consider all edge cases</li>
+</ol>
+<p>Below we discuss each step in detail.</p>
+<ol>
+<li><p>To detect a scroll event, we use JavaScript's <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener" rel="noopener noreferrer">addEventListener</a> and type <code>scroll</code>:</p>
+<pre>document.getElementById('main-content').addEventListener('scroll');</pre>
+
+<p>To execute a function (<code>onScroll</code>) on every scroll event:</p>
+<pre>document.getElementById('main-content').addEventListener('scroll', this.onScroll);</pre>
+
+<p>Important: add <code>id="main-content"</code> to the <code>&lt;div&gt;</code> element that is located right below the <code>&lt;Head&gt;...&lt;/Head&gt;</code> element inside <code>render()</code> at <code>pages/public/read-chapter.js</code>. If you don't add this line, then scrolling won't be detected.</p>
+<p>Since we detect a scroll event on the client (browser), we should place code inside the <code>componentDidMount()</code> lifecycle hook:</p>
+<pre><code>component<span class="hljs-constructor">DidMount()</span> {
+ document.get<span class="hljs-constructor">ElementById('<span class="hljs-params">main</span>-<span class="hljs-params">content</span>')</span>.add<span class="hljs-constructor">EventListener('<span class="hljs-params">scroll</span>', <span class="hljs-params">this</span>.<span class="hljs-params">onScroll</span>)</span>;
+}</code></pre><p>When a user navigates to a new page, the app does not need to listen for scrolling events on this new page. Thus, we should remove the event listener with:</p>
+<pre><code>component<span class="hljs-constructor">WillUnmount()</span> {
+ document.get<span class="hljs-constructor">ElementById('<span class="hljs-params">main</span>-<span class="hljs-params">content</span>')</span>.remove<span class="hljs-constructor">EventListener('<span class="hljs-params">scroll</span>', <span class="hljs-params">this</span>.<span class="hljs-params">onScroll</span>)</span>;
+}</code></pre><p>Add the following code snippet right after <code>constructor</code>:</p>
+<pre><code>component<span class="hljs-constructor">DidMount()</span> {
+ document.get<span class="hljs-constructor">ElementById('<span class="hljs-params">main</span>-<span class="hljs-params">content</span>')</span>.add<span class="hljs-constructor">EventListener('<span class="hljs-params">scroll</span>', <span class="hljs-params">this</span>.<span class="hljs-params">onScroll</span>)</span>;
+}
+
+component<span class="hljs-constructor">WillUnmount()</span> {
+ document.get<span class="hljs-constructor">ElementById('<span class="hljs-params">main</span>-<span class="hljs-params">content</span>')</span>.remove<span class="hljs-constructor">EventListener('<span class="hljs-params">scroll</span>', <span class="hljs-params">this</span>.<span class="hljs-params">onScroll</span>)</span>;
+}</code></pre></li>
+<li><p>In this step, let's create a basic version of our <code>onScroll</code> function:</p>
+<pre><code>onScroll = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+ <span class="hljs-comment">// some code</span>
+};</code></pre><p>We need to detect all <code>&lt;span&gt;</code> elements with <code>class="section-anchor"</code>:</p>
+<pre>const sectionElms = document.querySelectorAll('span.section-anchor');</pre>
+
+<p>Let's define an <code>activeSection</code> object as:</p>
+<pre><code>let activeSection;
+
+activeSection = {
+ <span class="hljs-attribute">hash</span>: s<span class="hljs-variable">.attributes</span><span class="hljs-variable">.getNamedItem</span>('name')<span class="hljs-variable">.value</span>,
+};</code></pre><p>Method <a target="_blank" href="https://www.w3schools.com/jsref/met_namednodemap_getnameditem.asp" rel="noopener noreferrer">getNamedItem('name').value</a> gets us the value of the <code>name</code> attribute.</p>
+<p>We can use a <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for" rel="noopener noreferrer">for loop</a> to run code for every <code>&lt;span&gt;</code> element:</p>
+<pre><code>let activeSection;
+
+<span class="hljs-keyword">for</span> (let <span class="hljs-built_in">i</span> = <span class="hljs-number">0</span>; <span class="hljs-built_in">i</span> &lt; sectionElms.<span class="hljs-built_in">length</span>; <span class="hljs-built_in">i</span> += <span class="hljs-number">1</span>) {
+ const s = sectionElms[<span class="hljs-built_in">i</span>];
+
+ activeSection = {
+   hash: s.attributes.getNamedItem(<span class="hljs-string">'name'</span>).value,
+ };
+}</code></pre><p>Put these code snippets together, and you get:</p>
+<pre><code>onScroll = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+ <span class="hljs-keyword">const</span> sectionElms = <span class="hljs-built_in">document</span>.querySelectorAll(<span class="hljs-string">'span.section-anchor'</span>);
+
+ <span class="hljs-keyword">let</span> activeSection;
+
+ <span class="hljs-keyword">for</span> (<span class="hljs-keyword">let</span> i = <span class="hljs-number">0</span>; i &lt; sectionElms.length; i += <span class="hljs-number">1</span>) {
+   <span class="hljs-keyword">const</span> s = sectionElms[i];
+
+   activeSection = {
+     <span class="hljs-attr">hash</span>: s.attributes.getNamedItem(<span class="hljs-string">'name'</span>).value,
+   };
+ }
+
+};</code></pre></li>
+<li><p>This one is easy, simply add <code>this.setState({ activeSection })</code> at the end of the <code>onScroll</code> function:</p>
+<pre><code>onScroll = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+ <span class="hljs-keyword">const</span> sectionElms = <span class="hljs-built_in">document</span>.querySelectorAll(<span class="hljs-string">'span.section-anchor'</span>);
+
+ <span class="hljs-keyword">let</span> activeSection;
+
+ <span class="hljs-keyword">for</span> (<span class="hljs-keyword">let</span> i = <span class="hljs-number">0</span>; i &lt; sectionElms.length; i += <span class="hljs-number">1</span>) {
+   <span class="hljs-keyword">const</span> s = sectionElms[i];
+
+   activeSection = {
+     <span class="hljs-attr">hash</span>: s.attributes.getNamedItem(<span class="hljs-string">'name'</span>).value,
+   };
+ }
+
+ <span class="hljs-keyword">this</span>.setState({ activeSection });
+};</code></pre><p>Add this function after the <code>componentWillUnmount()</code> lifecycle hook in <code>pages/public/read-chapter.js</code>.</p>
+</li>
+<li><p>Inside the <code>renderSections()</code> function (<code>pages/public/read-chapter.js</code>), after line:</p>
+<pre>const { sections } = this.state.chapter;</pre>
+
+<p>Add:</p>
+<pre><code>const { activeSection } = this.<span class="hljs-keyword">state</span>;
+console.<span class="hljs-keyword">log</span>(activeSection);</code></pre><p>Inside the <code>renderSections()</code> function, add a conditional style to the <code>&lt;a&gt;</code> element with the ternary operator. If <code>activeSection</code> exists and if <code>activeSection.hash</code> equals <code>s.escaptedText</code> (we take this value from our database with <code>chapter.sections.map(s =&gt; ..)</code>) - then we highlight the section (<code>s.text</code>) with a blue color:</p>
+<pre><code>&lt;a
+ href={`#${s.escapedText}`}
+ style={{
+   color: activeSection &amp;&amp; activeSection.hash === s.escapedText ? <span class="hljs-string">'#1565C0'</span> : <span class="hljs-string">'#222'</span>,
+ }}
+&gt;
+ {s.text}
+&lt;/a&gt;</code></pre><p>Before we move to final step (step 5), we should test what we have so far.</p>
+<p>Start your app with <code>yarn dev</code> and navigate to <code>http://localhost:8000/books/demo-book/introduction</code>. Open the browser console (<code>Developer tools</code> &gt; <code>Console</code>) and then open the TOC.</p>
+<p>Scroll down the chapter and look at the browser console:<br><img src="https://user-images.githubusercontent.com/10218864/36647537-fbc20cf0-1a3b-11e8-9cfb-c68895c574b4.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>You should see dozens of <code>activeSection</code> objects printed on your browser console:</p>
+<pre>{hash: "build-tic-tac-toe-game"}</pre>
+
+<p>That's the expected behavior - good job if you see it! However we should consider some improvements. For example, even a small scroll results in over two dozen of <code>activeSection</code> objects. That means a small scroll fires the <code>onScroll</code> function over two dozen times. This is overkill. A common way to throttle a function in JavaScript applications is to use <a target="_blank" href="https://lodash.com/docs#throttle" rel="noopener noreferrer">throttle from lodash</a>. Let's update our <code>onScroll</code> function like this:</p>
+<pre><code>onScroll = throttle(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+ <span class="hljs-keyword">const</span> sectionElms = <span class="hljs-built_in">document</span>.querySelectorAll(<span class="hljs-string">'span.section-anchor'</span>);
+
+ <span class="hljs-keyword">let</span> activeSection;
+
+ <span class="hljs-keyword">for</span> (<span class="hljs-keyword">let</span> i = <span class="hljs-number">0</span>; i &lt; sectionElms.length; i += <span class="hljs-number">1</span>) {
+   <span class="hljs-keyword">const</span> s = sectionElms[i];
+
+   activeSection = {
+     <span class="hljs-attr">hash</span>: s.attributes.getNamedItem(<span class="hljs-string">'name'</span>).value,
+   };
+ }
+
+ <span class="hljs-keyword">this</span>.setState({ activeSection });
+}, <span class="hljs-number">500</span>);</code></pre><p>Remember to add the missing import:</p>
+<pre>import throttle from 'lodash/throttle';</pre>
+
+<p>This is better - with throttle, the function will fire <em>only once</em> per every 500 milliseconds.</p>
+<p>Go to <code>http://localhost:8000/books/demo-book/introduction</code>. Refresh the tab, open the TOC, and open the browser console.<br>Scroll down the chapter - now with throttle, a small scroll only prints a few <code>activeSection</code> objects to your browser console. Exactly what we want.</p>
+<p>You may have noticed that the <code>activeSection</code> object printed to the browser console is always:</p>
+<pre>{hash: "build-tic-tac-toe-game"}</pre>
+
+<p>We never see an <code>activeSection</code> for the first <code>&lt;span&gt;</code> element (<code>What is Lorem Ipsum?</code>).</p>
+<p>Also you must have noticed that the TOC highlights the <code>Build Tic Tac Toe Game</code> section only. The TOC never highlights the <code>What is Lorem Ipsum?</code> section.</p>
+<p>That's because our <code>for loop</code> runs without <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/break" rel="noopener noreferrer">break</a>. <code>For loop</code> runs for i=0, then for i=1, and the final result is <code>activeSection</code>:<br><code>{hash: "build-tic-tac-toe-game"}</code></p>
+<p>In other words, the way we wrote our <code>onScroll</code> function will always highlight the last section in a chapter. Obviously, we did not finish writing the <code>onScroll</code> function. In the next step, let's discuss how to highlight the proper section.</p>
+</li>
+<li><p>We need to find the position of the <code>&lt;span&gt;</code> element and compare it to the top and bottom of the <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/API/Window" rel="noopener noreferrer">window</a>. To get the relative position of an element, we can use the <a target="_blank" href="https://javascript.info/coordinates" rel="noopener noreferrer">getBoundingClientRect()</a> method. Modify the <code>onScroll</code> function like this:</p>
+<pre><code>onScroll = throttle(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+ <span class="hljs-keyword">const</span> sectionElms = <span class="hljs-built_in">document</span>.querySelectorAll(<span class="hljs-string">'span.section-anchor'</span>);
+ <span class="hljs-keyword">let</span> activeSection;
+
+ <span class="hljs-keyword">for</span> (<span class="hljs-keyword">let</span> i = <span class="hljs-number">0</span>; i &lt; sectionElms.length; i += <span class="hljs-number">1</span>) {
+   <span class="hljs-keyword">const</span> s = sectionElms[i];
+   <span class="hljs-keyword">const</span> b = s.getBoundingClientRect();
+
+   <span class="hljs-keyword">const</span> anchorTop = b.top;
+   <span class="hljs-keyword">const</span> anchorBottom = b.bottom;
+
+   <span class="hljs-built_in">console</span>.log(i, anchorTop, anchorBottom, <span class="hljs-built_in">window</span>.innerHeight);
+
+ }
+
+ <span class="hljs-keyword">this</span>.setState({ activeSection });
+}, <span class="hljs-number">500</span>);</code></pre><p>This new code is self-explanatory, except perhaps <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/API/Window/innerHeight" rel="noopener noreferrer">window.innerHeight</a>, which outputs the height of the current window. The relative positions of an element from the top and bottom of the window are <code>anchorTop</code> and <code>anchorBottom</code>, respectively.</p>
+<p>Before we test the <code>onScroll</code> function above, comment out the following line of code inside the <code>renderSections()</code> function:</p>
+<pre>// console.log(activeSection);</pre>
+
+<p>Start your app with <code>yarn dev</code> and navigate to <code>http://localhost:8000/books/demo-book/introduction</code>. Open the browser console (<code>Developer tools</code> &gt; <code>Console</code>) and then open the TOC.</p>
+<p>Scroll a bit and look at the console:<br><img src="https://user-images.githubusercontent.com/10218864/36651799-8a69544a-1a5f-11e8-89c4-02ea6d6ba55d.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+</li>
+</ol>
+<p>  You see that the browser console outputs the relative positions of the <code>&lt;span&gt;</code> elements <code>What is Lorem Ipsum?</code> (<code>i=0</code>) and <code>Build Tic Tac Toe Game</code> (<code>i=1</code>). The first number is the index of the element, second number is the distance to the top of the window (px), third number is the distance to the bottom of the window (px), and last number is the height of the window (px):</p>
+<pre><code>  <span class="hljs-number">0</span> <span class="hljs-number">122.625</span> <span class="hljs-number">152.625</span> <span class="hljs-number">461</span>
+  <span class="hljs-number">1</span> <span class="hljs-number">1011.03125</span> <span class="hljs-number">1041.03125</span> <span class="hljs-number">461</span>
+  <span class="hljs-number">0</span> <span class="hljs-number">100.625</span> <span class="hljs-number">130.625</span> <span class="hljs-number">461</span>
+  <span class="hljs-number">1</span> <span class="hljs-number">989.03125</span> <span class="hljs-number">1019.03125</span> <span class="hljs-number">461</span></code></pre><p>  Scroll down and try to note <em>trends</em> in the values for the relative positions. For the sake of discussion, let's only focus on one element, <code>&lt;span&gt;Build Tic Tac Toe Game&lt;/span&gt;</code> (<code>i=1</code>). For now, modify your <code>onScroll</code> function to include a line <code>if (i === )</code> as shown below:</p>
+<pre><code>  onScroll = throttle(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+    <span class="hljs-keyword">const</span> sectionElms = <span class="hljs-built_in">document</span>.querySelectorAll(<span class="hljs-string">'span.section-anchor'</span>);
+    <span class="hljs-keyword">let</span> activeSection;
+
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">let</span> i = <span class="hljs-number">0</span>; i &lt; sectionElms.length; i += <span class="hljs-number">1</span>) {
+      <span class="hljs-keyword">const</span> s = sectionElms[i];
+      <span class="hljs-keyword">const</span> b = s.getBoundingClientRect();
+
+      <span class="hljs-keyword">const</span> anchorTop = b.top;
+      <span class="hljs-keyword">const</span> anchorBottom = b.bottom;
+
+      <span class="hljs-keyword">if</span> (i === <span class="hljs-number">1</span>) {
+        <span class="hljs-built_in">console</span>.log(i, anchorTop, anchorBottom, <span class="hljs-built_in">window</span>.innerHeight);
+      }
+
+    }
+
+    <span class="hljs-keyword">this</span>.setState({ activeSection });
+  }, <span class="hljs-number">500</span>);</code></pre><p>  Start your app with <code>yarn dev</code> and navigate to <code>http://localhost:8000/books/demo-book/introduction</code>. Open the browser console (<code>Developer tools</code> &gt; <code>Console</code>) and then open the TOC.</p>
+<p>  Scroll a bit and look at the console:<br>  <img src="https://user-images.githubusercontent.com/10218864/36652278-a3c539e2-1a62-11e8-9ad5-86064d901988.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>  You see that the <code>anchorTop</code> and <code>anchorBottom</code> distances of the <code>i=1</code> element go down as you scroll. As expected, no changes occur in the value of <code>window.innerHeight</code> (we did not change the height of the window).</p>
+<p>  As you keep scrolling, you will notice that you begin to see <code>&lt;span&gt;Build Tic Tac Toe Game&lt;/span&gt;</code> when <code>anchorBottom</code> equals <code>window.innerHeight</code>. As you keep scrolling, <code>anchorBottom</code> becomes 0 when the <code>&lt;span&gt;</code> element disappears for the first time.</p>
+<p>  This makes perfect sense, because <code>anchorBottom</code> ( or <a target="_blank" href="https://javascript.info/coordinates" rel="noopener noreferrer">getBoundingClientRect().bottom</a>) is the distance between the bottom border of an element and upper border of the window. The length of the red line in this snapshot is <code>anchorBottom</code>:<br>  <img src="https://user-images.githubusercontent.com/26158226/36696886-5c75980a-1afa-11e8-9d1b-1837ecf77b5c.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>  By combining these two conditions we just explained, we conclude that the section element is in view when:<br>  </p><pre>anchorBottom &gt;= 0 &amp;&amp; anchorBottom &lt;= window.innerHeight</pre><p></p>
+<p>  When a section element is in view, let's simply pass the value of the <code>name</code> attribute of <code>&lt;span&gt;</code> to <code>activeSection.hash</code>:</p>
+<pre><code>  if (<span class="hljs-built_in">anchor</span>Bottom &gt;= <span class="hljs-number">0</span> &amp;&amp; <span class="hljs-built_in">anchor</span>Bottom <span class="hljs-variable">&lt;= window.innerHeight) {
+    activeSection = {
+      hash: s.attributes.getNamedItem('name').value,
+    };
+
+    break;
+  }</span></code></pre><p>  When a section element is <em>not</em> in view and is <em>below</em> the lower border of the window, then:<br>  </p><pre>anchorBottom &gt; window.innerHeight</pre><p></p>
+<p>  To visualize this, you can see how the length of the red line (<code>anchorBottom</code>) is longer than the height of window (<code>window.innerHeight</code>) when our <code>&lt;span&gt;Build Tic Tac Toe Game&lt;/span&gt;</code> element is below the lower border of the window:<br>  <img src="https://user-images.githubusercontent.com/26158226/36696888-5ddac8c8-1afa-11e8-80b9-a93692d4fa17.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>  When a section element is not in view and below the lower border of the window, we want to highlight the previous section, <code>sectionElms[i - 1]</code>, instead of <code>sectionElms[i]</code>:</p>
+<pre><code>  <span class="hljs-keyword">if</span> (anchorBottom &gt; window.innerHeight &amp;&amp; <span class="hljs-built_in">i</span> &gt; <span class="hljs-number">0</span>) {
+    <span class="hljs-keyword">if</span> (sectionAbove.bottom &lt;= <span class="hljs-number">0</span>) {
+      activeSection = {
+        hash: sectionElms[<span class="hljs-built_in">i</span> - <span class="hljs-number">1</span>].attributes.getNamedItem(<span class="hljs-string">'name'</span>).value,
+      };
+      <span class="hljs-keyword">break</span>;
+    }
+  } <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (<span class="hljs-built_in">i</span> + <span class="hljs-number">1</span> === sectionElms.<span class="hljs-built_in">length</span>) {
+    activeSection = {
+      hash: s.attributes.getNamedItem(<span class="hljs-string">'name'</span>).value,
+    };
+  }
+
+  sectionAbove = b;</code></pre><p>  In other words, when <code>&lt;span&gt;Build Tic Tac Toe Game&lt;/span&gt;</code> is below the lower border of the window, we want the TOC to highlight the <em>previous</em> section (<code>[i-1]</code>), which is <code>&lt;span&gt;What is Lorem Ipsum?&lt;/span&gt;</code>. Once <code>hash</code> gets a value, we break the <code>for loop</code>.</p>
+<p>  When a section element is below the lower border of the window (<code>anchorBottom &gt; window.innerHeight</code>) and there is a section element above the upper border of the window(<code>sectionAbove.bottom &lt;= 0</code>), then we want to highlight the <code>[i-1]</code> section. We use the <code>i &gt; 0</code> condition, since the very first section element has no section above it. </p>
+<p>  Another special case is the very last section element (<code>i + 1 === sectionElms.length</code>). The very last section element has no section below it, so the code with condition <code>anchorBottom &gt; window.innerHeight</code> won't work. Thus we added:</p>
+<pre><code>  <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (<span class="hljs-built_in">i</span> + <span class="hljs-number">1</span> === sectionElms.<span class="hljs-built_in">length</span>) {
+    activeSection = {
+      hash: s.attributes.getNamedItem(<span class="hljs-string">'name'</span>).value,
+    };
+  }</code></pre><p>After following steps 1-5, you get the final version of the <code>onScroll</code> function:</p>
+<pre><code>onScroll = throttle(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+  <span class="hljs-keyword">const</span> sectionElms = <span class="hljs-built_in">document</span>.querySelectorAll(<span class="hljs-string">'span.section-anchor'</span>);
+  <span class="hljs-keyword">let</span> activeSection;
+
+  <span class="hljs-keyword">let</span> sectionAbove;
+  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">let</span> i = <span class="hljs-number">0</span>; i &lt; sectionElms.length; i += <span class="hljs-number">1</span>) {
+    <span class="hljs-keyword">const</span> s = sectionElms[i];
+    <span class="hljs-keyword">const</span> b = s.getBoundingClientRect();
+    <span class="hljs-keyword">const</span> anchorBottom = b.bottom;
+
+    <span class="hljs-keyword">if</span> (anchorBottom &gt;= <span class="hljs-number">0</span> &amp;&amp; anchorBottom &lt;= <span class="hljs-built_in">window</span>.innerHeight) {
+      activeSection = {
+        <span class="hljs-attr">hash</span>: s.attributes.getNamedItem(<span class="hljs-string">'name'</span>).value,
+      };
+
+      <span class="hljs-keyword">break</span>;
+    }
+
+    <span class="hljs-keyword">if</span> (anchorBottom &gt; <span class="hljs-built_in">window</span>.innerHeight &amp;&amp; i &gt; <span class="hljs-number">0</span>) {
+      <span class="hljs-keyword">if</span> (sectionAbove.bottom &lt;= <span class="hljs-number">0</span>) {
+        activeSection = {
+          <span class="hljs-attr">hash</span>: sectionElms[i - <span class="hljs-number">1</span>].attributes.getNamedItem(<span class="hljs-string">'name'</span>).value,
+        };
+        <span class="hljs-keyword">break</span>;
+      }
+    } <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (i + <span class="hljs-number">1</span> === sectionElms.length) {
+      activeSection = {
+        <span class="hljs-attr">hash</span>: s.attributes.getNamedItem(<span class="hljs-string">'name'</span>).value,
+      };
+    }
+
+    sectionAbove = b;
+  }
+
+
+  <span class="hljs-keyword">if</span> (!isEqual(<span class="hljs-keyword">this</span>.state.activeSection, activeSection)) {
+    <span class="hljs-keyword">this</span>.setState({ activeSection });
+  }
+}, <span class="hljs-number">500</span>);</code></pre><p>You might have noticed that we made one more improvement with:</p>
+<pre><code><span class="hljs-keyword">if</span> (!is<span class="hljs-constructor">Equal(<span class="hljs-params">this</span>.<span class="hljs-params">state</span>.<span class="hljs-params">activeSection</span>, <span class="hljs-params">activeSection</span>)</span>) {
+  this.set<span class="hljs-constructor">State({ <span class="hljs-params">activeSection</span> })</span>;
+}</code></pre><p>With this code, we tell our app that when the current <code>activeSection</code> object is the same as object inside the <code>state</code> (i.e. did not change), then the app should not update <code>state</code> and re-render the page. Our app should only do so when the <code>activeSection</code> object has actually changed. Unlike <code>hideHeader</code> and <code>isMobile</code> boolean parameters, we can't use <code>!==</code> for comparison of two <code>activeSection</code> objects. To compare two objects we used <code>isEqual</code> method from <code>lodash</code>. Remember to import <code>isEqual</code> from <code>lodash</code>:</p>
+<pre>import isEqual from 'lodash/isEqual';</pre>
+
+
+<p>Time to test. Uncomment this line in <code>renderSections()</code> function of <code>ReadChapter</code> page:</p>
+<pre>console.log(activeSection);</pre>
+
+
+<p>Start your app with <code>yarn dev</code> and navigate to <code>http://localhost:8000/books/demo-book/introduction</code>. Open the browser console (<code>Developer tools</code> &gt; <code>Console</code>) and open the TOC.</p>
+<p>Scroll and look at the console:<br><img src="https://user-images.githubusercontent.com/10218864/36700661-5635a132-1b05-11e8-9ffb-0227fbbb9502.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>As you scroll, the console prints the <code>activeSection</code> object:</p>
+<pre><code>{<span class="hljs-attribute">hash</span>: <span class="hljs-string">"what-is-lorem-ipsum-"</span>}
+{<span class="hljs-attribute">hash</span>: <span class="hljs-string">"what-is-lorem-ipsum-"</span>}
+{<span class="hljs-attribute">hash</span>: <span class="hljs-string">"what-is-lorem-ipsum-"</span>}</code></pre><p>When you have <code>&lt;span&gt;Build Tic Tac Toe Game&lt;/span&gt;</code> in view, the console prints out the new <code>activeSection</code> object:</p>
+<pre><code>{<span class="hljs-attribute">hash</span>: <span class="hljs-string">"what-is-lorem-ipsum-"</span>}
+{<span class="hljs-attribute">hash</span>: <span class="hljs-string">"what-is-lorem-ipsum-"</span>}
+{<span class="hljs-attribute">hash</span>: <span class="hljs-string">"what-is-lorem-ipsum-"</span>}
+{<span class="hljs-attribute">hash</span>: <span class="hljs-string">"build-tic-tac-toe-game"</span>}
+{<span class="hljs-attribute">hash</span>: <span class="hljs-string">"build-tic-tac-toe-game"</span>}
+{<span class="hljs-attribute">hash</span>: <span class="hljs-string">"build-tic-tac-toe-game"</span>}</code></pre><p>Good job if you observed this behaviour!</p>
+<p>In the last two sections of the chapter 7, we are going to improve our TOC further. We will:</p>
+<ul>
+<li>hide the <code>Header</code> once a user scrolls past a certain distance </li>
+<li>add conditional styles to the TOC and main content, so our web app looks good on both desktop and mobile browsers</li>
+</ul>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="hide-header" href="#hide-header" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="hide-header">
+          Hide Header
+        </span>
+      </h2><p>In the previous section, we did plenty of scrolling. You may have noticed that the <code>Header</code> component is always present. However, the user only needs to see the <code>Header</code> component on rare occasions - when navigating to the dashboard or logging out. Thus, our app should hide the <code>Header</code> component when you a user scrolls past a certain distance. This will allow the user have an unobstructed view of the main content while reading. To try out a similar UX, go to any <a target="_blank" href="https://medium.com" rel="noopener noreferrer">Medium</a> article, scroll down and observe the Header behavior.</p>
+<p>You just implemented dynamic highlights for sections - you know how to detect scrolling with event listener. We may choose to write again:</p>
+<pre>document.getElementById('main-content').addEventListener('scroll', this.onScrollHideHeader);</pre>
+
+<p>However, having two event listeners and two throttle methods is bad design. Similar to how we strive to reuse components, we should strive to reuse functions. We should use a single event listener that executes one function with throttle. This one function should call two functions: <code>onScrollActiveSection</code> and <code>onScrollHideHeader</code>.</p>
+<p>Open <code>pages/public/read-chapter.js</code>, find the <code>componentDidMount()</code> lifecycle hook:</p>
+<pre><code>component<span class="hljs-constructor">DidMount()</span> {
+  document.get<span class="hljs-constructor">ElementById('<span class="hljs-params">main</span>-<span class="hljs-params">content</span>')</span>.add<span class="hljs-constructor">EventListener('<span class="hljs-params">scroll</span>', <span class="hljs-params">this</span>.<span class="hljs-params">onScroll</span>)</span>;
+}</code></pre><p>Let's make re-define <code>onScroll</code> function, make it call two function and add throttle to it:</p>
+<pre><code>onScroll = throttle(<span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+  <span class="hljs-keyword">this</span>.onScrollActiveSection();
+  <span class="hljs-keyword">this</span>.onScrollHideHeader();
+}, <span class="hljs-number">500</span>);</code></pre><p>Add above function right after the <code>componentWillUnmount()</code> lifecycle hook.</p>
+<p>Update the old <code>onScroll</code> function that highlights sections - rename it to <code>onScrollActiveSection</code> and remove throttle:</p>
+<pre><code>onScrollActiveSection = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+  <span class="hljs-keyword">const</span> sectionElms = <span class="hljs-built_in">document</span>.querySelectorAll(<span class="hljs-string">'span.section-anchor'</span>);
+  <span class="hljs-keyword">let</span> activeSection;
+
+  <span class="hljs-keyword">let</span> aboveSection;
+  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">let</span> i = <span class="hljs-number">0</span>; i &lt; sectionElms.length; i += <span class="hljs-number">1</span>) {
+    <span class="hljs-keyword">const</span> s = sectionElms[i];
+    <span class="hljs-keyword">const</span> b = s.getBoundingClientRect();
+    <span class="hljs-keyword">const</span> anchorBottom = b.bottom;
+
+    <span class="hljs-keyword">if</span> (anchorBottom &gt;= <span class="hljs-number">0</span> &amp;&amp; anchorBottom &lt;= <span class="hljs-built_in">window</span>.innerHeight) {
+      activeSection = {
+        <span class="hljs-attr">hash</span>: s.attributes.getNamedItem(<span class="hljs-string">'name'</span>).value,
+      };
+
+      <span class="hljs-keyword">break</span>;
+    }
+
+    <span class="hljs-keyword">if</span> (anchorBottom &gt; <span class="hljs-built_in">window</span>.innerHeight &amp;&amp; i &gt; <span class="hljs-number">0</span>) {
+      <span class="hljs-keyword">if</span> (aboveSection.bottom &lt;= <span class="hljs-number">0</span>) {
+        activeSection = {
+          <span class="hljs-attr">hash</span>: sectionElms[i - <span class="hljs-number">1</span>].attributes.getNamedItem(<span class="hljs-string">'name'</span>).value,
+        };
+        <span class="hljs-keyword">break</span>;
+      }
+    } <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (i + <span class="hljs-number">1</span> === sectionElms.length) {
+      activeSection = {
+        <span class="hljs-attr">hash</span>: s.attributes.getNamedItem(<span class="hljs-string">'name'</span>).value,
+      };
+    }
+
+    aboveSection = b;
+  }
+
+  <span class="hljs-keyword">if</span> (!isEqual(<span class="hljs-keyword">this</span>.state.activeSection, activeSection)) {
+    <span class="hljs-keyword">this</span>.setState({ activeSection });
+  }
+};</code></pre><p>Next, let's define <code>onScrollHideHeader</code> function and finish other code related to highlighting sections:</p>
+<ol>
+<li>define <code>hideHeader</code> parameter inside <code>onScrollHideHeader</code> function</li>
+<li>pass <code>hideHeader</code> as a prop to the <code>Header</code> component</li>
+<li>update our <code>Header</code> component with a conditional style that hides the <code>Header</code> component when a user scrolls</li>
+<li>add conditional styles to elements on the <code>ReadChapter</code> page.</li>
+</ol>
+<p>Let's discuss each step in detail.</p>
+<ol>
+<li><p>Inside <code>onScrollHideHeader</code>, we need to select the <code>&lt;div&gt;</code> element with <code>id="main-content"</code>, then get the distance from this element's top to the <em>topmost visible content</em>, <code>distanceFromTop</code>. The JavaScript method <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollTop" rel="noopener noreferrer">scrollTop</a>]) does exactly that:</p>
+<pre>const distanceFromTop = document.getElementById('main-content').scrollTop;</pre>
+
+<p>We define a boolean parameter <code>hideHeader</code> by comparing <code>distanceFromTop</code> to 500 (<code>Header</code> gets hidden after ua ser scrolls for 500px or more):</p>
+<pre>const hideHeader = distanceFromTop &gt; 500;</pre>
+
+<p>Finally, we need to set <code>state</code>. However, we want to set <code>state</code> only when the <code>hideHeader</code> value changes (we did the same for <code>activeSection</code> in the previous section):</p>
+<pre><code>if (this.<span class="hljs-keyword">state</span>.hideHeader !== hideHeader) {
+ this.<span class="hljs-built_in">set</span>State({ hideHeader });
+}</code></pre><p>Define <code>onScrollHideHeader</code> based on the above considerations:</p>
+<pre><code>onScrollHideHeader = <span class="hljs-function"><span class="hljs-params">()</span> =&gt;</span> {
+ <span class="hljs-keyword">const</span> distanceFromTop = <span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">'main-content'</span>).scrollTop;
+ <span class="hljs-keyword">const</span> hideHeader = distanceFromTop &gt; <span class="hljs-number">500</span>;
+
+ <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.state.hideHeader !== hideHeader) {
+   <span class="hljs-keyword">this</span>.setState({ hideHeader });
+ }
+};</code></pre><p>To set initial <code>state</code>, remember to add <code>hideHeader: false</code> to <code>constructor</code> (we discussed usage of <code>constructor</code> in <a target="_blank" href="https://builderbook.org/books/builder-book/server-database-session-header-and-menudrop-components#menudrop-component" rel="noopener noreferrer">Chapter 2</a> and <a target="_blank" href="https://builderbook.org/books/builder-book/book-and-chapter-models-internal-api-render-chapter#readchapter-page" rel="noopener noreferrer">Chapter 5</a>) in <code>pages/public/read-chapter.js</code>:</p>
+<pre><code><span class="hljs-string">this.state</span> <span class="hljs-string">=</span> <span class="hljs-string">{</span>
+<span class="hljs-attr"> showTOC:</span> <span class="hljs-literal">false</span><span class="hljs-string">,</span>
+ <span class="hljs-string">chapter,</span>
+ <span class="hljs-string">htmlContent,</span>
+<span class="hljs-attr"> hideHeader:</span> <span class="hljs-literal">false</span><span class="hljs-string">,</span>
+<span class="hljs-string">};</span></code></pre></li>
+<li><p>Passing the <code>hideHeader</code> prop to the <code>Header</code> component is tricky, since our <code>ReadChapter</code> page does not have a <code>Header</code> component. In fact, our <code>App</code> HOC (<code>pages/_app.js</code>) adds <code>Header</code> to the page it wraps (Next.js automatically handles wrapping of pages with <code>App</code> HOC).</p>
+<p>Open <code>pages/_app.js</code> and find <code>&lt;Header {...pageProps} /&gt;</code> line. If we can hide this <code>Header</code> element on <code>ReadChapter</code> page only (and not on all other pages) then we can import <code>Header</code> component directly to <code>ReadChapter</code> page only and pass <code>hideHeader</code> prop to it.</p>
+<p>One way to solve this problem is to notice that only <code>pageProps</code> for <code>ReadChapter</code> page has <code>pageProps.chapter</code>. No other page in our web application has a <code>chapter</code> prop. We can use this fact to conditionally hide <code>Header</code> inside <code>App</code> HOC for <code>ReadChapter</code> page only.</p>
+<ul>
+<li><p>Open <code>pages/_app.js</code>. Replace line:<br><code>&lt;Header {...pageProps} /&gt;</code></p>
+<p>With:<br><code>{pageProps.chapter ? null : &lt;Header {...pageProps} /&gt;}</code></p>
+</li>
+</ul>
+<p>Start your app with <code>yarn dev</code> and go to <code>http://localhost:8000/books/demo-book/introduction</code>:<br><img src="https://user-images.githubusercontent.com/10218864/36703211-733034f0-1b0f-11e8-83dc-d9f5c49e4ff5.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>If you see no <code>Header</code> - great! That was our goal. To pass the <code>hideHeader</code> prop to the <code>Header</code> component, we need to add the <code>Header</code> component <em>directly</em> to our <code>ReadChapter</code> page. This requires <em>not</em> adding the <code>Header</code> component to the page via <code>App</code> HOC.</p>
+<p>Import <code>Header</code> to <code>pages/public/read-chapter.js</code> with:</p>
+<pre>import Header from '../../components/Header';</pre>
+
+<p>In <code>pages/public/read-chapter.js</code>, right above the line with <code>{this.renderSidebar()}</code>, add <code>&lt;Header user={user} hideHeader={hideHeader} /&gt;</code> line.</p>
+<p>After these changes, <code>render()</code> should look like:</p>
+<pre><code>render() {
+ <span class="hljs-keyword">const</span> { user } = <span class="hljs-keyword">this</span>.props;
+
+ <span class="hljs-keyword">const</span> {
+   chapter, showTOC, hideHeader,
+ } = <span class="hljs-keyword">this</span>.state;
+
+ <span class="hljs-keyword">if</span> (!chapter) {
+   <span class="hljs-keyword">return</span> &lt;Error statusCode={<span class="hljs-number">404</span>} /&gt;;
+ }
+
+ <span class="hljs-keyword">return</span> (
+   &lt;div&gt;
+     &lt;Head&gt;
+       &lt;title&gt;
+         {chapter.title === <span class="hljs-string">'Introduction'</span>
+           ? <span class="hljs-string">'Introduction'</span>
+           : `Chapter ${chapter.order - <span class="hljs-number">1</span>}. ${chapter.title}`}
+       &lt;/title&gt;
+       {chapter.seoDescription ? (
+         &lt;meta name=<span class="hljs-string">"description"</span> content={chapter.seoDescription} /&gt;
+       ) : <span class="hljs-literal">null</span>}
+     &lt;/Head&gt;
+
+     &lt;Header user={user} hideHeader={hideHeader} /&gt;
+
+     {<span class="hljs-keyword">this</span>.renderSidebar()}
+
+     &lt;div
+       style={{
+         textAlign: <span class="hljs-string">'left'</span>,
+         padding: <span class="hljs-string">'0px 10px 20px 30px'</span>,
+         position: <span class="hljs-string">'fixed'</span>,
+         right: <span class="hljs-number">0</span>,
+         bottom: <span class="hljs-number">0</span>,
+         top: <span class="hljs-string">'64px'</span>,
+         left: <span class="hljs-string">'400px'</span>,
+         overflowY: <span class="hljs-string">'auto'</span>,
+         overflowX: <span class="hljs-string">'hidden'</span>,
+       }}
+       id=<span class="hljs-string">"main-content"</span>
+     &gt;
+       {<span class="hljs-keyword">this</span>.renderMainContent()}
+     &lt;/div&gt;
+
+     &lt;div
+       style={{
+         position: <span class="hljs-string">'fixed'</span>,
+         top: <span class="hljs-string">'80px'</span>,
+         left: <span class="hljs-string">'15px'</span>,
+       }}
+     &gt;
+       &lt;i <span class="hljs-comment">//eslint-disable-line</span>
+         className=<span class="hljs-string">"material-icons"</span>
+         style={styleIcon}
+         onClick={<span class="hljs-keyword">this</span>.toggleChapterList}
+         onKeyPress={<span class="hljs-keyword">this</span>.toggleChapterList}
+         role=<span class="hljs-string">"button"</span>
+       &gt;
+         format_list_bulleted
+       &lt;/i&gt;
+     &lt;/div&gt;
+   &lt;/div&gt;
+ );
+}</code></pre><p>Notice that we passed the <code>user</code> prop and got <code>hideHeader</code> from <code>state</code> with:</p>
+<pre><code>const {<span class="hljs-built_in"> user </span>} = this.props;
+
+const {
+ chapter, showTOC, hideHeader,
+} = this.state;</code></pre></li>
+<li><p>We are getting close. We passed the <code>hideHeader</code> prop to the <code>Header</code> component, but we did not actually use this <code>prop</code> to hide the <code>Header</code> yet. Open <code>components/Header.js</code>, update this line of code:<br><code>function Header({ user })</code></p>
+<p>With:<br><code>function Header({ user, hideHeader })</code></p>
+<p>Then add <code>hideHeader</code> to propTypes and defaultProps:</p>
+<pre><code><span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">Header</span>.</span></span>propTypes = {
+ user: <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">PropTypes</span>.</span></span>shape({
+   avatarUrl: <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">PropTypes</span>.</span></span><span class="hljs-built_in">string</span>,
+   displayName: <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">PropTypes</span>.</span></span><span class="hljs-built_in">string</span>,
+ }),
+ hideHeader: <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">PropTypes</span>.</span></span><span class="hljs-built_in">bool</span>,
+};
+
+<span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">Header</span>.</span></span>defaultProps = {
+ user: null,
+ hideHeader: <span class="hljs-literal">false</span>,
+};</code></pre><p>To the <em>very first</em> <code>&lt;div&gt;</code> element of the <code>Header</code> component, which has no styles, add the following styles:</p>
+<pre><code>&lt;<span class="hljs-selector-tag">div</span>
+ style={{
+   <span class="hljs-attribute">overflow</span>: <span class="hljs-string">'hidden'</span>,
+   <span class="hljs-attribute">position</span>: <span class="hljs-string">'relative'</span>,
+   <span class="hljs-attribute">display</span>: <span class="hljs-string">'block'</span>,
+   <span class="hljs-attribute">top</span>: hideHeader ? <span class="hljs-string">'-64px'</span> : <span class="hljs-string">'0px'</span>,
+   <span class="hljs-attribute">transition</span>: <span class="hljs-string">'top 0.5s ease-in'</span>,
+ }}
+&gt;
+ &lt;Toolbar style={styleToolbar}&gt;
+   <span class="hljs-comment">// some code</span>
+ &lt;/Toolbar&gt;
+&lt;/div&gt;</code></pre><p>Save. We are ready to test!</p>
+<p>Start your app with <code>yarn dev</code> and navigate to <code>http://localhost:8000/books/demo-book/introduction</code>.</p>
+<p>Scroll down more than 500px:<br><img src="https://user-images.githubusercontent.com/10218864/36704187-147a6af2-1b14-11e8-8e89-1b270405e375.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>It works! <code>Header</code> indeed slides up and disappears. However, it leaves an empty space after disappearing.</p>
+</li>
+<li><p>After the <code>Header</code> disappears, it leaves an empty space, which does not look good. The best UX would be to slide up the main content, TOC, and icons <em>as</em> the <code>Header</code> slides up to disappear. To do so, we need to add conditional styles to three <code>&lt;div&gt;</code> elements inside the <code>ReadChapter</code> page.</p>
+<ul>
+<li>find the very first <code>&lt;div&gt;</code> element inside the <code>renderSidebar()</code> function:<pre><code>&lt;<span class="hljs-selector-tag">div</span>
+style={{
+ textAlign: <span class="hljs-string">'left'</span>,
+ <span class="hljs-attribute">position</span>: <span class="hljs-string">'absolute'</span>,
+ <span class="hljs-attribute">bottom</span>: <span class="hljs-number">0</span>,
+ <span class="hljs-attribute">top</span>: <span class="hljs-string">'64px'</span>,
+ <span class="hljs-attribute">left</span>: <span class="hljs-number">0</span>,
+ overflowY: <span class="hljs-string">'auto'</span>,
+ overflowX: <span class="hljs-string">'hidden'</span>,
+ <span class="hljs-attribute">width</span>: <span class="hljs-string">'400px'</span>,
+ <span class="hljs-attribute">padding</span>: <span class="hljs-string">'0px 25px'</span>,
+}}
+&gt;
+<span class="hljs-comment">// some code</span>
+&lt;/div&gt;</code></pre></li>
+</ul>
+<p>Update the <code>top</code> CSS property with the ternary operator <code>hideHeader ? 0 : '64px'</code>. Also, add a <code>transition</code> property:</p>
+<pre><code>&lt;<span class="hljs-selector-tag">div</span>
+ style={{
+   textAlign: <span class="hljs-string">'left'</span>,
+   <span class="hljs-attribute">position</span>: <span class="hljs-string">'absolute'</span>,
+   <span class="hljs-attribute">bottom</span>: <span class="hljs-number">0</span>,
+   <span class="hljs-attribute">top</span>: hideHeader ? <span class="hljs-number">0</span> : <span class="hljs-string">'64px'</span>,
+   <span class="hljs-attribute">transition</span>: <span class="hljs-string">'top 0.5s ease-in'</span>,
+   <span class="hljs-attribute">left</span>: <span class="hljs-number">0</span>,
+   overflowY: <span class="hljs-string">'auto'</span>,
+   overflowX: <span class="hljs-string">'hidden'</span>,
+   <span class="hljs-attribute">width</span>: <span class="hljs-string">'400px'</span>,
+   <span class="hljs-attribute">padding</span>: <span class="hljs-string">'0px 25px'</span>,
+ }}
+&gt;
+ <span class="hljs-comment">// some code</span>
+&lt;/div&gt;</code></pre><p>Remember to get <code>hideHeader</code> from <code>state</code>. Inside the <code>renderSidebar()</code> function, make sure that you have:</p>
+<pre><code>const {
+ showTOC, chapter, hideHeader,
+} = this.<span class="hljs-keyword">state</span>;</code></pre><ul>
+<li><p>The remaining two <code>&lt;div&gt;</code> elements are inside the <code>render()</code> function. Right under line <code>{this.renderSidebar()}</code>, find the following code snippet:</p>
+<pre><code>&lt;<span class="hljs-selector-tag">div</span>
+ style={{
+   textAlign: <span class="hljs-string">'left'</span>,
+   <span class="hljs-attribute">padding</span>: <span class="hljs-string">'0px 10px 20px 30px'</span>,
+   <span class="hljs-attribute">position</span>: <span class="hljs-string">'fixed'</span>,
+   <span class="hljs-attribute">right</span>: <span class="hljs-number">0</span>,
+   <span class="hljs-attribute">bottom</span>: <span class="hljs-number">0</span>,
+   <span class="hljs-attribute">top</span>: <span class="hljs-string">'64px'</span>,
+   <span class="hljs-attribute">left</span>: <span class="hljs-string">'400px'</span>,
+   overflowY: <span class="hljs-string">'auto'</span>,
+   overflowX: <span class="hljs-string">'hidden'</span>,
+ }}
+ id=<span class="hljs-string">"main-content"</span>
+&gt;
+ {this.renderMainContent()}
+&lt;/div&gt;
+
+&lt;<span class="hljs-selector-tag">div</span>
+ style={{
+   <span class="hljs-attribute">position</span>: <span class="hljs-string">'fixed'</span>,
+   <span class="hljs-attribute">top</span>: <span class="hljs-string">'80px'</span>,
+   <span class="hljs-attribute">left</span>: <span class="hljs-string">'15px'</span>,
+ }}
+&gt;
+ &lt;<span class="hljs-selector-tag">i</span> <span class="hljs-comment">// eslint-disable-line</span>
+   className=<span class="hljs-string">"material-icons"</span>
+   style={styleIcon}
+   onClick={this.toggleChapterList}
+   onKeyPress={this.toggleChapterList}
+   role=<span class="hljs-string">"button"</span>
+ &gt;
+   format_list_bulleted
+ &lt;/i&gt;
+&lt;/div&gt;
+&lt;/div&gt;</code></pre></li>
+</ul>
+<p>Update the <code>top</code> CSS property with the ternary operator <code>hideHeader ? 0 : '64px'</code>. Also, add a <code>transition</code> property:</p>
+<pre><code> &lt;<span class="hljs-selector-tag">div</span>
+   style={{
+     textAlign: <span class="hljs-string">'left'</span>,
+     <span class="hljs-attribute">padding</span>: <span class="hljs-string">'0px 10px 20px 30px'</span>,
+     <span class="hljs-attribute">position</span>: <span class="hljs-string">'fixed'</span>,
+     <span class="hljs-attribute">right</span>: <span class="hljs-number">0</span>,
+     <span class="hljs-attribute">bottom</span>: <span class="hljs-number">0</span>,
+     <span class="hljs-attribute">top</span>: hideHeader ? <span class="hljs-number">0</span> : <span class="hljs-string">'64px'</span>,
+     <span class="hljs-attribute">transition</span>: <span class="hljs-string">'top 0.5s ease-in'</span>,
+     <span class="hljs-attribute">left</span>: <span class="hljs-string">'400px'</span>,
+     overflowY: <span class="hljs-string">'auto'</span>,
+     overflowX: <span class="hljs-string">'hidden'</span>,
+   }}
+   id=<span class="hljs-string">"main-content"</span>
+ &gt;
+   {this.renderMainContent()}
+ &lt;/div&gt;
+
+ &lt;<span class="hljs-selector-tag">div</span>
+   style={{
+     <span class="hljs-attribute">position</span>: <span class="hljs-string">'fixed'</span>,
+     <span class="hljs-attribute">top</span>: hideHeader ? <span class="hljs-string">'20px'</span> : <span class="hljs-string">'80px'</span>,
+     <span class="hljs-attribute">transition</span>: <span class="hljs-string">'top 0.5s ease-in'</span>,
+     <span class="hljs-attribute">left</span>: <span class="hljs-string">'15px'</span>,
+   }}
+ &gt;
+   &lt;<span class="hljs-selector-tag">i</span> <span class="hljs-comment">//eslint-disable-line</span>
+     className=<span class="hljs-string">"material-icons"</span>
+     style={styleIcon}
+     onClick={this.toggleChapterList}
+     onKeyPress={this.toggleChapterList}
+     role=<span class="hljs-string">"button"</span>
+   &gt;
+     format_list_bulleted
+   &lt;/i&gt;
+ &lt;/div&gt;
+&lt;/div&gt;</code></pre></li>
+</ol>
+<p>Let's test again.</p>
+<p>Start your app with <code>yarn dev</code> and navigate to <code>http://localhost:8000/books/demo-book/introduction</code>.</p>
+<p>Scroll down more than 500px:<br><img src="https://user-images.githubusercontent.com/10218864/36704839-fdd52eec-1b16-11e8-9532-469b8dd84c1f.png" style="border: 1px solid #ddd;" width="100%" alt="Builder Book"></p>
+<p>As expected, three <code>&lt;div&gt;</code> elements slide up <em>at the same time</em> as the <code>Header</code>. Thus, we solved the UX problem of an empty space that remains after <code>Header</code> disappears.</p>
+<p>In the next and final section of this chapter, we will add conditional styles to the <code>ReadChapter</code> page to make it look good on both desktop and mobile browsers.</p>
+<h2 class="chapter-section" style="color: #FFF; font-weight: 400;">
+        <a name="mobile-browser" href="#mobile-browser" style="color: #FFF;"> 
+          <i class="material-icons" style="vertical-align: middle; opacity: 0.5; cursor: pointer; color: FFF;">
+            link
+          </i>
+        </a>
+        <span class="section-anchor" name="mobile-browser">
+          Mobile browser
+        </span>
+      </h2><p><code>ReadChapter</code> page looks great on desktop but not on the mobile browser. These are the problems:</p>
+<ol>
+<li>if we add ample <code>padding</code> - say <code>{{ padding: '20px 20%' }}</code> - to our <code>&lt;div&gt;</code> that contains chapter content (<code>htmlContent</code>), then the content will look good on the desktop browser but be unreadable on the mobile browser</li>
+<li>on mobile, we want the TOC to have <code>{{ width: '100%' }}</code>, but that would be a disaster on desktop</li>
+<li>on mobile, since chapter content is not visible when the TOC is opened, we want the TOC to auto-close when a user clicks on any link within the TOC</li>
+<li>when a user closes the TOC on both desktop and mobile browsers, the TOC leaves an empty space after disappearing</li>
+<li>when a user clicks on a new chapter link inside the TOC, the page preserves the scroll level instead of showing the user the beginning of a new chapter</li>
+</ol>
+<p>Last two UX issues are problems on both mobile and desktop browsers:</p>
+<p>In this chapter, we wrote a bunch of conditional styles. As a result, you probably guessed that to solve the above issues, we are going to introduce a boolean parameter: <code>isMobile</code>. And we're going to write several conditional styles (with the ternary operator) with this parameter.</p>
+<p>To define <code>isMobile</code>, we should compare <code>window.innerWidth</code> to 768px, a typical breakpoint for mobile view. Where should we define <code>isMobile</code>? Actually, we have no choice but to define it in the <code>componentDidMount()</code> lifecycle hook.</p>
+<p>When an initial request comes from browser to server, Next.js renders the page on the server. At this point, the <code>window</code> object is not available on the server. On the browser, after <code>ReadChapter</code> component mounts, the <code>window</code> object becomes available. You can try using <code>window.innerWidth</code> in the server code or inside the <code>componentWillMount()</code> lifecycle hook - but you will get an error:</p>
+<pre>ReferenceError: window is not defined</pre>
+
+<p>Defining <code>isMobile</code> is straightforward after you defined <code>hideHeader</code> earlier:</p>
+<pre>const hideHeader = distanceFromTop &gt; 500</pre>
+
+<p><code>isMobile</code> is true when:</p>
+<pre>const isMobile = window.innerWidth &lt; 768</pre>
+
+<p>We set <code>state</code> in the same we did for <code>activeSection</code> and <code>hideHeader</code>:</p>
+<pre><code><span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.state.isMobile !== isMobile) {
+  <span class="hljs-keyword">this</span>.setState({ isMobile }); <span class="hljs-comment">// eslint-disable-line</span>
+}</code></pre><p>Update the <code>componentDidMount()</code> lifecycle hook inside the <code>ReadChapter</code> page:</p>
+<pre><code>component<span class="hljs-constructor">DidMount()</span> {
+  document.get<span class="hljs-constructor">ElementById('<span class="hljs-params">main</span>-<span class="hljs-params">content</span>')</span>.add<span class="hljs-constructor">EventListener('<span class="hljs-params">scroll</span>', <span class="hljs-params">this</span>.<span class="hljs-params">onScroll</span>)</span>;
+
+  const isMobile = window.innerWidth &lt; <span class="hljs-number">768</span>;
+
+  <span class="hljs-keyword">if</span> (this.state.isMobile !== isMobile) {
+    this.set<span class="hljs-constructor">State({ <span class="hljs-params">isMobile</span> })</span>; <span class="hljs-comment">// eslint-disable-line</span>
+  }
+}</code></pre><p>Remember to initiate state with <code>isMobile</code> and add <code>isMobile</code> to <code>constructor</code>. Find and update the following code snippet:</p>
+<pre><code><span class="hljs-string">this.state</span> <span class="hljs-string">=</span> <span class="hljs-string">{</span>
+<span class="hljs-attr">  showTOC:</span> <span class="hljs-literal">false</span><span class="hljs-string">,</span>
+  <span class="hljs-string">chapter,</span>
+  <span class="hljs-string">htmlContent,</span>
+<span class="hljs-attr">  hideHeader:</span> <span class="hljs-literal">false</span><span class="hljs-string">,</span>
+<span class="hljs-attr">  isMobile:</span> <span class="hljs-literal">false</span><span class="hljs-string">,</span>
+<span class="hljs-string">};</span></code></pre><p>Now we can use <code>isMobile</code> to write conditional styles (if browser is mobile, app will apply mobile-specific styles). We will discuss and solve 5 problems stated earlier in this section.</p>
+<ol>
+<li><p>Find function <code>renderMainContent()</code> in <code>pages/public/read-chapter.js</code>. We will add a conditional style to the <code>padding</code> property of the very first <code>&lt;div&gt;</code> element. Remember to define <code>isMobile</code> inside the <code>renderMainContent()</code> function:</p>
+<pre><code>const {
+ chapter, htmlContent, showTOC, isMobile,
+} = this.<span class="hljs-keyword">state</span>;</code></pre><p>Padding will depend on both <code>isMobile</code> (mobile/desktop view) and <code>showTOC</code> (when TOC is closed, give larger padding):</p>
+<pre><code>let <span class="hljs-attribute">padding</span> = <span class="hljs-string">'20px 20%'</span>;
+
+<span class="hljs-keyword">if</span> (!isMobile &amp;&amp; showTOC) {
+ <span class="hljs-attribute">padding</span> = <span class="hljs-string">'20px 10%'</span>;
+} <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (isMobile) {
+ <span class="hljs-attribute">padding</span> = <span class="hljs-string">'0px 10px'</span>;
+}</code></pre><p>At this point, we defined <code>padding</code> and can use as inline style with simple <code>style={{ padding }}</code>:</p>
+<pre><code>&lt;div style={{ padding }} id=<span class="hljs-string">"chapter-content"</span>&gt;
+ &lt;h2 style={{ fontWeight: <span class="hljs-string">'400'</span>, lineHeight: <span class="hljs-string">'1.5em'</span> }}&gt;
+   {chapter.order &gt; <span class="hljs-number">1</span> ? `Chapter ${chapter.order - <span class="hljs-number">1</span>}: ` : null}
+   {chapter.title}
+ &lt;/h2&gt;
+ &lt;div
+   // eslint-disable-next-line react/no-danger
+   dangerouslySetInnerHTML={{ __html: htmlContent }}
+ /&gt;
+&lt;/div&gt;</code></pre><p>Notice that we added <code>id="chapter-content"</code>. We will use this to identify an element when solving a problem in step 5.</p>
+</li>
+<li><p>Find the <code>renderSidebar()</code> function. In the very first <code>&lt;div&gt;</code> element, add the ternary operator <code>isMobile ? '100%' : '400px'</code> to the <code>width</code> property like this:</p>
+<pre><code>&lt;<span class="hljs-selector-tag">div</span>
+ style={{
+   textAlign: <span class="hljs-string">'left'</span>,
+   <span class="hljs-attribute">position</span>: <span class="hljs-string">'absolute'</span>,
+   <span class="hljs-attribute">bottom</span>: <span class="hljs-number">0</span>,
+   <span class="hljs-attribute">top</span>: hideHeader ? <span class="hljs-number">0</span> : <span class="hljs-string">'64px'</span>,
+   <span class="hljs-attribute">transition</span>: <span class="hljs-string">'top 0.5s ease-in'</span>,
+   <span class="hljs-attribute">left</span>: <span class="hljs-number">0</span>,
+   overflowY: <span class="hljs-string">'auto'</span>,
+   overflowX: <span class="hljs-string">'hidden'</span>,
+   <span class="hljs-attribute">width</span>: isMobile ? <span class="hljs-string">'100%'</span> : <span class="hljs-string">'400px'</span>,
+   <span class="hljs-attribute">padding</span>: <span class="hljs-string">'0px 25px'</span>,
+ }}
+&gt;
+ <span class="hljs-comment">// some code</span>
+&lt;/div&gt;</code></pre><p>As always, remember to define variables inside the function:</p>
+<pre><code>const {
+ showTOC, chapter, hideHeader, isMobile,
+} = this.<span class="hljs-keyword">state</span>;</code></pre></li>
+<li><p>To solve this issue, we need to write a function <code>closeTocWhenMobile</code>:</p>
+<pre><code>closeTocWhenMobile = () =&gt; {
+ this.<span class="hljs-built_in">set</span>State({ showTOC: !this.<span class="hljs-keyword">state</span>.isMobile });
+};</code></pre><p>Add this function right above the <code>renderMainContent()</code> function.</p>
+<p>We defined the function, and now we need to make sure that the function gets executed when a user clicks on hyperlinks inside the TOC. We need to add an <code>onClick</code> DOM event handler that executes <code>closeTocWhenMobile</code>:</p>
+<p>Inside the <code>renderSections()</code> function, update <code>&lt;a&gt;</code> as follows:</p>
+<pre><code>&lt;a
+ style={{
+   color: activeSection &amp;&amp; activeSection.hash === s.escapedText ? <span class="hljs-string">'#1565C0'</span> : <span class="hljs-string">'#222'</span>,
+ }}
+ href={`#${s.escapedText}`}
+ onClick={this.closeTocWhenMobile}
+&gt;
+ {s.text}
+&lt;/a&gt;</code></pre><p>Inside the <code>renderSidebar()</code> function, update <code>&lt;a&gt;</code> as follows:</p>
+<pre><code>&lt;a // eslint-disable-line
+ style={{ color: chapter._id === ch._id ? <span class="hljs-string">'#1565C0'</span> : <span class="hljs-string">'#222'</span> }}
+ onClick={this.closeTocWhenMobile}
+ &gt;
+ {ch.title}
+&lt;/a&gt;</code></pre></li>
+<li><p>To solve the empty space problem to the left of the <code>&lt;div&gt;</code> with <code>id="main-content"</code>, we need to add a conditional style to the CSS property <code>left</code>. Inside <code>render()</code> at <code>pages/public/read-chapter.js</code>, remember to define <code>isMobile</code>:</p>
+<pre><code>const {
+ chapter, showTOC, hideHeader, isMobile,
+} = this.<span class="hljs-keyword">state</span>;</code></pre><p>Define <code>left</code> by using both <code>isMobile</code> and <code>showTOC</code>:</p>
+<pre><code><span class="hljs-attribute">let</span> left = <span class="hljs-string">'20px'</span>;
+<span class="hljs-attribute">if</span> (showTOC) {
+ <span class="hljs-attribute">left</span> = isMobile ? <span class="hljs-string">'100%'</span> : <span class="hljs-string">'400px'</span>;
+}</code></pre><p>Add this snippet right above <code>return ()</code> inside <code>render()</code>.</p>
+<p>Now that you've defined <code>left</code>, add it as an inline style with the simple <code>style={{ left }}</code>:</p>
+<pre><code>&lt;<span class="hljs-selector-tag">div</span>
+ style={{
+   textAlign: <span class="hljs-string">'left'</span>,
+   <span class="hljs-attribute">padding</span>: <span class="hljs-string">'0px 10px 20px 30px'</span>,
+   <span class="hljs-attribute">position</span>: <span class="hljs-string">'fixed'</span>,
+   <span class="hljs-attribute">right</span>: <span class="hljs-number">0</span>,
+   <span class="hljs-attribute">bottom</span>: <span class="hljs-number">0</span>,
+   <span class="hljs-attribute">top</span>: hideHeader ? <span class="hljs-number">0</span> : <span class="hljs-string">'64px'</span>,
+   <span class="hljs-attribute">transition</span>: <span class="hljs-string">'top 0.5s ease-in'</span>,
+   <span class="hljs-attribute">left</span>,
+   overflowY: <span class="hljs-string">'auto'</span>,
+   overflowX: <span class="hljs-string">'hidden'</span>,
+ }}
+ id=<span class="hljs-string">"main-content"</span>
+&gt;
+ <span class="hljs-comment">// some code</span>
+&lt;/div&gt;</code></pre><p>Done.</p>
+</li>
+<li><p>When a user clicks a hyperlinked chapter title inside the TOC, this new chapter loads at the same scroll depth as the previous chapter.<br>To scroll an element into view, we use the JavaScript method <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView" rel="noopener noreferrer">scrollIntoView()</a> on the <code>&lt;div&gt;</code> element with <code>id="chapter-content</code> (we added this id in step 1):</p>
+<pre>document.getElementById('chapter-content').scrollIntoView();</pre>
+
+<p>Add this single line of code above to the <code>componentWillReceiveProps(nextProps)</code> lifecycle hook that we discussed in <a target="_blank" href="http://localhost:8000/books/builder-book/book-and-chapter-models-internal-api-render-chapter#readchapter-page" rel="noopener noreferrer">Chapter 5</a> as follows:</p>
+<pre><code>component<span class="hljs-constructor">WillReceiveProps(<span class="hljs-params">nextProps</span>)</span> {
+ const { chapter } = nextProps;
+
+ <span class="hljs-keyword">if</span> (chapter<span class="hljs-operator"> &amp;&amp; </span>chapter._id !== this.props.chapter._id) {
+   document.get<span class="hljs-constructor">ElementById('<span class="hljs-params">chapter</span>-<span class="hljs-params">content</span>')</span>.scroll<span class="hljs-constructor">IntoView()</span>;
+   const { htmlContent } = chapter;
+   this.set<span class="hljs-constructor">State({ <span class="hljs-params">chapter</span>, <span class="hljs-params">htmlContent</span> })</span>;
+ }
+}</code></pre></li>
+</ol>
+<p>We are done with conditional styles for mobile browser.</p>
+<p>Start your app with <code>yarn dev</code> and inspect the conditional styles with <code>Developer tools &gt; Elements</code>.</p>
+<p>To toggle between devices, go to <code>Developer tools</code> and click the <code>Toggle device</code> icon that is located to the left of the <code>Elements</code> tab. You should see how our styles change between mobile devices and the desktop.</p>
+<p>It's important to mention user experience on a mobile browser. Since we placed <code>const isMobile = window.innerWidth &lt; 768</code> inside page's <code>componentDidMount()</code> - user will see a flash of style. In other words, on the first page load on a mobile browser, the end user will see desktop browser styles. A moments later, after <code>componentDidMount()</code> code block is executed and page component rerenders, the end user will see mobile browser styles. Thus the end user will see a brief flash of style.</p>
+<p>To avoid the flash of style, our app's server has to know whether the user uses a mobile browser on the very first HTTP request. If the server knows that the browser is mobile, then the server can apply mobile browser styles to the page and render it. In other words, a page will be server-side rendered with styles for a mobile browser. This can be achieved if the server reads so-called <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/User-Agent" rel="noopener noreferrer">User-Agent</a> that contains detailed information about user's browser. We implemented such logic in our open source SaaS boilerplate, check out <a target="_blank" href="https://github.com/async-labs/saas/blob/master/app/lib/isMobile.ts" rel="noopener noreferrer">isMobile.ts file</a>.</p>
+<p>In the next chapter (Chapter 8), we will add all code necessary to sell a book.</p>
+<hr>
+<p>At the end of Chapter 7, your codebase should look like the codebase in <code>7-end</code>. The <a target="_blank" href="https://github.com/builderbook/builderbook/tree/master/book/7-end" rel="noopener noreferrer">7-end</a> folder is located at the root of the <code>book</code> directory inside the <a target="_blank" href="https://github.com/builderbook/builderbook" rel="noopener noreferrer">builderbook repo</a>.</p>
+<p>Compare your codebase and make edits if needed.</p>
+<p>One chapter left! If you're enjoying the book, please share a quick <a target="_blank" href="https://goo.gl/forms/JdevtnCWsLwZTAio2" rel="noopener noreferrer">review</a>. You can update your review at any time.</p>
+<hr>
+<br>
+</div></div>
